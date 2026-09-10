@@ -20,11 +20,12 @@ add_subdirectory(third_party/minhook EXCLUDE_FROM_ALL)
 add_library(fm8plus_core STATIC
   src/core/fm8plus.cpp
   src/core/settings.cpp
-  src/core/ui.cpp)
+  src/core/ui.cpp
+  src/core/embedded_otf.cpp)
 target_include_directories(fm8plus_core PUBLIC
   src/core
   third_party/minhook/include)
-target_link_libraries(fm8plus_core PUBLIC minhook Shlwapi Winmm)
+target_link_libraries(fm8plus_core PUBLIC minhook Shlwapi Winmm Gdiplus)
 
 # helper: make a shim that emits <name>.<ext> with no lib prefix
 function(fm8_shim tgt src outname ext)

@@ -1,17 +1,66 @@
 #include "ui.h"
 #include "fm8plus.h"
 #include "settings.h"
+#include "embedded_otf.h"
 #include <windowsx.h>
+#include <objidl.h>
+// GDI+ headers reference the min/max macros that the project's NOMINMAX removes; restore them locally.
+#ifndef min
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#define FM8PLUS_TMP_MINMAX
+#endif
+#include <gdiplus.h>
+#ifdef FM8PLUS_TMP_MINMAX
+#undef min
+#undef max
+#undef FM8PLUS_TMP_MINMAX
+#endif
 #include <algorithm>
 #include <cmath>
 
 namespace fm8plus::ui {
 namespace {
 const wchar_t* kClass = L"FM8plusOverlay";
-constexpr int kW = 26, kH = 32;               // small transparent window holding just the "+"
+constexpr int kW = 30, kH = 36;               // small transparent window holding just the "+"
+constexpr int kFontPx = 22;                   // custom "+" pixel size (smaller than the logo)
 const int kLR = 107, kLG = 125, kLB = 134;    // sampled FM8 logo blue-grey (the "+" colour)
 const int kSR = 214, kSG = 235, kSB = 248;    // shimmer highlight colour
 constexpr int kTimerGlue = 1, kTimerShine = 2;
+
+// GDI+ startup and the embedded custom font, loaded once for this process.
+struct GpFont {
+    ULONG_PTR token = 0;
+    Gdiplus::PrivateFontCollection* coll = nullptr;
+    Gdiplus::FontFamily* fam = nullptr;
+    Gdiplus::FontStyle style = Gdiplus::FontStyleRegular;
+    bool ok = false;
+};
+GpFont& gpFont() {
+    static GpFont g; static bool init = false;
+    if (!init) {
+        init = true;
+        Gdiplus::GdiplusStartupInput in;
+        if (Gdiplus::GdiplusStartup(&g.token, &in, nullptr) == Gdiplus::Ok) {
+            g.coll = new Gdiplus::PrivateFontCollection();
+            g.coll->AddMemoryFont(kEmbeddedOtf, (INT)kEmbeddedOtfLen);
+            // The win32 family name varies by weight/style ("custom" for the regular,
+            // "Embedded Font" for the italic), so try a few candidates and pick whatever style the
+            // matching family actually provides (a single italic face may be exposed as Regular).
+            for (const wchar_t* nm : {L"Embedded Font", L"custom", L"EmbeddedFont"}) {
+                auto* fam = new Gdiplus::FontFamily(nm, g.coll);
+                if (fam->IsAvailable()) {
+                    for (Gdiplus::FontStyle s : {Gdiplus::FontStyleItalic, Gdiplus::FontStyleRegular,
+                                                 Gdiplus::FontStyleBoldItalic, Gdiplus::FontStyleBold})
+                        if (fam->IsStyleAvailable(s)) { g.fam = fam; g.style = s; g.ok = true; break; }
+                }
+                if (g.ok) break;
+                delete fam;
+            }
+        }
+    }
+    return g;
+}
 
 // Command id ranges (kept apart so one TrackPopupMenu return value tells us which control fired).
 enum {
@@ -44,20 +93,34 @@ void renderPlus(HWND hwnd, OData* d) {
     auto* px = (uint32_t*)bits;
     for (int i = 0; i < w * h; ++i) px[i] = 0;             // fully transparent
 
-    // Plus geometry: centred, arm thickness ~6px, sized to match the ~30px-tall logo strokes.
-    const int cx = w / 2, cy = h / 2, th = 6, arm = 12;
-    const float bandX = d->shine * (w + 20) - 10;          // shimmer band centre
-    for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
-        const bool inH = (x >= cx - arm && x <= cx + arm) && (y >= cy - th / 2 && y <= cy + th / 2);
-        const bool inV = (y >= cy - arm && y <= cy + arm) && (x >= cx - th / 2 && x <= cx + th / 2);
-        if (!(inH || inV)) continue;
-        int r = kLR, g = kLG, b = kLB;
+    // Draw the "+" with the custom font (antialiased, per-pixel alpha) into a GDI+ PARGB
+    // bitmap, then copy it into the layered DIB. Centred; a highlight band sweeps across on hover.
+    GpFont& gf = gpFont();
+    if (gf.ok) {
+        Gdiplus::Bitmap bmp(w, h, PixelFormat32bppPARGB);
+        Gdiplus::Graphics gr(&bmp);
+        gr.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        gr.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+        gr.Clear(Gdiplus::Color(0, 0, 0, 0));
+        Gdiplus::Font font(gf.fam, (Gdiplus::REAL)kFontPx, gf.style, Gdiplus::UnitPixel);
+        Gdiplus::StringFormat sf;
+        sf.SetAlignment(Gdiplus::StringAlignmentCenter);
+        sf.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+        Gdiplus::RectF box(0, 0, (Gdiplus::REAL)w, (Gdiplus::REAL)h);
+        Gdiplus::SolidBrush base(Gdiplus::Color(255, kLR, kLG, kLB));
+        gr.DrawString(L"+", 1, &font, box, &sf, &base);
         if (d->hovering) {
-            // A soft highlight band sweeps across the plus (peak at bandX, ~7px falloff).
-            float t = 1.0f - std::min(1.0f, std::abs(x - bandX) / 7.0f);
-            if (t > 0) { r += (int)((kSR - r) * t); g += (int)((kSG - g) * t); b += (int)((kSB - b) * t); }
+            const Gdiplus::REAL bandX = d->shine * (w + 20) - 10;   // sweeping highlight band
+            gr.SetClip(Gdiplus::RectF(bandX - 5, 0, 10, (Gdiplus::REAL)h));
+            Gdiplus::SolidBrush shine(Gdiplus::Color(255, kSR, kSG, kSB));
+            gr.DrawString(L"+", 1, &font, box, &sf, &shine);
+            gr.ResetClip();
         }
-        px[y * w + x] = (255u << 24) | (r << 16) | (g << 8) | b;  // premultiplied (alpha 255)
+        Gdiplus::Rect rr(0, 0, w, h); Gdiplus::BitmapData bd;
+        if (bmp.LockBits(&rr, Gdiplus::ImageLockModeRead, PixelFormat32bppPARGB, &bd) == Gdiplus::Ok) {
+            for (int y = 0; y < h; ++y) memcpy(px + y * w, (uint8_t*)bd.Scan0 + y * bd.Stride, (size_t)w * 4);
+            bmp.UnlockBits(&bd);
+        }
     }
 
     POINT ptSrc{0, 0}, ptDst{wr.left, wr.top}; SIZE sz{w, h};
@@ -168,7 +231,7 @@ LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 // Standalone: keep the "+" glued to the right of FM8's logo; close when FM8 goes away.
                 if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
                 RECT r; GetWindowRect(d->target, &r);
-                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 109, r.top + 80, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 112, r.top + 82, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
             }
             return 0;
         case WM_NCDESTROY:
@@ -198,7 +261,7 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST, kClass, L"",
                             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-                            109, 26, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
+                            112, 22, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
     if (hwnd_) { SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d); renderPlus(hwnd_, d); }
     else delete d;
 }
@@ -242,7 +305,7 @@ void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeo
     RECT r; GetWindowRect(fm8, &r);
     auto* d = new OData{st, fm8};
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
-                            r.left + 109, r.top + 80, kW, kH, nullptr, nullptr, self, nullptr);  // after the logo
+                            r.left + 112, r.top + 82, kW, kH, nullptr, nullptr, self, nullptr);  // after the logo
     if (!hwnd_) { delete d; return; }
     st_ = st;
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
