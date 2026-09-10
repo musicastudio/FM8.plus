@@ -10,3 +10,4 @@ dist/
 /build/
 /out/
 /third_party/pluginterfaces
+installer/Output/

@@ -35,9 +35,9 @@ event out: 1 bus(es)
 
 **Standalone**: builds; `version.dll` exports exactly the four functions FM8.exe imports; reuses the
 same core proven under VST2. Confirmed by launching the real FM8.exe with `version.dll` sideloaded:
-our DLL loads, the init runs (the `%APPDATA%\FM8.plus` settings dir is created), and the floating
-**FM8+** button appears on FM8's window with the working toggle menu (mod-wheel-morph checkbox and
-the three-way arp MIDI-out submenu). Screenshotted.
+our DLL loads, the init runs (the `%APPDATA%\FM8.plus` settings dir is created), the logo shifts and
+the drawn **FM8+** "+" renders beside it, and clicking it opens the menu with all four
+submenus (Morph Rotate Control, Arpeggiator MIDI out, Tempo Override, Increase Gain). Screenshotted.
 
 **Installer**: `install.ps1` / `uninstall.ps1` round-trip verified in a scratch tree (originals
 renamed to `FM8.plus.core`, proxies dropped in, `version.dll` sideloaded; uninstall restores stock).
@@ -47,8 +47,10 @@ renamed to `FM8.plus.core`, proxies dropped in, `version.dll` sideloaded; uninst
 - **VST3 arp MIDI out audio path.** The bus registers headless; routing the notes through a real
   host (Cubase, Reaper, Bitwig, Studio One) and hearing/receiving them is unverified. Some hosts
   cache bus layouts and need one plugin rescan after install.
-- **VST3 mod-wheel morph** relies on the host delivering param id `0x6d69646b` in
-  `inputParameterChanges`; confirmed as the mapping target, not yet observed live.
+- **VST3 morph on the mapped CC** relies on the host delivering the CC's parameter id (found via
+  `IMidiMapping`) in `inputParameterChanges`; confirmed as the mapping target, not yet observed live.
+- **Tempo Override and Increase Gain** are verified headless under VST2; the VST3 process-context
+  tempo scaling and both features under the standalone still want a listening test in a DAW.
 - **Standalone** overlay button and menu confirmed on a real run (see above); the arp-out to a WinMM
   port and the actual audio still need a listening test with a MIDI monitor.
 - **VST2 host coverage.** Plugin-to-host MIDI is not routed by every host; where a host drops it,

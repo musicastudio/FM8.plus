@@ -32,17 +32,19 @@ const
   VST3 = 'C:\Program Files\Common Files\VST3\FM8.vst3';
   EXEP = 'C:\Program Files\Native Instruments\FM8\FM8.exe';
 
+// Read the PE header timestamp. Inno's TStream.ReadBuffer won't take a raw
+// scalar/array the way Delphi does, so slurp the file and index bytes (1-based
+// AnsiString). ponytail: LoadStringFromFile reads the whole DLL for a header
+// field; fine for a one-time admin install, only the first ~0x120 bytes matter.
 function PeTimeStamp(const Path: string): Cardinal;
-var S: TStream; peOff: Integer; ts: Cardinal;
+var s: AnsiString; peOff: Cardinal;
 begin
   Result := 0;
-  if not FileExists(Path) then exit;
-  S := TFileStream.Create(Path, fmOpenRead or fmShareDenyNone);
-  try
-    S.Seek(60, soFromBeginning); S.ReadBuffer(peOff, 4);
-    S.Seek(peOff + 8, soFromBeginning); S.ReadBuffer(ts, 4);
-    Result := ts;
-  finally S.Free; end;
+  if not LoadStringFromFile(Path, s) then exit;
+  if Length(s) < 64 then exit;
+  peOff := Cardinal(Ord(s[61])) or (Cardinal(Ord(s[62])) shl 8) or (Cardinal(Ord(s[63])) shl 16) or (Cardinal(Ord(s[64])) shl 24);
+  if Cardinal(Length(s)) < peOff + 12 then exit;
+  Result := Cardinal(Ord(s[peOff+9])) or (Cardinal(Ord(s[peOff+10])) shl 8) or (Cardinal(Ord(s[peOff+11])) shl 16) or (Cardinal(Ord(s[peOff+12])) shl 24);
 end;
 
 function CoreOf(const Orig: string): string;
@@ -60,7 +62,7 @@ begin
     if PeTimeStamp(Orig) <> EXPECTED_TS then exit;   // unexpected build, leave alone
     RenameFile(Orig, core);
   end;
-  FileCopy(Staged, Orig, False);
+  CopyFile(Staged, Orig, False);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -70,7 +72,7 @@ begin
     InstallProxy(VST2, ExpandConstant('{app}\FM8.dll'));
     InstallProxy(VST3, ExpandConstant('{app}\FM8.vst3'));
     if FileExists(EXEP) and (PeTimeStamp(EXEP) = EXPECTED_TS) then
-      FileCopy(ExpandConstant('{app}\version.dll'), ExtractFilePath(EXEP) + 'version.dll', False);
+      CopyFile(ExpandConstant('{app}\version.dll'), ExtractFilePath(EXEP) + 'version.dll', False);
   end;
 end;
 

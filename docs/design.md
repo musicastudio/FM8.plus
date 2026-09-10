@@ -1,11 +1,19 @@
 # FM8.plus design
 
-Two features added to Native Instruments FM8 (build 2022-12-23) across the standalone
-`FM8.exe`, the 64-bit VST2 `FM8.dll`, and `FM8.vst3`:
+This is the original design note for the first two features. The shipped version extends it:
+the morph maps any MIDI CC (not just the mod wheel), and two more features were added, Tempo
+Override and Increase Gain. See the README for the current feature set; the mechanisms below still
+describe how the morph and arp paths work.
 
-1. A toggle that maps the mod wheel (CC1) to a rotation of the Morph square handle.
+Features added to Native Instruments FM8 (build 2022-12-23) across the standalone `FM8.exe`, the
+64-bit VST2 `FM8.dll`, and `FM8.vst3`:
+
+1. A toggle that maps a chosen MIDI CC (originally the mod wheel, CC1) to a rotation of the Morph
+   square handle.
 2. A toggle with three arpeggiator modes: Internal (stock), Clone to MIDI (play internally
    and send the arp notes to the plugin MIDI output), MIDI only (send only, FM8 silent).
+3. Tempo Override: scale the host tempo the arp follows (0.25x to 4x, or Custom).
+4. Increase Gain: extra output gain, up to +10 dB.
 
 The binaries never receive another update, so every internal function sits at a fixed RVA
 forever. That is what makes an in-process hook layer, rather than a rebuild, the right tool.
