@@ -27,17 +27,23 @@ Prefer scripts, or building it yourself? From an elevated PowerShell run `powers
 Having the Arpeggiator provide MIDI output is one of the most requested features for FM8, appearing on Reddit and various forums, and something I have wanted for a long time.
 
 Next, the idea of using the modwheel (or another midi CC) to rotate the morph control was asked by me on the Native Instruments forums in 2013, with my original diagram.
-<img width="465" height="517" alt="FM8_Native_Instruments ModWheel Idea" src="https://github.com/user-attachments/assets/8932e0ba-739a-4813-bd0c-96d18f929c9c" />
 
-So this project began with the question, can modern AI tooling allow us to make these "dreams" a reality? And how many more features can we add that people might find useful?
+<kbd>
+<img width="465" height="517" alt="FM8_Native_Instruments ModWheel Idea" src="https://github.com/user-attachments/assets/8932e0ba-739a-4813-bd0c-96d18f929c9c" border="2" />
+</kbd>
+<br /><br />
 
-What about some further enhancements? I came across [this reddit wishlist by Manifold_dnb](https://www.reddit.com/r/edmproduction/comments/7o87oy/native_instruments_fm9_wishlist_fm8/) with tempo detachment and gain taken from this list as further potential enhancements.
+I found [this reddit wishlist by Manifold_dnb](https://www.reddit.com/r/edmproduction/comments/7o87oy/native_instruments_fm9_wishlist_fm8/) with tempo detachment and gain taken from this list as further potential enhancements.
 
-The three modules (the standalone `FM8.exe`, the VST2 `FM8.dll`, and `FM8.vst3`) were disassembled with [Ghidra](https://ghidra-sre.org/), and the decompiled C was read function by function to locate the internal machinery each feature had to reach, namely the arpeggiator dispatch, the MIDI event handler, the internal Morph X/Y setter, and the form resource that holds the FM8 logo.
+This project began with the question: **Can modern AI tooling allow us to make these "dreams" a reality?**
 
-That reverse engineering was driven by Claude Fable 5.1. It worked through Ghidra's decompiler output, proposed and adversarially checked where each hook belonged, and confirmed the target functions are byte-identical across all three binaries so one set of detours works in every host. From there it wrote the hook code, the per-host proxies, and the headless test hosts that verify each feature against the real FM8, and the whole thing was built and checked with the model in the loop end to end. The reverse-engineering notes and the exact hook addresses are in [docs/hooks.md](docs/hooks.md) and [docs/design.md](docs/design.md).
+Using Claude Fable 5.1, The three modules (the standalone `FM8.exe`, the VST2 `FM8.dll`, and `FM8.vst3`) were disassembled with [Ghidra](https://ghidra-sre.org/), and the decompiled C was read function by function to locate the internal machinery each feature had to reach, namely the arpeggiator dispatch, the MIDI event handler, the internal Morph X/Y setter, and the form resource that holds the FM8 logo.
+
+Claude worked through Ghidra's decompiler output, proposed and adversarially checked where each hook belonged, and confirmed the target functions are byte-identical across all three binaries so one set of detours works in every host. From there it wrote the hook code, the per-host proxies, and the headless test hosts that verify each feature against the real FM8, and the whole thing was built and checked with the model in the loop end to end. The reverse-engineering notes and the exact hook addresses are in [docs/hooks.md](docs/hooks.md) and [docs/design.md](docs/design.md).
 
 To be clear about what that means, this repository contains no Native Instruments source and no decompiled FM8 content. The analysis only informed where FM8.plus attaches its own code at runtime; the stock binaries are never touched on disk.
+
+As of September 2026, frontier LLMs can read disassembled code at a level close to the original source code. We are seeing the emergence of a new era of user-led modification and enhancements to proprietary software.
 
 ## How it works
 
