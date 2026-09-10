@@ -80,6 +80,20 @@ VST3 the mod wheel reaches the plugin as a parameter change, not as a MIDI event
 `docs/vst3_params.txt`. The bus name strings `Midi In`/`Midi Out` and `Vst::EventBus` in the
 binary belong to the generic NI VST3 layer, not to a registered FM8 bus.
 
+## Runtime facts that shape the design (headless VST2 tests, `tools/vst2host.py chunk`)
+
+- `setParameter` on `Morph X` (21), `Morph Y` (22), `Arpeggiator On` (136) takes effect after the
+  next processed block and reads back exactly, so the morph position is host-settable.
+- `effGetChunk` (bank) returns a blob whose first 4 bytes are its own byte length
+  (`27 07 00 00` = 1831), followed by `01 00 00 00` and the tag `hsin`. `effSetChunk` returns
+  the number of bytes consumed. A blob with 12 extra trailing bytes restores identically and
+  returns the original length, so FM8 parses by its internal length prefix and ignores trailing
+  data. Per-instance FM8.plus state can ride as a trailer after the FM8 blob.
+- `version.dll` is not in HKLM KnownDLLs (only Setupapi among FM8.exe's imports is), so a
+  version.dll placed beside FM8.exe is loaded first. The string `FM8.dll` occurs once in
+  FM8.dll (the export directory name) and `FM8.vst3` once in FM8.vst3, so renaming the
+  originals for an in-place proxy does not break a self-lookup by module name.
+
 Note: a process that has loaded FM8.vst3 or FM8.dll never fully exits (teardown blocks in
 kernel), so the probe tools terminate themselves hard and may leave a zombie process behind.
 

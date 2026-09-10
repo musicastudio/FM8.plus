@@ -195,6 +195,37 @@ def main():
             for i in range(e.numParams):
                 print(f"{i:5d} {h.string(effGetParamName, i)!r:40} = {e.getParameter(h.eff, i):.4f} "
                       f"{h.string(effGetParamDisplay, i)!r} {h.string(effGetParamLabel, i)!r}")
+        elif cmd == "chunk":
+            # Does effSetChunk tolerate trailing bytes? Decides per-instance state persistence.
+            effGetChunk, effSetChunk = 23, 24
+
+            def show(tag):
+                h.process(2)
+                print(f"  {tag}: Morph X={e.getParameter(h.eff, 21):.3f} Morph Y={e.getParameter(h.eff, 22):.3f} "
+                      f"Arp On={e.getParameter(h.eff, 136):.3f} Volume={e.getParameter(h.eff, 26):.3f}")
+
+            show("initial")
+            e.setParameter(h.eff, 21, 0.75); e.setParameter(h.eff, 22, 0.25)
+            e.setParameter(h.eff, 136, 1.0); e.setParameter(h.eff, 26, 0.5)
+            show("after setParameter")
+            pp = C.c_void_p()
+            for idx, what in ((0, "bank"), (1, "program")):
+                n = h.d(effGetChunk, idx, 0, C.cast(C.pointer(pp), C.c_void_p))
+                data = C.string_at(pp, n)
+                print(f"getChunk({what}) -> {n} bytes, head={data[:16].hex()} tail={data[-16:].hex()}")
+                e.setParameter(h.eff, 21, 0.10); e.setParameter(h.eff, 22, 0.90)
+                e.setParameter(h.eff, 136, 0.0); e.setParameter(h.eff, 26, 0.9)
+                show("changed")
+                for trailer in (b"", b"FM8+" + bytes([1, 2, 0, 0, 0, 0, 0, 0])):
+                    blob = C.create_string_buffer(data + trailer, len(data) + len(trailer))
+                    r = h.d(effSetChunk, idx, len(blob), C.cast(blob, C.c_void_p))
+                    print(f"setChunk({what}, {len(data)}+{len(trailer)}) -> {r}")
+                    show("after setChunk")
+                    e.setParameter(h.eff, 21, 0.10); e.setParameter(h.eff, 22, 0.90)
+                    e.setParameter(h.eff, 136, 0.0); e.setParameter(h.eff, 26, 0.9)
+                    show("changed again")
+                n2 = h.d(effGetChunk, idx, 0, C.cast(C.pointer(pp), C.c_void_p))
+                print(f"getChunk({what}) after trailer set -> {n2} bytes (was {n})")
         elif cmd == "arp":
             idx = h.param_index("Arp On") or h.param_index("Arpeggiator On")
             print("Arp On index:", idx)
