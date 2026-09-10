@@ -64,6 +64,7 @@ bool ensureCore() {
     if (!g_core) return false;
     settings::load(g_self);
     g_coreHooked = Core::install((void*)g_core, Bin::Vst2);
+    if (g_coreHooked) Core::shiftLogoLeft(g_core, 11);   // shift the logo before the editor form is built
     return g_coreHooked;
 }
 

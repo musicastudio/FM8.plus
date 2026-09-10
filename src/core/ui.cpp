@@ -168,7 +168,7 @@ LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 // Standalone: keep the "+" glued to the right of FM8's logo; close when FM8 goes away.
                 if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
                 RECT r; GetWindowRect(d->target, &r);
-                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 122, r.top + 78, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 109, r.top + 80, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
             }
             return 0;
         case WM_NCDESTROY:
@@ -198,7 +198,7 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST, kClass, L"",
                             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-                            122, 24, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
+                            109, 26, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
     if (hwnd_) { SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d); renderPlus(hwnd_, d); }
     else delete d;
 }
@@ -242,7 +242,7 @@ void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeo
     RECT r; GetWindowRect(fm8, &r);
     auto* d = new OData{st, fm8};
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
-                            r.left + 122, r.top + 78, kW, kH, nullptr, nullptr, self, nullptr);  // after the logo
+                            r.left + 109, r.top + 80, kW, kH, nullptr, nullptr, self, nullptr);  // after the logo
     if (!hwnd_) { delete d; return; }
     st_ = st;
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);

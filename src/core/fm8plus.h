@@ -109,5 +109,12 @@ void flushExternal(InstanceState& st);
 // Resolve a hook Site to an absolute address in the installed module (for shim-added hooks).
 void* addressOf(const Site& s);
 
+// Shift FM8's top-left "FM8" wordmark left by `px` pixels: the logo is a PICTURE control whose rect
+// (21,35,116,58) lives in the FRM form resources; we patch its x1/x2 in `module`'s mapped .rsrc so FM8
+// draws it shifted (the form reads the resource when the GUI is built). Must run BEFORE that build:
+// for the standalone that means DllMain (before WinMain); for the plugins, at load (before the editor
+// opens). Idempotent (only patches a rect still at the original coordinates). No hooks required.
+void shiftLogoLeft(void* module, int px);
+
 } // namespace Core
 } // namespace fm8plus

@@ -13,11 +13,17 @@ a byte-identical size across exe / vst2 / vst3 (see `tools/q.py` and the check i
 | Check | Result |
 |-------|--------|
 | Proxy loads, forwards, uniqueID/params unchanged | pass (uniqueID 0x4e696638, 1094 params) |
-| Mod wheel CC1 rotates Morph X/Y in a circle | pass (traces the full circle, returns to start) |
+| Morph Rotate Control on an arbitrary CC | pass (CC 11 traces the full circle; CC1 inert, and the mapped CC is blocked from FM8) |
 | Arp Clone to MIDI: audio plays and notes sent to host | pass (17 note-ons, audio 0.073) |
 | Arp MIDI only: notes sent, FM8 voices silenced | pass (16 note-ons, audio 0.000) |
 | Arp Internal: nothing leaks to MIDI out | pass (0 events) |
-| Chunk trailer round-trips per-instance state | pass (FM8 ignores the trailing bytes) |
+| Tempo Override 2x / 0.5x | pass (arp note density 18 -> 37 at 2x, -> 9 at 0.5x) |
+| Increase Gain +6 dB / +10 dB | pass (output peak x2.00 and x3.16, matching the dB) |
+| Chunk trailer round-trips per-instance state | pass (trailer stripped so FM8 only ever sees its own bytes) |
+
+A flaky crash seen while adding these was a use-after-free in the test host (it freed the VstEvents
+buffer before FM8 read it during processReplacing; FM8 stores the pointer), fixed in
+`tools/vst2host.py`. It was never in the shim.
 
 **VST3, headless** (`tools/vst3host.py`): the proxy loads, forwards the factory unchanged, and the
 added event-output bus appears where stock FM8 has none:

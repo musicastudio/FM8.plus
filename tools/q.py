@@ -143,7 +143,8 @@ def main():
             q = "SELECT * FROM xrefs WHERE from_func=? ORDER BY from_addr LIMIT ?"
         for x in c.execute(q, (addr, a.n)):
             fn = c.execute("SELECT name FROM decompilations WHERE address=?", (x["from_func"],)).fetchone()
-            print(f"{x['from_addr']:#x} in {fn['name'] if fn else x['from_func']:#x} -> {x['to_addr']:#x} {x['ref_type']}")
+            where = fn["name"] if fn else (f"{x['from_func']:#x}" if x["from_func"] is not None else "(none)")
+            print(f"{x['from_addr']:#x} in {where} -> {x['to_addr']:#x} {x['ref_type']}")
     else:
         print(__doc__)
 

@@ -111,6 +111,11 @@ BOOL __stdcall Fwd_VerQueryValueA(LPCVOID b, LPCSTR q, LPVOID* out, PUINT len) {
 } // extern "C"
 
 BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) { g_self = h; DisableThreadLibraryCalls(h); }
+    if (reason == DLL_PROCESS_ATTACH) {
+        g_self = h; DisableThreadLibraryCalls(h);
+        // Shift the logo now, before FM8's WinMain builds the GUI (the version.dll functions that
+        // trigger our full init can be called too late for this). Guarded, so a wrong build is untouched.
+        Core::shiftLogoLeft(GetModuleHandleW(nullptr), 11);
+    }
     return TRUE;
 }

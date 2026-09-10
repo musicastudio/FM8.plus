@@ -6,16 +6,24 @@ without modifying a byte of the stock binaries on disk.
 
 ## Features
 
-1. **Mod wheel morphs.** A toggle that maps the mod wheel (CC1) to a rotation of the Morph square
-   handle, so one controller sweeps a circle through all four timbres. The on-screen handle follows.
-2. **Arpeggiator MIDI out.** A toggle with three modes for the built-in arpeggiator:
+1. **Morph Rotate Control.** Map any MIDI CC (Off, or CC 0..127 with names) to a rotation of the
+   Morph square handle, so one controller sweeps a circle through all four timbres. The on-screen
+   handle follows, and the chosen CC is blocked from its normal FM8 function so it drives only the morph.
+2. **Arpeggiator MIDI out.** Three modes for the built-in arpeggiator:
    - **Internal** stock behaviour, nothing leaves.
    - **Clone to MIDI** FM8 plays the arp AND the arp notes are sent to the plugin MIDI output.
    - **MIDI only** the arp notes are sent out and FM8's own voices stay silent, so one FM8 can drive
      another instrument.
+3. **Tempo Override.** Unshackle the arp from the DAW tempo: Off, 0.25x, 0.5x, 2x, 4x of host tempo,
+   or Custom (frees FM8's own arp Tempo control). VST2 scales the host time FM8 reads; VST3 scales the
+   process context.
+4. **Increase Gain.** Push the output beyond the normal level: Off, +1 dB up to +10 dB, applied
+   post-fader on the plugin output.
 
-Toggles live on a small **FM8+** button drawn on the FM8 editor. Per-instance settings (mod-wheel
-toggle, arp mode) travel with the DAW project; global knobs live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
+The wordmark reads **FM8+**: FM8's real logo plus a transparent, matching "+" that shimmers on hover
+and opens the menu when clicked (four submenus for the features above). Per-instance settings (morph
+CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults live in
+`%APPDATA%\FM8.plus\FM8.plus.ini`.
 
 ## How it works
 

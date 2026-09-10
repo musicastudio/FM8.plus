@@ -197,6 +197,7 @@ bool ensureCore() {
     if (!g_core) return false;
     settings::load(g_self);
     if (!Core::install((void*)g_core, Bin::Vst3)) return false;
+    Core::shiftLogoLeft(g_core, 11);   // shift the logo before the editor form is built
     // Install the four VST3 vtable-function hooks by RVA (MinHook already initialized by the core).
     auto mk = [](const Site& s, void* det, void** orig) {
         void* t = Core::addressOf(s);

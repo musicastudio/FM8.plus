@@ -170,6 +170,31 @@ void flushExternal(InstanceState& st) {
 
 void* addressOf(const Site& s) { return g_installed ? addr(s) : nullptr; }
 
+void shiftLogoLeft(void* module, int px) {
+    if (!module) return;
+    void* g_base = module;   // scan the caller-provided module (works before Core::install)
+    auto* dos = (IMAGE_DOS_HEADER*)g_base;
+    auto* nt = (IMAGE_NT_HEADERS*)((uint8_t*)g_base + dos->e_lfanew);
+    // Scan only the .rsrc section for the logo control rect {x1=21,y1=35,x2=116,y2=58}.
+    auto* sec = IMAGE_FIRST_SECTION(nt);
+    const uint8_t pat[16] = {21,0,0,0, 35,0,0,0, 116,0,0,0, 58,0,0,0};
+    for (int i = 0; i < nt->FileHeader.NumberOfSections; ++i, ++sec) {
+        if (memcmp(sec->Name, ".rsrc", 5) != 0) continue;
+        uint8_t* start = (uint8_t*)g_base + sec->VirtualAddress;
+        size_t n = sec->Misc.VirtualSize;
+        for (size_t o = 0; o + 16 <= n; ++o) {
+            if (start[o] != 21) continue;
+            if (memcmp(start + o, pat, 16) != 0) continue;
+            uint8_t* p = start + o; DWORD oldProt;
+            if (VirtualProtect(p, 12, PAGE_READWRITE, &oldProt)) {
+                *(int32_t*)p -= px;         // x1
+                *(int32_t*)(p + 8) -= px;   // x2
+                VirtualProtect(p, 12, oldProt, &oldProt);
+            }
+        }
+    }
+}
+
 bool setMorphXY(InstanceState& st, float x, float y) {
     void* eb = st.editBuf.load(std::memory_order_relaxed);
     if (!eb || !g_installed) return false;
