@@ -5,7 +5,7 @@
 [![License: GPLv3](https://img.shields.io/github/license/musicastudio/FM8.plus)](https://github.com/musicastudio/FM8.plus/blob/main/LICENSE)
 [![Version](https://img.shields.io/github/v/release/musicastudio/FM8.plus?color=7a39fb)](https://github.com/musicastudio/FM8.plus/releases/latest)
 
-An enhancement layer for Native Instruments FM8 (last release 2022-12-23, Windows x64). It adds new features to the standalone `FM8.exe`, the 64-bit VST2 `FM8.dll`, and `FM8.vst3` without modifying a byte of the stock binaries on disk.
+An enhancement layer for Native Instruments FM8 v1.4.6 (last release 2022-12-23, Windows x64). It adds new features to the standalone `FM8.exe`, the 64-bit VST2 `FM8.dll`, and `FM8.vst3`
 
 ## Features
 
@@ -14,11 +14,13 @@ An enhancement layer for Native Instruments FM8 (last release 2022-12-23, Window
 3. **Tempo Override.** Unshackle the arp from the DAW tempo: Off, 0.25x, 0.5x, 2x, 4x of host tempo, or Custom (frees FM8's own arp Tempo control). VST2 scales the host time FM8 reads; VST3 scales the process context.
 4. **Increase Gain.** Push the output beyond the normal level: Off, +1 dB up to +10 dB, applied post-fader on the plugin output.
 
-The wordmark reads **FM8+**: FM8's own logo shifted left with a matching "+" beside it, drawn on a transparent overlay that shimmers on hover and opens the menu when clicked (one submenu per feature above). Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
+**To access these features, click the `+` next to FM8 to open the menu.**
+
+Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
 
 ## Install
 
-Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files, and it patches only the 2022-12-23 FM8 build: each stock module is renamed to `FM8.plus.core`, the proxy is dropped in its place, and `version.dll` is sideloaded next to `FM8.exe`. Rescan plugins in your DAW afterwards. Uninstalling from Add/Remove Programs restores stock FM8.
+Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files, and it patches only the final v1.4.6 release: each stock module is renamed to `FM8.plus.core`, the proxy is dropped in its place, and `version.dll` is sideloaded next to `FM8.exe`. Rescan plugins in your DAW afterwards. Uninstalling from Add/Remove Programs restores stock FM8.
 
 Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` reverses everything.
 
