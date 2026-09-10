@@ -2,11 +2,16 @@
 #include "fm8plus.h"
 #include "settings.h"
 #include <windowsx.h>
+#include <algorithm>
+#include <cmath>
 
 namespace fm8plus::ui {
 namespace {
 const wchar_t* kClass = L"FM8plusOverlay";
-constexpr int kW = 58, kH = 20;
+constexpr int kW = 26, kH = 32;               // small transparent window holding just the "+"
+const int kLR = 107, kLG = 125, kLB = 134;    // sampled FM8 logo blue-grey (the "+" colour)
+const int kSR = 214, kSG = 235, kSB = 248;    // shimmer highlight colour
+constexpr int kTimerGlue = 1, kTimerShine = 2;
 
 // Command id ranges (kept apart so one TrackPopupMenu return value tells us which control fired).
 enum {
@@ -16,9 +21,51 @@ enum {
     ID_GAIN_OFF = 4000,                                 // ID_GAIN_OFF + db (0..10)
 };
 
-// Per-window data behind GWLP_USERDATA: the instance state and, for the standalone's top-level
-// floating button, the FM8 window it tracks (null for the plugin child window).
-struct OData { InstanceState* st; HWND target; };
+// Per-window data behind GWLP_USERDATA: the instance state, the FM8 window the standalone overlay
+// tracks (null for a plugin child), and the hover/shimmer state.
+struct OData { InstanceState* st; HWND target; bool hovering; float shine; };
+
+// Render the "+" into the layered window with per-pixel alpha (transparent background, so FM8's own
+// toolbar shows through and only the plus is visible), then push it with UpdateLayeredWindow. When
+// hovering, a brighter band sweeps across the plus (the shimmer).
+void renderPlus(HWND hwnd, OData* d) {
+    RECT wr; GetWindowRect(hwnd, &wr);
+    const int w = wr.right - wr.left, h = wr.bottom - wr.top;
+    if (w <= 0 || h <= 0) return;
+
+    BITMAPINFO bi{}; bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = w; bi.bmiHeader.biHeight = -h;   // top-down
+    bi.bmiHeader.biPlanes = 1; bi.bmiHeader.biBitCount = 32; bi.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    HDC screen = GetDC(nullptr);
+    HDC mem = CreateCompatibleDC(screen);
+    HBITMAP dib = CreateDIBSection(screen, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    HBITMAP oldBm = (HBITMAP)SelectObject(mem, dib);
+    auto* px = (uint32_t*)bits;
+    for (int i = 0; i < w * h; ++i) px[i] = 0;             // fully transparent
+
+    // Plus geometry: centred, arm thickness ~6px, sized to match the ~30px-tall logo strokes.
+    const int cx = w / 2, cy = h / 2, th = 6, arm = 12;
+    const float bandX = d->shine * (w + 20) - 10;          // shimmer band centre
+    for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
+        const bool inH = (x >= cx - arm && x <= cx + arm) && (y >= cy - th / 2 && y <= cy + th / 2);
+        const bool inV = (y >= cy - arm && y <= cy + arm) && (x >= cx - th / 2 && x <= cx + th / 2);
+        if (!(inH || inV)) continue;
+        int r = kLR, g = kLG, b = kLB;
+        if (d->hovering) {
+            // A soft highlight band sweeps across the plus (peak at bandX, ~7px falloff).
+            float t = 1.0f - std::min(1.0f, std::abs(x - bandX) / 7.0f);
+            if (t > 0) { r += (int)((kSR - r) * t); g += (int)((kSG - g) * t); b += (int)((kSB - b) * t); }
+        }
+        px[y * w + x] = (255u << 24) | (r << 16) | (g << 8) | b;  // premultiplied (alpha 255)
+    }
+
+    POINT ptSrc{0, 0}, ptDst{wr.left, wr.top}; SIZE sz{w, h};
+    BLENDFUNCTION bf{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+    UpdateLayeredWindow(hwnd, screen, &ptDst, &sz, mem, &ptSrc, 0, &bf, ULW_ALPHA);
+
+    SelectObject(mem, oldBm); DeleteObject(dib); DeleteDC(mem); ReleaseDC(nullptr, screen);
+}
 
 // Common MIDI CC names; unnamed controllers show just "CC n".
 const wchar_t* ccName(int cc) {
@@ -100,30 +147,33 @@ LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     InstanceState* st = d ? d->st : nullptr;
     switch (msg) {
         case WM_LBUTTONUP:
-            if (st) showMenu(hwnd, st);
+            if (st) showMenu(hwnd, st);       // the whole small window is the "+" hotspot
+            return 0;
+        case WM_MOUSEMOVE:
+            if (d && !d->hovering) {
+                d->hovering = true; d->shine = 0;
+                SetTimer(hwnd, kTimerShine, 33, nullptr);
+                TRACKMOUSEEVENT tme{sizeof(tme), TME_LEAVE, hwnd, 0}; TrackMouseEvent(&tme);
+                renderPlus(hwnd, d);
+            }
+            return 0;
+        case WM_MOUSELEAVE:
+            if (d && d->hovering) { d->hovering = false; KillTimer(hwnd, kTimerShine); renderPlus(hwnd, d); }
             return 0;
         case WM_TIMER:
-            // Standalone: keep the floating button glued to FM8's window; close when FM8 goes away.
-            if (d && d->target) {
+            if (wp == kTimerShine && d) {
+                d->shine += 0.06f; if (d->shine > 1.4f) d->shine = 0;   // sweep, then a brief pause
+                renderPlus(hwnd, d);
+            } else if (wp == kTimerGlue && d && d->target) {
+                // Standalone: keep the "+" glued to the right of FM8's logo; close when FM8 goes away.
                 if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
                 RECT r; GetWindowRect(d->target, &r);
-                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 8, r.top + 62, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 122, r.top + 78, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
             }
             return 0;
         case WM_NCDESTROY:
             delete d; SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             return 0;
-        case WM_PAINT: {
-            PAINTSTRUCT ps; HDC dc = BeginPaint(hwnd, &ps);
-            RECT rc; GetClientRect(hwnd, &rc);
-            HBRUSH b = CreateSolidBrush(RGB(30, 30, 34));
-            FillRect(dc, &rc, b); DeleteObject(b);
-            SetBkMode(dc, TRANSPARENT);
-            SetTextColor(dc, RGB(220, 150, 40));
-            DrawTextW(dc, L"FM8+", -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
     }
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
@@ -146,9 +196,10 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     st_ = st;
     ensureClass(self);
     auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
-    hwnd_ = CreateWindowExW(WS_EX_TOPMOST, kClass, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-                            2, 2, kW, kH, parent, nullptr, self, nullptr);
-    if (hwnd_) SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
+    hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST, kClass, L"",
+                            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+                            122, 24, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
+    if (hwnd_) { SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d); renderPlus(hwnd_, d); }
     else delete d;
 }
 
@@ -190,12 +241,13 @@ void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeo
     ensureClass(self);
     RECT r; GetWindowRect(fm8, &r);
     auto* d = new OData{st, fm8};
-    hwnd_ = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
-                            r.left + 8, r.top + 62, kW, kH, nullptr, nullptr, self, nullptr);
+    hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
+                            r.left + 122, r.top + 78, kW, kH, nullptr, nullptr, self, nullptr);  // after the logo
     if (!hwnd_) { delete d; return; }
     st_ = st;
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
-    SetTimer(hwnd_, 1, 500, nullptr);
+    renderPlus(hwnd_, d);
+    SetTimer(hwnd_, kTimerGlue, 500, nullptr);
     MSG m;
     while (GetMessageW(&m, nullptr, 0, 0) > 0) { TranslateMessage(&m); DispatchMessageW(&m); }
     hwnd_ = nullptr;   // window destroyed (FM8 closed); the message loop and this thread end
