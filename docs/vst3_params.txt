@@ -1,0 +1,1112 @@
+InitDll -> True
+factory classes: 2
+  [0] Audio Module Class       FM8                              cid=4e545356666966386d38000000000000
+  [1] Audio Module Class       FM8 FX                           cid=4e545356866966386d38206678000000
+createInstance(IComponent) -> 0x0 0x24e6bd5ad78
+component.initialize(host) -> 0x0
+single-component: queryInterface(IEditController) -> 0x0
+parameters: 1103
+    0 id=1295090176 'Default'                                    short=''                   steps=127 default=0.000 unit=0 flags=0x8008
+    1 id=0          'Easy Edit Effect Strength'                  short='EFXS'               steps=0 default=0.497 unit=0 flags=0x1
+    2 id=1          'Easy Edit Timbre Brightness'                short='EBri'               steps=0 default=0.497 unit=0 flags=0x1
+    3 id=2          'Easy Edit Timbre Harmonic'                  short='EHar'               steps=0 default=0.497 unit=0 flags=0x1
+    4 id=3          'Easy Edit Timbre Detune'                    short='EDet'               steps=0 default=0.497 unit=0 flags=0x1
+    5 id=4          'Easy Edit Timbre Env Amount'                short='EEnv'               steps=0 default=0.497 unit=0 flags=0x1
+    6 id=5          'Easy Edit Timbre Velocity Sens.'            short='ETiV'               steps=0 default=0.497 unit=0 flags=0x1
+    7 id=6          'Easy Edit Timbre Envelope Attack'           short='ETEA'               steps=0 default=0.497 unit=0 flags=0x1
+    8 id=7          'Easy Edit Timbre Envelope Decay'            short='ETED'               steps=0 default=0.497 unit=0 flags=0x1
+    9 id=8          'Easy Edit TimbreEnvelope Sustain'           short='ETES'               steps=0 default=0.497 unit=0 flags=0x1
+   10 id=9          'Easy Edit TimbreEnvelope Release'           short='ETER'               steps=0 default=0.497 unit=0 flags=0x1
+   11 id=10         'Easy Edit LFO Rate'                         short='ELRa'               steps=0 default=0.497 unit=0 flags=0x1
+   12 id=11         'Easy Edit LFO Vibrato'                      short='ELVi'               steps=0 default=0.497 unit=0 flags=0x1
+   13 id=12         'Easy Edit LFO Timbre'                       short='ELTi'               steps=0 default=0.497 unit=0 flags=0x1
+   14 id=13         'Easy Edit LFO Tremolo'                      short='ELTr'               steps=0 default=0.497 unit=0 flags=0x1
+   15 id=14         'Easy Edit Output Volume'                    short='EVol'               steps=0 default=0.497 unit=0 flags=0x1
+   16 id=15         'Easy Edit Output Stereo Width'              short='ESte'               steps=0 default=0.497 unit=0 flags=0x1
+   17 id=16         'Easy Edit Output Velocity Sens.'            short='EOuV'               steps=0 default=0.497 unit=0 flags=0x1
+   18 id=17         'Easy Edit Volume Envelope Attack'           short='EVEA'               steps=0 default=0.497 unit=0 flags=0x1
+   19 id=18         'Easy Edit Volume Envelope Decay'            short='EVED'               steps=0 default=0.497 unit=0 flags=0x1
+   20 id=19         'Easy Edit VolumeEnvelope Sustain'           short='EVES'               steps=0 default=0.497 unit=0 flags=0x1
+   21 id=20         'Easy Edit VolumeEnvelope Release'           short='EVER'               steps=0 default=0.497 unit=0 flags=0x1
+   22 id=21         'Morph X'                                    short='MrpX'               steps=0 default=0.000 unit=0 flags=0x1
+   23 id=22         'Morph Y'                                    short='MrpY'               steps=0 default=0.000 unit=0 flags=0x1
+   24 id=23         'Morph Random X'                             short='MrRX'               steps=0 default=0.000 unit=0 flags=0x1
+   25 id=24         'Morph Random Y'                             short='MrRY'               steps=0 default=0.000 unit=0 flags=0x1
+   26 id=25         'Morph Random Seed'                          short='MrRS'               steps=0 default=0.000 unit=0 flags=0x1
+   27 id=26         'Effects Amount BL'                          short='FXBL'               steps=0 default=0.500 unit=0 flags=0x1
+   28 id=27         'Effects Amount BR'                          short='FXBR'               steps=0 default=0.500 unit=0 flags=0x1
+   29 id=28         'Effects Amount TR'                          short='FXTR'               steps=0 default=0.500 unit=0 flags=0x1
+   30 id=29         'Effects Amount TL'                          short='FXTL'               steps=0 default=0.500 unit=0 flags=0x1
+   31 id=30         'Overdrive: On/Off'                          short='OvOn'               steps=1 default=0.000 unit=0 flags=0x1
+   32 id=31         'Overdrive: Drive'                           short='OvDr'               steps=0 default=0.500 unit=0 flags=0x1
+   33 id=32         'Overdrive: Tone'                            short='OvTn'               steps=0 default=0.500 unit=0 flags=0x1
+   34 id=33         'Overdrive: Bass'                            short='OvBs'               steps=0 default=0.500 unit=0 flags=0x1
+   35 id=34         'Overdrive: Volume'                          short='OvVl'               steps=0 default=0.500 unit=0 flags=0x1
+   36 id=35         'TubeAmp: On/Off'                            short='TAOn'               steps=1 default=0.000 unit=0 flags=0x1
+   37 id=36         'TubeAmp: Drive'                             short='TADr'               steps=0 default=0.500 unit=0 flags=0x1
+   38 id=37         'TubeAmp: Volume'                            short='TAVl'               steps=0 default=0.500 unit=0 flags=0x1
+   39 id=38         'Cabinet: On/Off'                            short='CbOn'               steps=1 default=0.000 unit=0 flags=0x1
+   40 id=39         'Cabinet: Type'                              short='CbTp'               steps=0 default=0.000 unit=0 flags=0x1
+   41 id=40         'Cabinet: Size'                              short='CbOn'               steps=0 default=0.500 unit=0 flags=0x1
+   42 id=41         'Cabinet: Air'                               short='CbAr'               steps=0 default=0.500 unit=0 flags=0x1
+   43 id=42         'Cabinet: Bass'                              short='CbBs'               steps=0 default=0.500 unit=0 flags=0x1
+   44 id=43         'Cabinet: Treble'                            short='CbTr'               steps=0 default=0.500 unit=0 flags=0x1
+   45 id=44         'ShelfEQ: On/Off'                            short='SQOn'               steps=1 default=0.000 unit=0 flags=0x1
+   46 id=45         'ShelfEQ: Low Frequency'                     short='SQLF'               steps=0 default=0.400 unit=0 flags=0x1
+   47 id=46         'ShelfEQ: Low Gain'                          short='SQLG'               steps=0 default=0.500 unit=0 flags=0x1
+   48 id=47         'ShelfEQ: High Frequency'                    short='SQHF'               steps=0 default=0.600 unit=0 flags=0x1
+   49 id=48         'ShelfEQ: High Gain'                         short='SQHG'               steps=0 default=0.500 unit=0 flags=0x1
+   50 id=49         'ShelfEQ: Volume'                            short='SQVl'               steps=0 default=0.500 unit=0 flags=0x1
+   51 id=50         'PeakEQ: On/Off'                             short='PQOn'               steps=1 default=0.000 unit=0 flags=0x1
+   52 id=51         'PeakEQ: Frequency 1'                        short='PQF1'               steps=0 default=0.400 unit=0 flags=0x1
+   53 id=52         'PeakEQ: Gain 1'                             short='PQG1'               steps=0 default=0.500 unit=0 flags=0x1
+   54 id=53         'PeakEQ: Quality 1'                          short='PQQ1'               steps=0 default=0.500 unit=0 flags=0x1
+   55 id=54         'PeakEQ: Frequency 2'                        short='PQF2'               steps=0 default=0.600 unit=0 flags=0x1
+   56 id=55         'PeakEQ: Gain 2'                             short='PQG2'               steps=0 default=0.500 unit=0 flags=0x1
+   57 id=56         'PeakEQ: Quality 2'                          short='PQQ2'               steps=0 default=0.500 unit=0 flags=0x1
+   58 id=57         'PeakEQ: Volume'                             short='PQVl'               steps=0 default=0.500 unit=0 flags=0x1
+   59 id=58         'TalkWah: On/Off'                            short='TWOn'               steps=1 default=0.000 unit=0 flags=0x1
+   60 id=59         'TalkWah: Mouth'                             short='TWMt'               steps=0 default=0.500 unit=0 flags=0x1
+   61 id=60         'TalkWah: ModWheel'                          short='TWMW'               steps=1 default=0.000 unit=0 flags=0x1
+   62 id=61         'TalkWah: Size'                              short='TWSz'               steps=0 default=0.500 unit=0 flags=0x1
+   63 id=62         'TalkWah: Bright'                            short='TWBr'               steps=1 default=0.000 unit=0 flags=0x1
+   64 id=63         'Phaser: On/Off'                             short='PhOn'               steps=1 default=0.000 unit=0 flags=0x1
+   65 id=64         'Phaser: Modulation Rate'                    short='PhMR'               steps=0 default=0.500 unit=0 flags=0x1
+   66 id=65         'Phaser: Color'                              short='PhCl'               steps=0 default=0.250 unit=0 flags=0x1
+   67 id=66         'Phaser: Rotate'                             short='PhRo'               steps=0 default=0.500 unit=0 flags=0x1
+   68 id=67         'Phaser: Sweep Minimum'                      short='PhMn'               steps=0 default=0.500 unit=0 flags=0x1
+   69 id=68         'Phaser: Sweep Maximum'                      short='PhMx'               steps=0 default=0.500 unit=0 flags=0x1
+   70 id=69         'Phaser: MIDI Tempo Sync'                    short='PhTS'               steps=1 default=0.000 unit=0 flags=0x1
+   71 id=70         'Phaser: Dry/Wet'                            short='PhDW'               steps=0 default=0.500 unit=0 flags=0x1
+   72 id=71         'Phaser: Invert'                             short='PhIv'               steps=1 default=0.000 unit=0 flags=0x1
+   73 id=72         'Phaser: Notches'                            short='PhNt'               steps=0 default=0.250 unit=0 flags=0x1
+   74 id=73         'Flanger: On/Off'                            short='FlOn'               steps=1 default=0.000 unit=0 flags=0x1
+   75 id=74         'Flanger: Modulation Rate'                   short='FlMR'               steps=0 default=0.500 unit=0 flags=0x1
+   76 id=75         'Flanger: Static'                            short='FlSt'               steps=1 default=0.000 unit=0 flags=0x1
+   77 id=76         'Flanger: Modulation Depth'                  short='FlMD'               steps=0 default=0.500 unit=0 flags=0x1
+   78 id=77         'Flanger: Color'                             short='FlCl'               steps=0 default=0.500 unit=0 flags=0x1
+   79 id=78         'Flanger: Rotate'                            short='FlRo'               steps=0 default=0.500 unit=0 flags=0x1
+   80 id=79         'Flanger: MIDI Tempo Sync'                   short='FlTS'               steps=1 default=0.000 unit=0 flags=0x1
+   81 id=80         'Flanger: Invert'                            short='FlIv'               steps=1 default=0.000 unit=0 flags=0x1
+   82 id=81         'Flanger: Dry/Wet'                           short='FlDW'               steps=0 default=0.500 unit=0 flags=0x1
+   83 id=82         'Tremolo: On/Off'                            short='TrOn'               steps=1 default=0.000 unit=0 flags=0x1
+   84 id=83         'Tremolo: Rate'                              short='TrRt'               steps=0 default=0.500 unit=0 flags=0x1
+   85 id=84         'Tremolo: Intensity'                         short='TrIt'               steps=0 default=0.500 unit=0 flags=0x1
+   86 id=85         'Tremolo: MIDI Tempo Sync'                   short='TrTS'               steps=1 default=0.000 unit=0 flags=0x1
+   87 id=86         'Tremolo: Stereo Panning'                    short='TrPn'               steps=1 default=0.000 unit=0 flags=0x1
+   88 id=87         'Tremolo: Pulse Width'                       short='TrWd'               steps=0 default=0.500 unit=0 flags=0x1
+   89 id=88         'Tremolo: Attack'                            short='TrAt'               steps=0 default=0.500 unit=0 flags=0x1
+   90 id=89         'Tremolo: Decay'                             short='TrDc'               steps=0 default=0.500 unit=0 flags=0x1
+   91 id=90         'Reverb: On/Off'                             short='RvOn'               steps=1 default=0.000 unit=0 flags=0x1
+   92 id=91         'Reverb: Dry/Wet'                            short='RvDW'               steps=0 default=0.500 unit=0 flags=0x1
+   93 id=92         'Reverb: Bright'                             short='RvBr'               steps=0 default=0.500 unit=0 flags=0x1
+   94 id=93         'Reverb: Roomsize'                           short='RvSz'               steps=0 default=0.500 unit=0 flags=0x1
+   95 id=94         'Reverb: Treble'                             short='RvTr'               steps=0 default=0.500 unit=0 flags=0x1
+   96 id=95         'PsycheDelay: On/Off'                        short='PDOn'               steps=1 default=0.000 unit=0 flags=0x1
+   97 id=96         'PsycheDelay: Dry/Wet'                       short='PDDW'               steps=0 default=0.500 unit=0 flags=0x1
+   98 id=97         'PsycheDelay: Delay Time'                    short='PDTm'               steps=0 default=0.500 unit=0 flags=0x1
+   99 id=98         'PsycheDelay: Reverse Delay'                 short='PDRv'               steps=1 default=0.000 unit=0 flags=0x1
+  100 id=99         'PsycheDelay: Delay Detune'                  short='PDDt'               steps=0 default=0.500 unit=0 flags=0x1
+  101 id=100        'PsycheDelay: Feedback'                      short='PDFb'               steps=0 default=0.500 unit=0 flags=0x1
+  102 id=101        'PsycheDelay: Delay Pitch Shift'             short='PDPt'               steps=0 default=0.500 unit=0 flags=0x1
+  103 id=102        'PsycheDelay: MIDI Tempo Sync'               short='DlTS'               steps=1 default=0.000 unit=0 flags=0x1
+  104 id=103        'PsycheDelay: Stereo'                        short='DlSt'               steps=0 default=0.500 unit=0 flags=0x1
+  105 id=104        'Delay: Delay Time'                          short='DlTm'               steps=0 default=0.500 unit=0 flags=0x1
+  106 id=105        'Delay: Diffusion'                           short='DlDf'               steps=0 default=0.500 unit=0 flags=0x1
+  107 id=106        'Delay: Modulation Depth'                    short='DlMD'               steps=0 default=0.500 unit=0 flags=0x1
+  108 id=107        'Delay: Feedback'                            short='DlFB'               steps=0 default=0.500 unit=0 flags=0x1
+  109 id=108        'Delay: High Cut'                            short='DlHC'               steps=0 default=0.500 unit=0 flags=0x1
+  110 id=109        'Delay: Low Cut'                             short='DlLC'               steps=0 default=0.500 unit=0 flags=0x1
+  111 id=110        'Delay: Invert'                              short='DlIv'               steps=1 default=0.000 unit=0 flags=0x1
+  112 id=111        'Delay: On/Off'                              short='DlOn'               steps=1 default=0.000 unit=0 flags=0x1
+  113 id=112        'Delay: Dry/Wet'                             short='DlDW'               steps=0 default=0.500 unit=0 flags=0x1
+  114 id=113        'Delay: Modulation Rate'                     short='DlMR'               steps=0 default=0.500 unit=0 flags=0x1
+  115 id=114        'Delay: Sync Delays'                         short='DlSD'               steps=1 default=0.000 unit=0 flags=0x1
+  116 id=115        'Delay: MIDI Tempo Sync'                     short='DlTS'               steps=1 default=0.000 unit=0 flags=0x1
+  117 id=116        'Master Volume'                              short='MVol'               steps=0 default=0.800 unit=0 flags=0x1
+  118 id=117        'Input Volume'                               short='IVol'               steps=0 default=0.800 unit=0 flags=0x1
+  119 id=118        'Master Tune'                                short='MTun'               steps=0 default=0.497 unit=0 flags=0x1
+  120 id=119        'Pitch Transpose'                            short='Tran'               steps=0 default=0.500 unit=0 flags=0x1
+  121 id=120        'Number of Unison Voices'                    short='UniV'               steps=0 default=0.000 unit=0 flags=0x0
+  122 id=121        'Unison Detune'                              short='UniD'               steps=0 default=0.500 unit=0 flags=0x1
+  123 id=122        'Unison Mono'                                short='UniM'               steps=1 default=0.000 unit=0 flags=0x1
+  124 id=123        'Unison Dynamic'                             short='UnDy'               steps=0 default=0.500 unit=0 flags=0x0
+  125 id=124        'Unison Pan'                                 short='UniP'               steps=0 default=0.000 unit=0 flags=0x1
+  126 id=125        'Portamento On/Off'                          short='PoOn'               steps=1 default=0.000 unit=0 flags=0x1
+  127 id=126        'Portamento Auto'                            short='PoAu'               steps=1 default=0.000 unit=0 flags=0x1
+  128 id=127        'Portamento Time'                            short='PoTi'               steps=0 default=0.500 unit=0 flags=0x1
+  129 id=128        'Analog Quality BL'                          short='AQBL'               steps=0 default=0.500 unit=0 flags=0x1
+  130 id=129        'Analog Quality BR'                          short='AQBR'               steps=0 default=0.500 unit=0 flags=0x1
+  131 id=130        'Analog Quality TR'                          short='AQTR'               steps=0 default=0.500 unit=0 flags=0x1
+  132 id=131        'Analog Quality TL'                          short='AQTL'               steps=0 default=0.500 unit=0 flags=0x1
+  133 id=132        'Digital Quality BL'                         short='DQBL'               steps=0 default=0.500 unit=0 flags=0x1
+  134 id=133        'Digital Quality BR'                         short='DQBR'               steps=0 default=0.500 unit=0 flags=0x1
+  135 id=134        'Digital Quality TR'                         short='DQTR'               steps=0 default=0.500 unit=0 flags=0x1
+  136 id=135        'Digital Quality TL'                         short='DQTL'               steps=0 default=0.500 unit=0 flags=0x1
+  137 id=136        'Arpeggiator On'                             short='ArOn'               steps=1 default=0.000 unit=0 flags=0x1
+  138 id=137        'Arpeggiator Note Length'                    short='ArNL'               steps=0 default=0.500 unit=0 flags=0x1
+  139 id=138        'Arpeggiator Fixed Velocity'                 short='ArFV'               steps=1 default=0.000 unit=0 flags=0x1
+  140 id=139        'Arpeggiator Velocity'                       short='ArVl'               steps=0 default=0.504 unit=0 flags=0x1
+  141 id=140        'Arpeggiator Accent'                         short='ArAc'               steps=0 default=0.394 unit=0 flags=0x1
+  142 id=141        'Arpeggiator Shuffle'                        short='ArSh'               steps=0 default=0.500 unit=0 flags=0x1
+  143 id=142        'Arpeggiator Hold'                           short='ArHd'               steps=1 default=0.000 unit=0 flags=0x1
+  144 id=143        'Arpeggiator Rotate Right'                   short='ArRR'               steps=1 default=0.000 unit=0 flags=0x1
+  145 id=144        'Arpeggiator Rotate Left'                    short='ArRL'               steps=1 default=0.000 unit=0 flags=0x1
+  146 id=145        'Arpeggiator Number of Steps'                short='ArNS'               steps=0 default=0.226 unit=0 flags=0x1
+  147 id=146        'Arpeggiator Mode'                           short='ArMd'               steps=0 default=0.000 unit=0 flags=0x1
+  148 id=147        'Arpeggiator Down'                           short='ArDn'               steps=1 default=0.000 unit=0 flags=0x1
+  149 id=148        'Arpeggiator 1 Shot'                         short='Ar1S'               steps=1 default=0.000 unit=0 flags=0x1
+  150 id=149        'Arpeggiator Tempo'                          short='ArTp'               steps=0 default=0.750 unit=0 flags=0x1
+  151 id=150        'Arpeggiator Tripplets'                      short='ArTr'               steps=1 default=0.000 unit=0 flags=0x1
+  152 id=151        'Arpeggiator Dotted'                         short='ArDd'               steps=1 default=0.000 unit=0 flags=0x1
+  153 id=152        'Arpeggiator Key Sync'                       short='ArKS'               steps=1 default=0.000 unit=0 flags=0x1
+  154 id=153        'Arpeggiator BPM Sync'                       short='ArBS'               steps=1 default=1.000 unit=0 flags=0x1
+  155 id=154        'Arpeggiator BPM'                            short='ArB'                steps=0 default=0.224 unit=0 flags=0x1
+  156 id=155        'Arpeggiator Split On'                       short='ArSO'               steps=1 default=0.000 unit=0 flags=0x1
+  157 id=156        'Arpeggiator Split Note'                     short='ArSN'               steps=0 default=0.472 unit=0 flags=0x1
+  158 id=157        'Arpeggiator Split Bass'                     short='ArSB'               steps=1 default=1.000 unit=0 flags=0x1
+  159 id=158        'Reserved158'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  160 id=159        'Reserved159'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  161 id=160        'Reserved160'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  162 id=161        'Reserved161'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  163 id=162        'Reserved162'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  164 id=163        'Reserved163'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  165 id=164        'Reserved164'                                short='Rsvd'               steps=0 default=0.000 unit=0 flags=0x0
+  166 id=165        'Microtune Root Note'                        short='MTRN'               steps=0 default=0.000 unit=0 flags=0x1
+  167 id=166        'Microtuning of Note C '                     short='MTC '               steps=0 default=0.497 unit=0 flags=0x1
+  168 id=167        'Microtuning of Note C#'                     short='MTC#'               steps=0 default=0.497 unit=0 flags=0x1
+  169 id=168        'Microtuning of Note D '                     short='MTD '               steps=0 default=0.497 unit=0 flags=0x1
+  170 id=169        'Microtuning of Note D#'                     short='MTD#'               steps=0 default=0.497 unit=0 flags=0x1
+  171 id=170        'Microtuning of Note E '                     short='MTE '               steps=0 default=0.497 unit=0 flags=0x1
+  172 id=171        'Microtuning of Note F '                     short='MTF '               steps=0 default=0.497 unit=0 flags=0x1
+  173 id=172        'Microtuning of Note F#'                     short='MTF#'               steps=0 default=0.497 unit=0 flags=0x1
+  174 id=173        'Microtuning of Note G '                     short='MTG '               steps=0 default=0.497 unit=0 flags=0x1
+  175 id=174        'Microtuning of Note G#'                     short='MTG#'               steps=0 default=0.497 unit=0 flags=0x1
+  176 id=175        'Microtuning of Note A '                     short='MTA '               steps=0 default=0.497 unit=0 flags=0x1
+  177 id=176        'Microtuning of Note A#'                     short='MTA#'               steps=0 default=0.497 unit=0 flags=0x1
+  178 id=177        'Microtuning of Note H '                     short='MTH '               steps=0 default=0.497 unit=0 flags=0x1
+  179 id=178        'FM-Matrix Op. A -> Op. A BL'                short='AABL'               steps=0 default=0.500 unit=0 flags=0x1
+  180 id=179        'FM-Matrix Op. A -> Op. A BR'                short='AABR'               steps=0 default=0.500 unit=0 flags=0x1
+  181 id=180        'FM-Matrix Op. A -> Op. A TR'                short='AATR'               steps=0 default=0.500 unit=0 flags=0x1
+  182 id=181        'FM-Matrix Op. A -> Op. A TL'                short='AATL'               steps=0 default=0.500 unit=0 flags=0x1
+  183 id=182        'FM-Matrix Op. A -> Op. B BL'                short='ABBL'               steps=0 default=0.500 unit=0 flags=0x1
+  184 id=183        'FM-Matrix Op. A -> Op. B BR'                short='ABBR'               steps=0 default=0.500 unit=0 flags=0x1
+  185 id=184        'FM-Matrix Op. A -> Op. B TR'                short='ABTR'               steps=0 default=0.500 unit=0 flags=0x1
+  186 id=185        'FM-Matrix Op. A -> Op. B TL'                short='ABTL'               steps=0 default=0.500 unit=0 flags=0x1
+  187 id=186        'FM-Matrix Op. A -> Op. C BL'                short='ACBL'               steps=0 default=0.500 unit=0 flags=0x1
+  188 id=187        'FM-Matrix Op. A -> Op. C BR'                short='ACBR'               steps=0 default=0.500 unit=0 flags=0x1
+  189 id=188        'FM-Matrix Op. A -> Op. C TR'                short='ACTR'               steps=0 default=0.500 unit=0 flags=0x1
+  190 id=189        'FM-Matrix Op. A -> Op. C TL'                short='ACTL'               steps=0 default=0.500 unit=0 flags=0x1
+  191 id=190        'FM-Matrix Op. A -> Op. D BL'                short='ADBL'               steps=0 default=0.500 unit=0 flags=0x1
+  192 id=191        'FM-Matrix Op. A -> Op. D BR'                short='ADBR'               steps=0 default=0.500 unit=0 flags=0x1
+  193 id=192        'FM-Matrix Op. A -> Op. D TR'                short='ADTR'               steps=0 default=0.500 unit=0 flags=0x1
+  194 id=193        'FM-Matrix Op. A -> Op. D TL'                short='ADTL'               steps=0 default=0.500 unit=0 flags=0x1
+  195 id=194        'FM-Matrix Op. A -> Op. E BL'                short='AEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  196 id=195        'FM-Matrix Op. A -> Op. E BR'                short='AEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  197 id=196        'FM-Matrix Op. A -> Op. E TR'                short='AETR'               steps=0 default=0.500 unit=0 flags=0x1
+  198 id=197        'FM-Matrix Op. A -> Op. E TL'                short='AETL'               steps=0 default=0.500 unit=0 flags=0x1
+  199 id=198        'FM-Matrix Op. A -> Op. F BL'                short='AFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  200 id=199        'FM-Matrix Op. A -> Op. F BR'                short='AFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  201 id=200        'FM-Matrix Op. A -> Op. F TR'                short='AFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  202 id=201        'FM-Matrix Op. A -> Op. F TL'                short='AFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  203 id=202        'FM-Matrix Op. A -> Op. X BL'                short='AXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  204 id=203        'FM-Matrix Op. A -> Op. X BR'                short='AXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  205 id=204        'FM-Matrix Op. A -> Op. X TR'                short='AXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  206 id=205        'FM-Matrix Op. A -> Op. X TL'                short='AXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  207 id=206        'FM-Matrix Op. A -> Op. Z BL'                short='AZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  208 id=207        'FM-Matrix Op. A -> Op. Z BR'                short='AZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  209 id=208        'FM-Matrix Op. A -> Op. Z TR'                short='AZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  210 id=209        'FM-Matrix Op. A -> Op. Z TL'                short='AZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  211 id=210        'FM-Matrix Op. A -> Out   BL'                short='AOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  212 id=211        'FM-Matrix Op. A -> Out   BR'                short='AOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  213 id=212        'FM-Matrix Op. A -> Out   TR'                short='AOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  214 id=213        'FM-Matrix Op. A -> Out   TL'                short='AOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  215 id=214        'FM-Matrix Op. A -> Pan   BL'                short='APBL'               steps=0 default=0.497 unit=0 flags=0x1
+  216 id=215        'FM-Matrix Op. A -> Pan   BR'                short='APBR'               steps=0 default=0.497 unit=0 flags=0x1
+  217 id=216        'FM-Matrix Op. A -> Pan   TR'                short='APTR'               steps=0 default=0.497 unit=0 flags=0x1
+  218 id=217        'FM-Matrix Op. A -> Pan   TL'                short='APTL'               steps=0 default=0.497 unit=0 flags=0x1
+  219 id=218        'FM-Matrix Op. A -> In    BL'                short='AIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  220 id=219        'FM-Matrix Op. A -> In    BR'                short='AIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  221 id=220        'FM-Matrix Op. A -> In    TR'                short='AITR'               steps=0 default=0.500 unit=0 flags=0x1
+  222 id=221        'FM-Matrix Op. A -> In    TL'                short='AITL'               steps=0 default=0.500 unit=0 flags=0x1
+  223 id=222        'FM-Matrix Op. B -> Op. A BL'                short='BABL'               steps=0 default=0.500 unit=0 flags=0x1
+  224 id=223        'FM-Matrix Op. B -> Op. A BR'                short='BABR'               steps=0 default=0.500 unit=0 flags=0x1
+  225 id=224        'FM-Matrix Op. B -> Op. A TR'                short='BATR'               steps=0 default=0.500 unit=0 flags=0x1
+  226 id=225        'FM-Matrix Op. B -> Op. A TL'                short='BATL'               steps=0 default=0.500 unit=0 flags=0x1
+  227 id=226        'FM-Matrix Op. B -> Op. B BL'                short='BBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  228 id=227        'FM-Matrix Op. B -> Op. B BR'                short='BBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  229 id=228        'FM-Matrix Op. B -> Op. B TR'                short='BBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  230 id=229        'FM-Matrix Op. B -> Op. B TL'                short='BBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  231 id=230        'FM-Matrix Op. B -> Op. C BL'                short='BCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  232 id=231        'FM-Matrix Op. B -> Op. C BR'                short='BCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  233 id=232        'FM-Matrix Op. B -> Op. C TR'                short='BCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  234 id=233        'FM-Matrix Op. B -> Op. C TL'                short='BCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  235 id=234        'FM-Matrix Op. B -> Op. D BL'                short='BDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  236 id=235        'FM-Matrix Op. B -> Op. D BR'                short='BDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  237 id=236        'FM-Matrix Op. B -> Op. D TR'                short='BDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  238 id=237        'FM-Matrix Op. B -> Op. D TL'                short='BDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  239 id=238        'FM-Matrix Op. B -> Op. E BL'                short='BEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  240 id=239        'FM-Matrix Op. B -> Op. E BR'                short='BEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  241 id=240        'FM-Matrix Op. B -> Op. E TR'                short='BETR'               steps=0 default=0.500 unit=0 flags=0x1
+  242 id=241        'FM-Matrix Op. B -> Op. E TL'                short='BETL'               steps=0 default=0.500 unit=0 flags=0x1
+  243 id=242        'FM-Matrix Op. B -> Op. F BL'                short='BFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  244 id=243        'FM-Matrix Op. B -> Op. F BR'                short='BFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  245 id=244        'FM-Matrix Op. B -> Op. F TR'                short='BFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  246 id=245        'FM-Matrix Op. B -> Op. F TL'                short='BFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  247 id=246        'FM-Matrix Op. B -> Op. X BL'                short='BXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  248 id=247        'FM-Matrix Op. B -> Op. X BR'                short='BXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  249 id=248        'FM-Matrix Op. B -> Op. X TR'                short='BXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  250 id=249        'FM-Matrix Op. B -> Op. X TL'                short='BXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  251 id=250        'FM-Matrix Op. B -> Op. Z BL'                short='BZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  252 id=251        'FM-Matrix Op. B -> Op. Z BR'                short='BZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  253 id=252        'FM-Matrix Op. B -> Op. Z TR'                short='BZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  254 id=253        'FM-Matrix Op. B -> Op. Z TL'                short='BZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  255 id=254        'FM-Matrix Op. B -> Out   BL'                short='BOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  256 id=255        'FM-Matrix Op. B -> Out   BR'                short='BOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  257 id=256        'FM-Matrix Op. B -> Out   TR'                short='BOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  258 id=257        'FM-Matrix Op. B -> Out   TL'                short='BOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  259 id=258        'FM-Matrix Op. B -> Pan   BL'                short='BPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  260 id=259        'FM-Matrix Op. B -> Pan   BR'                short='BPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  261 id=260        'FM-Matrix Op. B -> Pan   TR'                short='BPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  262 id=261        'FM-Matrix Op. B -> Pan   TL'                short='BPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  263 id=262        'FM-Matrix Op. B -> In    BL'                short='BIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  264 id=263        'FM-Matrix Op. B -> In    BR'                short='BIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  265 id=264        'FM-Matrix Op. B -> In    TR'                short='BITR'               steps=0 default=0.500 unit=0 flags=0x1
+  266 id=265        'FM-Matrix Op. B -> In    TL'                short='BITL'               steps=0 default=0.500 unit=0 flags=0x1
+  267 id=266        'FM-Matrix Op. C -> Op. A BL'                short='CABL'               steps=0 default=0.500 unit=0 flags=0x1
+  268 id=267        'FM-Matrix Op. C -> Op. A BR'                short='CABR'               steps=0 default=0.500 unit=0 flags=0x1
+  269 id=268        'FM-Matrix Op. C -> Op. A TR'                short='CATR'               steps=0 default=0.500 unit=0 flags=0x1
+  270 id=269        'FM-Matrix Op. C -> Op. A TL'                short='CATL'               steps=0 default=0.500 unit=0 flags=0x1
+  271 id=270        'FM-Matrix Op. C -> Op. B BL'                short='CBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  272 id=271        'FM-Matrix Op. C -> Op. B BR'                short='CBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  273 id=272        'FM-Matrix Op. C -> Op. B TR'                short='CBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  274 id=273        'FM-Matrix Op. C -> Op. B TL'                short='CBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  275 id=274        'FM-Matrix Op. C -> Op. C BL'                short='CCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  276 id=275        'FM-Matrix Op. C -> Op. C BR'                short='CCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  277 id=276        'FM-Matrix Op. C -> Op. C TR'                short='CCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  278 id=277        'FM-Matrix Op. C -> Op. C TL'                short='CCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  279 id=278        'FM-Matrix Op. C -> Op. D BL'                short='CDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  280 id=279        'FM-Matrix Op. C -> Op. D BR'                short='CDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  281 id=280        'FM-Matrix Op. C -> Op. D TR'                short='CDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  282 id=281        'FM-Matrix Op. C -> Op. D TL'                short='CDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  283 id=282        'FM-Matrix Op. C -> Op. E BL'                short='CEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  284 id=283        'FM-Matrix Op. C -> Op. E BR'                short='CEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  285 id=284        'FM-Matrix Op. C -> Op. E TR'                short='CETR'               steps=0 default=0.500 unit=0 flags=0x1
+  286 id=285        'FM-Matrix Op. C -> Op. E TL'                short='CETL'               steps=0 default=0.500 unit=0 flags=0x1
+  287 id=286        'FM-Matrix Op. C -> Op. F BL'                short='CFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  288 id=287        'FM-Matrix Op. C -> Op. F BR'                short='CFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  289 id=288        'FM-Matrix Op. C -> Op. F TR'                short='CFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  290 id=289        'FM-Matrix Op. C -> Op. F TL'                short='CFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  291 id=290        'FM-Matrix Op. C -> Op. X BL'                short='CXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  292 id=291        'FM-Matrix Op. C -> Op. X BR'                short='CXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  293 id=292        'FM-Matrix Op. C -> Op. X TR'                short='CXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  294 id=293        'FM-Matrix Op. C -> Op. X TL'                short='CXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  295 id=294        'FM-Matrix Op. C -> Op. Z BL'                short='CZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  296 id=295        'FM-Matrix Op. C -> Op. Z BR'                short='CZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  297 id=296        'FM-Matrix Op. C -> Op. Z TR'                short='CZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  298 id=297        'FM-Matrix Op. C -> Op. Z TL'                short='CZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  299 id=298        'FM-Matrix Op. C -> Out   BL'                short='COBL'               steps=0 default=0.500 unit=0 flags=0x1
+  300 id=299        'FM-Matrix Op. C -> Out   BR'                short='COBR'               steps=0 default=0.500 unit=0 flags=0x1
+  301 id=300        'FM-Matrix Op. C -> Out   TR'                short='COTR'               steps=0 default=0.500 unit=0 flags=0x1
+  302 id=301        'FM-Matrix Op. C -> Out   TL'                short='COTL'               steps=0 default=0.500 unit=0 flags=0x1
+  303 id=302        'FM-Matrix Op. C -> Pan   BL'                short='CPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  304 id=303        'FM-Matrix Op. C -> Pan   BR'                short='CPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  305 id=304        'FM-Matrix Op. C -> Pan   TR'                short='CPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  306 id=305        'FM-Matrix Op. C -> Pan   TL'                short='CPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  307 id=306        'FM-Matrix Op. C -> In    BL'                short='CIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  308 id=307        'FM-Matrix Op. C -> In    BR'                short='CIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  309 id=308        'FM-Matrix Op. C -> In    TR'                short='CITR'               steps=0 default=0.500 unit=0 flags=0x1
+  310 id=309        'FM-Matrix Op. C -> In    TL'                short='CITL'               steps=0 default=0.500 unit=0 flags=0x1
+  311 id=310        'FM-Matrix Op. D -> Op. A BL'                short='DABL'               steps=0 default=0.500 unit=0 flags=0x1
+  312 id=311        'FM-Matrix Op. D -> Op. A BR'                short='DABR'               steps=0 default=0.500 unit=0 flags=0x1
+  313 id=312        'FM-Matrix Op. D -> Op. A TR'                short='DATR'               steps=0 default=0.500 unit=0 flags=0x1
+  314 id=313        'FM-Matrix Op. D -> Op. A TL'                short='DATL'               steps=0 default=0.500 unit=0 flags=0x1
+  315 id=314        'FM-Matrix Op. D -> Op. B BL'                short='DBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  316 id=315        'FM-Matrix Op. D -> Op. B BR'                short='DBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  317 id=316        'FM-Matrix Op. D -> Op. B TR'                short='DBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  318 id=317        'FM-Matrix Op. D -> Op. B TL'                short='DBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  319 id=318        'FM-Matrix Op. D -> Op. C BL'                short='DCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  320 id=319        'FM-Matrix Op. D -> Op. C BR'                short='DCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  321 id=320        'FM-Matrix Op. D -> Op. C TR'                short='DCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  322 id=321        'FM-Matrix Op. D -> Op. C TL'                short='DCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  323 id=322        'FM-Matrix Op. D -> Op. D BL'                short='DDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  324 id=323        'FM-Matrix Op. D -> Op. D BR'                short='DDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  325 id=324        'FM-Matrix Op. D -> Op. D TR'                short='DDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  326 id=325        'FM-Matrix Op. D -> Op. D TL'                short='DDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  327 id=326        'FM-Matrix Op. D -> Op. E BL'                short='DEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  328 id=327        'FM-Matrix Op. D -> Op. E BR'                short='DEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  329 id=328        'FM-Matrix Op. D -> Op. E TR'                short='DETR'               steps=0 default=0.500 unit=0 flags=0x1
+  330 id=329        'FM-Matrix Op. D -> Op. E TL'                short='DETL'               steps=0 default=0.500 unit=0 flags=0x1
+  331 id=330        'FM-Matrix Op. D -> Op. F BL'                short='DFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  332 id=331        'FM-Matrix Op. D -> Op. F BR'                short='DFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  333 id=332        'FM-Matrix Op. D -> Op. F TR'                short='DFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  334 id=333        'FM-Matrix Op. D -> Op. F TL'                short='DFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  335 id=334        'FM-Matrix Op. D -> Op. X BL'                short='DXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  336 id=335        'FM-Matrix Op. D -> Op. X BR'                short='DXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  337 id=336        'FM-Matrix Op. D -> Op. X TR'                short='DXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  338 id=337        'FM-Matrix Op. D -> Op. X TL'                short='DXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  339 id=338        'FM-Matrix Op. D -> Op. Z BL'                short='DZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  340 id=339        'FM-Matrix Op. D -> Op. Z BR'                short='DZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  341 id=340        'FM-Matrix Op. D -> Op. Z TR'                short='DZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  342 id=341        'FM-Matrix Op. D -> Op. Z TL'                short='DZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  343 id=342        'FM-Matrix Op. D -> Out   BL'                short='DOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  344 id=343        'FM-Matrix Op. D -> Out   BR'                short='DOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  345 id=344        'FM-Matrix Op. D -> Out   TR'                short='DOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  346 id=345        'FM-Matrix Op. D -> Out   TL'                short='DOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  347 id=346        'FM-Matrix Op. D -> Pan   BL'                short='DPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  348 id=347        'FM-Matrix Op. D -> Pan   BR'                short='DPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  349 id=348        'FM-Matrix Op. D -> Pan   TR'                short='DPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  350 id=349        'FM-Matrix Op. D -> Pan   TL'                short='DPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  351 id=350        'FM-Matrix Op. D -> In    BL'                short='DIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  352 id=351        'FM-Matrix Op. D -> In    BR'                short='DIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  353 id=352        'FM-Matrix Op. D -> In    TR'                short='DITR'               steps=0 default=0.500 unit=0 flags=0x1
+  354 id=353        'FM-Matrix Op. D -> In    TL'                short='DITL'               steps=0 default=0.500 unit=0 flags=0x1
+  355 id=354        'FM-Matrix Op. E -> Op. A BL'                short='EABL'               steps=0 default=0.500 unit=0 flags=0x1
+  356 id=355        'FM-Matrix Op. E -> Op. A BR'                short='EABR'               steps=0 default=0.500 unit=0 flags=0x1
+  357 id=356        'FM-Matrix Op. E -> Op. A TR'                short='EATR'               steps=0 default=0.500 unit=0 flags=0x1
+  358 id=357        'FM-Matrix Op. E -> Op. A TL'                short='EATL'               steps=0 default=0.500 unit=0 flags=0x1
+  359 id=358        'FM-Matrix Op. E -> Op. B BL'                short='EBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  360 id=359        'FM-Matrix Op. E -> Op. B BR'                short='EBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  361 id=360        'FM-Matrix Op. E -> Op. B TR'                short='EBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  362 id=361        'FM-Matrix Op. E -> Op. B TL'                short='EBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  363 id=362        'FM-Matrix Op. E -> Op. C BL'                short='ECBL'               steps=0 default=0.500 unit=0 flags=0x1
+  364 id=363        'FM-Matrix Op. E -> Op. C BR'                short='ECBR'               steps=0 default=0.500 unit=0 flags=0x1
+  365 id=364        'FM-Matrix Op. E -> Op. C TR'                short='ECTR'               steps=0 default=0.500 unit=0 flags=0x1
+  366 id=365        'FM-Matrix Op. E -> Op. C TL'                short='ECTL'               steps=0 default=0.500 unit=0 flags=0x1
+  367 id=366        'FM-Matrix Op. E -> Op. D BL'                short='EDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  368 id=367        'FM-Matrix Op. E -> Op. D BR'                short='EDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  369 id=368        'FM-Matrix Op. E -> Op. D TR'                short='EDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  370 id=369        'FM-Matrix Op. E -> Op. D TL'                short='EDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  371 id=370        'FM-Matrix Op. E -> Op. E BL'                short='EEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  372 id=371        'FM-Matrix Op. E -> Op. E BR'                short='EEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  373 id=372        'FM-Matrix Op. E -> Op. E TR'                short='EETR'               steps=0 default=0.500 unit=0 flags=0x1
+  374 id=373        'FM-Matrix Op. E -> Op. E TL'                short='EETL'               steps=0 default=0.500 unit=0 flags=0x1
+  375 id=374        'FM-Matrix Op. E -> Op. F BL'                short='EFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  376 id=375        'FM-Matrix Op. E -> Op. F BR'                short='EFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  377 id=376        'FM-Matrix Op. E -> Op. F TR'                short='EFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  378 id=377        'FM-Matrix Op. E -> Op. F TL'                short='EFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  379 id=378        'FM-Matrix Op. E -> Op. X BL'                short='EXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  380 id=379        'FM-Matrix Op. E -> Op. X BR'                short='EXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  381 id=380        'FM-Matrix Op. E -> Op. X TR'                short='EXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  382 id=381        'FM-Matrix Op. E -> Op. X TL'                short='EXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  383 id=382        'FM-Matrix Op. E -> Op. Z BL'                short='EZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  384 id=383        'FM-Matrix Op. E -> Op. Z BR'                short='EZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  385 id=384        'FM-Matrix Op. E -> Op. Z TR'                short='EZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  386 id=385        'FM-Matrix Op. E -> Op. Z TL'                short='EZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  387 id=386        'FM-Matrix Op. E -> Out   BL'                short='EOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  388 id=387        'FM-Matrix Op. E -> Out   BR'                short='EOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  389 id=388        'FM-Matrix Op. E -> Out   TR'                short='EOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  390 id=389        'FM-Matrix Op. E -> Out   TL'                short='EOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  391 id=390        'FM-Matrix Op. E -> Pan   BL'                short='EPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  392 id=391        'FM-Matrix Op. E -> Pan   BR'                short='EPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  393 id=392        'FM-Matrix Op. E -> Pan   TR'                short='EPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  394 id=393        'FM-Matrix Op. E -> Pan   TL'                short='EPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  395 id=394        'FM-Matrix Op. E -> In    BL'                short='EIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  396 id=395        'FM-Matrix Op. E -> In    BR'                short='EIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  397 id=396        'FM-Matrix Op. E -> In    TR'                short='EITR'               steps=0 default=0.500 unit=0 flags=0x1
+  398 id=397        'FM-Matrix Op. E -> In    TL'                short='EITL'               steps=0 default=0.500 unit=0 flags=0x1
+  399 id=398        'FM-Matrix Op. F -> Op. A BL'                short='FABL'               steps=0 default=0.500 unit=0 flags=0x1
+  400 id=399        'FM-Matrix Op. F -> Op. A BR'                short='FABR'               steps=0 default=0.500 unit=0 flags=0x1
+  401 id=400        'FM-Matrix Op. F -> Op. A TR'                short='FATR'               steps=0 default=0.500 unit=0 flags=0x1
+  402 id=401        'FM-Matrix Op. F -> Op. A TL'                short='FATL'               steps=0 default=0.500 unit=0 flags=0x1
+  403 id=402        'FM-Matrix Op. F -> Op. B BL'                short='FBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  404 id=403        'FM-Matrix Op. F -> Op. B BR'                short='FBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  405 id=404        'FM-Matrix Op. F -> Op. B TR'                short='FBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  406 id=405        'FM-Matrix Op. F -> Op. B TL'                short='FBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  407 id=406        'FM-Matrix Op. F -> Op. C BL'                short='FCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  408 id=407        'FM-Matrix Op. F -> Op. C BR'                short='FCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  409 id=408        'FM-Matrix Op. F -> Op. C TR'                short='FCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  410 id=409        'FM-Matrix Op. F -> Op. C TL'                short='FCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  411 id=410        'FM-Matrix Op. F -> Op. D BL'                short='FDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  412 id=411        'FM-Matrix Op. F -> Op. D BR'                short='FDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  413 id=412        'FM-Matrix Op. F -> Op. D TR'                short='FDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  414 id=413        'FM-Matrix Op. F -> Op. D TL'                short='FDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  415 id=414        'FM-Matrix Op. F -> Op. E BL'                short='FEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  416 id=415        'FM-Matrix Op. F -> Op. E BR'                short='FEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  417 id=416        'FM-Matrix Op. F -> Op. E TR'                short='FETR'               steps=0 default=0.500 unit=0 flags=0x1
+  418 id=417        'FM-Matrix Op. F -> Op. E TL'                short='FETL'               steps=0 default=0.500 unit=0 flags=0x1
+  419 id=418        'FM-Matrix Op. F -> Op. F BL'                short='FFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  420 id=419        'FM-Matrix Op. F -> Op. F BR'                short='FFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  421 id=420        'FM-Matrix Op. F -> Op. F TR'                short='FFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  422 id=421        'FM-Matrix Op. F -> Op. F TL'                short='FFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  423 id=422        'FM-Matrix Op. F -> Op. X BL'                short='FXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  424 id=423        'FM-Matrix Op. F -> Op. X BR'                short='FXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  425 id=424        'FM-Matrix Op. F -> Op. X TR'                short='FXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  426 id=425        'FM-Matrix Op. F -> Op. X TL'                short='FXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  427 id=426        'FM-Matrix Op. F -> Op. Z BL'                short='FZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  428 id=427        'FM-Matrix Op. F -> Op. Z BR'                short='FZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  429 id=428        'FM-Matrix Op. F -> Op. Z TR'                short='FZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  430 id=429        'FM-Matrix Op. F -> Op. Z TL'                short='FZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  431 id=430        'FM-Matrix Op. F -> Out   BL'                short='FOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  432 id=431        'FM-Matrix Op. F -> Out   BR'                short='FOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  433 id=432        'FM-Matrix Op. F -> Out   TR'                short='FOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  434 id=433        'FM-Matrix Op. F -> Out   TL'                short='FOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  435 id=434        'FM-Matrix Op. F -> Pan   BL'                short='FPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  436 id=435        'FM-Matrix Op. F -> Pan   BR'                short='FPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  437 id=436        'FM-Matrix Op. F -> Pan   TR'                short='FPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  438 id=437        'FM-Matrix Op. F -> Pan   TL'                short='FPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  439 id=438        'FM-Matrix Op. F -> In    BL'                short='FIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  440 id=439        'FM-Matrix Op. F -> In    BR'                short='FIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  441 id=440        'FM-Matrix Op. F -> In    TR'                short='FITR'               steps=0 default=0.500 unit=0 flags=0x1
+  442 id=441        'FM-Matrix Op. F -> In    TL'                short='FITL'               steps=0 default=0.500 unit=0 flags=0x1
+  443 id=442        'FM-Matrix Op. X -> Op. A BL'                short='XABL'               steps=0 default=0.500 unit=0 flags=0x1
+  444 id=443        'FM-Matrix Op. X -> Op. A BR'                short='XABR'               steps=0 default=0.500 unit=0 flags=0x1
+  445 id=444        'FM-Matrix Op. X -> Op. A TR'                short='XATR'               steps=0 default=0.500 unit=0 flags=0x1
+  446 id=445        'FM-Matrix Op. X -> Op. A TL'                short='XATL'               steps=0 default=0.500 unit=0 flags=0x1
+  447 id=446        'FM-Matrix Op. X -> Op. B BL'                short='XBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  448 id=447        'FM-Matrix Op. X -> Op. B BR'                short='XBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  449 id=448        'FM-Matrix Op. X -> Op. B TR'                short='XBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  450 id=449        'FM-Matrix Op. X -> Op. B TL'                short='XBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  451 id=450        'FM-Matrix Op. X -> Op. C BL'                short='XCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  452 id=451        'FM-Matrix Op. X -> Op. C BR'                short='XCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  453 id=452        'FM-Matrix Op. X -> Op. C TR'                short='XCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  454 id=453        'FM-Matrix Op. X -> Op. C TL'                short='XCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  455 id=454        'FM-Matrix Op. X -> Op. D BL'                short='XDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  456 id=455        'FM-Matrix Op. X -> Op. D BR'                short='XDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  457 id=456        'FM-Matrix Op. X -> Op. D TR'                short='XDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  458 id=457        'FM-Matrix Op. X -> Op. D TL'                short='XDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  459 id=458        'FM-Matrix Op. X -> Op. E BL'                short='XEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  460 id=459        'FM-Matrix Op. X -> Op. E BR'                short='XEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  461 id=460        'FM-Matrix Op. X -> Op. E TR'                short='XETR'               steps=0 default=0.500 unit=0 flags=0x1
+  462 id=461        'FM-Matrix Op. X -> Op. E TL'                short='XETL'               steps=0 default=0.500 unit=0 flags=0x1
+  463 id=462        'FM-Matrix Op. X -> Op. F BL'                short='XFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  464 id=463        'FM-Matrix Op. X -> Op. F BR'                short='XFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  465 id=464        'FM-Matrix Op. X -> Op. F TR'                short='XFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  466 id=465        'FM-Matrix Op. X -> Op. F TL'                short='XFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  467 id=466        'FM-Matrix Op. X -> Op. Z BL'                short='XZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  468 id=467        'FM-Matrix Op. X -> Op. Z BR'                short='XZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  469 id=468        'FM-Matrix Op. X -> Op. Z TR'                short='XZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  470 id=469        'FM-Matrix Op. X -> Op. Z TL'                short='XZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  471 id=470        'FM-Matrix Op. X -> Out   BL'                short='XOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  472 id=471        'FM-Matrix Op. X -> Out   BR'                short='XOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  473 id=472        'FM-Matrix Op. X -> Out   TR'                short='XOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  474 id=473        'FM-Matrix Op. X -> Out   TL'                short='XOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  475 id=474        'FM-Matrix Op. X -> Pan   BL'                short='XPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  476 id=475        'FM-Matrix Op. X -> Pan   BR'                short='XPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  477 id=476        'FM-Matrix Op. X -> Pan   TR'                short='XPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  478 id=477        'FM-Matrix Op. X -> Pan   TL'                short='XPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  479 id=478        'FM-Matrix Op. X -> In    BL'                short='XIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  480 id=479        'FM-Matrix Op. X -> In    BR'                short='XIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  481 id=480        'FM-Matrix Op. X -> In    TR'                short='XITR'               steps=0 default=0.500 unit=0 flags=0x1
+  482 id=481        'FM-Matrix Op. X -> In    TL'                short='XITL'               steps=0 default=0.500 unit=0 flags=0x1
+  483 id=482        'FM-Matrix Op. Z -> Op. A BL'                short='ZABL'               steps=0 default=0.500 unit=0 flags=0x1
+  484 id=483        'FM-Matrix Op. Z -> Op. A BR'                short='ZABR'               steps=0 default=0.500 unit=0 flags=0x1
+  485 id=484        'FM-Matrix Op. Z -> Op. A TR'                short='ZATR'               steps=0 default=0.500 unit=0 flags=0x1
+  486 id=485        'FM-Matrix Op. Z -> Op. A TL'                short='ZATL'               steps=0 default=0.500 unit=0 flags=0x1
+  487 id=486        'FM-Matrix Op. Z -> Op. B BL'                short='ZBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  488 id=487        'FM-Matrix Op. Z -> Op. B BR'                short='ZBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  489 id=488        'FM-Matrix Op. Z -> Op. B TR'                short='ZBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  490 id=489        'FM-Matrix Op. Z -> Op. B TL'                short='ZBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  491 id=490        'FM-Matrix Op. Z -> Op. C BL'                short='ZCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  492 id=491        'FM-Matrix Op. Z -> Op. C BR'                short='ZCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  493 id=492        'FM-Matrix Op. Z -> Op. C TR'                short='ZCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  494 id=493        'FM-Matrix Op. Z -> Op. C TL'                short='ZCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  495 id=494        'FM-Matrix Op. Z -> Op. D BL'                short='ZDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  496 id=495        'FM-Matrix Op. Z -> Op. D BR'                short='ZDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  497 id=496        'FM-Matrix Op. Z -> Op. D TR'                short='ZDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  498 id=497        'FM-Matrix Op. Z -> Op. D TL'                short='ZDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  499 id=498        'FM-Matrix Op. Z -> Op. E BL'                short='ZEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  500 id=499        'FM-Matrix Op. Z -> Op. E BR'                short='ZEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  501 id=500        'FM-Matrix Op. Z -> Op. E TR'                short='ZETR'               steps=0 default=0.500 unit=0 flags=0x1
+  502 id=501        'FM-Matrix Op. Z -> Op. E TL'                short='ZETL'               steps=0 default=0.500 unit=0 flags=0x1
+  503 id=502        'FM-Matrix Op. Z -> Op. F BL'                short='ZFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  504 id=503        'FM-Matrix Op. Z -> Op. F BR'                short='ZFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  505 id=504        'FM-Matrix Op. Z -> Op. F TR'                short='ZFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  506 id=505        'FM-Matrix Op. Z -> Op. F TL'                short='ZFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  507 id=506        'FM-Matrix Op. Z -> Op. X BL'                short='ZXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  508 id=507        'FM-Matrix Op. Z -> Op. X BR'                short='ZXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  509 id=508        'FM-Matrix Op. Z -> Op. X TR'                short='ZXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  510 id=509        'FM-Matrix Op. Z -> Op. X TL'                short='ZXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  511 id=510        'FM-Matrix Op. Z -> Out   BL'                short='ZOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  512 id=511        'FM-Matrix Op. Z -> Out   BR'                short='ZOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  513 id=512        'FM-Matrix Op. Z -> Out   TR'                short='ZOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  514 id=513        'FM-Matrix Op. Z -> Out   TL'                short='ZOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  515 id=514        'FM-Matrix Op. Z -> Pan   BL'                short='ZPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  516 id=515        'FM-Matrix Op. Z -> Pan   BR'                short='ZPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  517 id=516        'FM-Matrix Op. Z -> Pan   TR'                short='ZPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  518 id=517        'FM-Matrix Op. Z -> Pan   TL'                short='ZPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  519 id=518        'FM-Matrix Op. Z -> In    BL'                short='ZIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  520 id=519        'FM-Matrix Op. Z -> In    BR'                short='ZIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  521 id=520        'FM-Matrix Op. Z -> In    TR'                short='ZITR'               steps=0 default=0.500 unit=0 flags=0x1
+  522 id=521        'FM-Matrix Op. Z -> In    TL'                short='ZITL'               steps=0 default=0.500 unit=0 flags=0x1
+  523 id=522        'FM-Matrix In    -> Op. A BL'                short='IABL'               steps=0 default=0.500 unit=0 flags=0x1
+  524 id=523        'FM-Matrix In    -> Op. A BR'                short='IABR'               steps=0 default=0.500 unit=0 flags=0x1
+  525 id=524        'FM-Matrix In    -> Op. A TR'                short='IATR'               steps=0 default=0.500 unit=0 flags=0x1
+  526 id=525        'FM-Matrix In    -> Op. A TL'                short='IATL'               steps=0 default=0.500 unit=0 flags=0x1
+  527 id=526        'FM-Matrix In    -> Op. B BL'                short='IBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  528 id=527        'FM-Matrix In    -> Op. B BR'                short='IBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  529 id=528        'FM-Matrix In    -> Op. B TR'                short='IBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  530 id=529        'FM-Matrix In    -> Op. B TL'                short='IBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  531 id=530        'FM-Matrix In    -> Op. C BL'                short='ICBL'               steps=0 default=0.500 unit=0 flags=0x1
+  532 id=531        'FM-Matrix In    -> Op. C BR'                short='ICBR'               steps=0 default=0.500 unit=0 flags=0x1
+  533 id=532        'FM-Matrix In    -> Op. C TR'                short='ICTR'               steps=0 default=0.500 unit=0 flags=0x1
+  534 id=533        'FM-Matrix In    -> Op. C TL'                short='ICTL'               steps=0 default=0.500 unit=0 flags=0x1
+  535 id=534        'FM-Matrix In    -> Op. D BL'                short='IDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  536 id=535        'FM-Matrix In    -> Op. D BR'                short='IDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  537 id=536        'FM-Matrix In    -> Op. D TR'                short='IDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  538 id=537        'FM-Matrix In    -> Op. D TL'                short='IDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  539 id=538        'FM-Matrix In    -> Op. E BL'                short='IEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  540 id=539        'FM-Matrix In    -> Op. E BR'                short='IEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  541 id=540        'FM-Matrix In    -> Op. E TR'                short='IETR'               steps=0 default=0.500 unit=0 flags=0x1
+  542 id=541        'FM-Matrix In    -> Op. E TL'                short='IETL'               steps=0 default=0.500 unit=0 flags=0x1
+  543 id=542        'FM-Matrix In    -> Op. F BL'                short='IFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  544 id=543        'FM-Matrix In    -> Op. F BR'                short='IFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  545 id=544        'FM-Matrix In    -> Op. F TR'                short='IFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  546 id=545        'FM-Matrix In    -> Op. F TL'                short='IFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  547 id=546        'FM-Matrix In    -> Op. X BL'                short='IXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  548 id=547        'FM-Matrix In    -> Op. X BR'                short='IXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  549 id=548        'FM-Matrix In    -> Op. X TR'                short='IXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  550 id=549        'FM-Matrix In    -> Op. X TL'                short='IXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  551 id=550        'FM-Matrix In    -> Op. Z BL'                short='IZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  552 id=551        'FM-Matrix In    -> Op. Z BR'                short='IZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  553 id=552        'FM-Matrix In    -> Op. Z TR'                short='IZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  554 id=553        'FM-Matrix In    -> Op. Z TL'                short='IZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  555 id=554        'FM-Matrix In    -> Out   BL'                short='IOBL'               steps=0 default=0.500 unit=0 flags=0x1
+  556 id=555        'FM-Matrix In    -> Out   BR'                short='IOBR'               steps=0 default=0.500 unit=0 flags=0x1
+  557 id=556        'FM-Matrix In    -> Out   TR'                short='IOTR'               steps=0 default=0.500 unit=0 flags=0x1
+  558 id=557        'FM-Matrix In    -> Out   TL'                short='IOTL'               steps=0 default=0.500 unit=0 flags=0x1
+  559 id=558        'FM-Matrix In    -> Pan   BL'                short='IPBL'               steps=0 default=0.497 unit=0 flags=0x1
+  560 id=559        'FM-Matrix In    -> Pan   BR'                short='IPBR'               steps=0 default=0.497 unit=0 flags=0x1
+  561 id=560        'FM-Matrix In    -> Pan   TR'                short='IPTR'               steps=0 default=0.497 unit=0 flags=0x1
+  562 id=561        'FM-Matrix In    -> Pan   TL'                short='IPTL'               steps=0 default=0.497 unit=0 flags=0x1
+  563 id=562        'FM-Matrix In    -> In    BL'                short='IIBL'               steps=0 default=0.500 unit=0 flags=0x1
+  564 id=563        'FM-Matrix In    -> In    BR'                short='IIBR'               steps=0 default=0.500 unit=0 flags=0x1
+  565 id=564        'FM-Matrix In    -> In    TR'                short='IITR'               steps=0 default=0.500 unit=0 flags=0x1
+  566 id=565        'FM-Matrix In    -> In    TL'                short='IITL'               steps=0 default=0.500 unit=0 flags=0x1
+  567 id=566        'Filter Bypass'                              short='ZByp'               steps=1 default=0.000 unit=0 flags=0x1
+  568 id=567        'Saturator Bypass'                           short='XByp'               steps=1 default=0.000 unit=0 flags=0x1
+  569 id=568        'Pitch Envelope Amount'                      short='PEnA'               steps=0 default=0.500 unit=0 flags=0x1
+  570 id=569        'Stretch Octaves'                            short='StOc'               steps=0 default=0.500 unit=0 flags=0x1
+  571 id=570        'Pitchbend Mode'                             short='PBMo'               steps=0 default=0.000 unit=0 flags=0x1
+  572 id=571        'Input On/Off BL'                            short='IOBL'               steps=1 default=0.000 unit=0 flags=0x1
+  573 id=572        'Input On/Off BR'                            short='IOBR'               steps=1 default=0.000 unit=0 flags=0x1
+  574 id=573        'Input On/Off TR'                            short='IOTR'               steps=1 default=0.000 unit=0 flags=0x1
+  575 id=574        'Input On/Off TL'                            short='IOTL'               steps=1 default=0.000 unit=0 flags=0x1
+  576 id=575        'Op. A Envelope Tempo Sync'                  short='TSyA'               steps=1 default=0.000 unit=0 flags=0x1
+  577 id=576        'Op. B Envelope Tempo Sync'                  short='TSyB'               steps=1 default=0.000 unit=0 flags=0x1
+  578 id=577        'Op. C Envelope Tempo Sync'                  short='TSyC'               steps=1 default=0.000 unit=0 flags=0x1
+  579 id=578        'Op. D Envelope Tempo Sync'                  short='TSyD'               steps=1 default=0.000 unit=0 flags=0x1
+  580 id=579        'Op. E Envelope Tempo Sync'                  short='TSyE'               steps=1 default=0.000 unit=0 flags=0x1
+  581 id=580        'Op. F Envelope Tempo Sync'                  short='TSyF'               steps=1 default=0.000 unit=0 flags=0x1
+  582 id=581        'Op. X Envelope Tempo Sync'                  short='TSyX'               steps=1 default=0.000 unit=0 flags=0x1
+  583 id=582        'Op. Z Envelope Tempo Sync'                  short='TSyZ'               steps=1 default=0.000 unit=0 flags=0x1
+  584 id=583        'Pitch Envelope Tempo Sync'                  short='TSyP'               steps=1 default=0.000 unit=0 flags=0x1
+  585 id=584        'FreeRun or KeySync of Op. A'                short='FRuA'               steps=1 default=0.000 unit=0 flags=0x1
+  586 id=585        'FreeRun or KeySync of Op. B'                short='FRuB'               steps=1 default=0.000 unit=0 flags=0x1
+  587 id=586        'FreeRun or KeySync of Op. C'                short='FRuC'               steps=1 default=0.000 unit=0 flags=0x1
+  588 id=587        'FreeRun or KeySync of Op. D'                short='FRuD'               steps=1 default=0.000 unit=0 flags=0x1
+  589 id=588        'FreeRun or KeySync of Op. E'                short='FRuE'               steps=1 default=0.000 unit=0 flags=0x1
+  590 id=589        'FreeRun or KeySync of Op. F'                short='FRuF'               steps=1 default=0.000 unit=0 flags=0x1
+  591 id=590        'FreeRun or KeySync of Op. X'                short='FRuX'               steps=1 default=0.000 unit=0 flags=0x1
+  592 id=591        'FreeRun or KeySync of Op. Z'                short='FRuZ'               steps=1 default=0.000 unit=0 flags=0x1
+  593 id=592        'FreeRun or KeySync of Pitch'                short='FRuP'               steps=1 default=0.000 unit=0 flags=0x1
+  594 id=593        'Op. A Velocity Sensivity'                   short='VSeA'               steps=0 default=0.749 unit=0 flags=0x1
+  595 id=594        'Op. B Velocity Sensivity'                   short='VSeB'               steps=0 default=0.749 unit=0 flags=0x1
+  596 id=595        'Op. C Velocity Sensivity'                   short='VSeC'               steps=0 default=0.749 unit=0 flags=0x1
+  597 id=596        'Op. D Velocity Sensivity'                   short='VSeD'               steps=0 default=0.749 unit=0 flags=0x1
+  598 id=597        'Op. E Velocity Sensivity'                   short='VSeE'               steps=0 default=0.749 unit=0 flags=0x1
+  599 id=598        'Op. F Velocity Sensivity'                   short='VSeF'               steps=0 default=0.749 unit=0 flags=0x1
+  600 id=599        'Op. X Velocity Sensivity'                   short='VSeX'               steps=0 default=0.749 unit=0 flags=0x1
+  601 id=600        'Op. Z Velocity Sensivity'                   short='VSeZ'               steps=0 default=0.749 unit=0 flags=0x1
+  602 id=601        'Pitch Velocity Sensivity'                   short='VSeP'               steps=0 default=0.749 unit=0 flags=0x1
+  603 id=602        'Op. A Envelope Keyboard Scaling'            short='EKSA'               steps=0 default=0.500 unit=0 flags=0x1
+  604 id=603        'Op. B Envelope Keyboard Scaling'            short='EKSB'               steps=0 default=0.500 unit=0 flags=0x1
+  605 id=604        'Op. C Envelope Keyboard Scaling'            short='EKSC'               steps=0 default=0.500 unit=0 flags=0x1
+  606 id=605        'Op. D Envelope Keyboard Scaling'            short='EKSD'               steps=0 default=0.500 unit=0 flags=0x1
+  607 id=606        'Op. E Envelope Keyboard Scaling'            short='EKSE'               steps=0 default=0.500 unit=0 flags=0x1
+  608 id=607        'Op. F Envelope Keyboard Scaling'            short='EKSF'               steps=0 default=0.500 unit=0 flags=0x1
+  609 id=608        'Op. X Envelope Keyboard Scaling'            short='EKSX'               steps=0 default=0.500 unit=0 flags=0x1
+  610 id=609        'Op. Z Envelope Keyboard Scaling'            short='EKSZ'               steps=0 default=0.500 unit=0 flags=0x1
+  611 id=610        'Pitch Envelope Keyboard Scaling'            short='EKSP'               steps=0 default=0.500 unit=0 flags=0x1
+  612 id=611        'Op. A Envelope Velocity Scaling'            short='EVSA'               steps=0 default=0.497 unit=0 flags=0x1
+  613 id=612        'Op. B Envelope Velocity Scaling'            short='EVSB'               steps=0 default=0.497 unit=0 flags=0x1
+  614 id=613        'Op. C Envelope Velocity Scaling'            short='EVSC'               steps=0 default=0.497 unit=0 flags=0x1
+  615 id=614        'Op. D Envelope Velocity Scaling'            short='EVSD'               steps=0 default=0.497 unit=0 flags=0x1
+  616 id=615        'Op. E Envelope Velocity Scaling'            short='EVSE'               steps=0 default=0.497 unit=0 flags=0x1
+  617 id=616        'Op. F Envelope Velocity Scaling'            short='EVSF'               steps=0 default=0.497 unit=0 flags=0x1
+  618 id=617        'Op. X Envelope Velocity Scaling'            short='EVSX'               steps=0 default=0.497 unit=0 flags=0x1
+  619 id=618        'Op. Z Envelope Velocity Scaling'            short='EVSZ'               steps=0 default=0.497 unit=0 flags=0x1
+  620 id=619        'Pitch Envelope Velocity Scaling'            short='EVSP'               steps=0 default=0.497 unit=0 flags=0x1
+  621 id=620        'Op. A Wave Invert'                          short='WInA'               steps=1 default=0.000 unit=0 flags=0x1
+  622 id=621        'Op. B Wave Invert'                          short='WInB'               steps=1 default=0.000 unit=0 flags=0x1
+  623 id=622        'Op. C Wave Invert'                          short='WInC'               steps=1 default=0.000 unit=0 flags=0x1
+  624 id=623        'Op. D Wave Invert'                          short='WInD'               steps=1 default=0.000 unit=0 flags=0x1
+  625 id=624        'Op. E Wave Invert'                          short='WInE'               steps=1 default=0.000 unit=0 flags=0x1
+  626 id=625        'Op. F Wave Invert'                          short='WInF'               steps=1 default=0.000 unit=0 flags=0x1
+  627 id=626        'Op. X Wave Invert'                          short='WInX'               steps=1 default=0.000 unit=0 flags=0x1
+  628 id=627        'Op. Z Wave Invert'                          short='WInZ'               steps=1 default=0.000 unit=0 flags=0x1
+  629 id=628        'Pitch Wave Invert'                          short='WInP'               steps=1 default=0.000 unit=0 flags=0x1
+  630 id=629        'Op. A Pitch Envelope'                       short='PEnA'               steps=1 default=1.000 unit=0 flags=0x1
+  631 id=630        'Op. B Pitch Envelope'                       short='PEnB'               steps=1 default=1.000 unit=0 flags=0x1
+  632 id=631        'Op. C Pitch Envelope'                       short='PEnC'               steps=1 default=1.000 unit=0 flags=0x1
+  633 id=632        'Op. D Pitch Envelope'                       short='PEnD'               steps=1 default=1.000 unit=0 flags=0x1
+  634 id=633        'Op. E Pitch Envelope'                       short='PEnE'               steps=1 default=1.000 unit=0 flags=0x1
+  635 id=634        'Op. F Pitch Envelope'                       short='PEnF'               steps=1 default=1.000 unit=0 flags=0x1
+  636 id=635        'Op. X Pitch Envelope'                       short='PEnX'               steps=1 default=1.000 unit=0 flags=0x1
+  637 id=636        'Op. Z Pitch Envelope'                       short='PEnZ'               steps=1 default=1.000 unit=0 flags=0x1
+  638 id=637        'Pitch Pitch Envelope'                       short='PEnP'               steps=1 default=1.000 unit=0 flags=0x1
+  639 id=638        'Op. A Envelope Mode Loop'                   short='EnLA'               steps=1 default=1.000 unit=0 flags=0x1
+  640 id=639        'Op. B Envelope Mode Loop'                   short='EnLB'               steps=1 default=1.000 unit=0 flags=0x1
+  641 id=640        'Op. C Envelope Mode Loop'                   short='EnLC'               steps=1 default=1.000 unit=0 flags=0x1
+  642 id=641        'Op. D Envelope Mode Loop'                   short='EnLD'               steps=1 default=1.000 unit=0 flags=0x1
+  643 id=642        'Op. E Envelope Mode Loop'                   short='EnLE'               steps=1 default=1.000 unit=0 flags=0x1
+  644 id=643        'Op. F Envelope Mode Loop'                   short='EnLF'               steps=1 default=1.000 unit=0 flags=0x1
+  645 id=644        'Op. X Envelope Mode Loop'                   short='EnLX'               steps=1 default=1.000 unit=0 flags=0x1
+  646 id=645        'Op. Z Envelope Mode Loop'                   short='EnLZ'               steps=1 default=1.000 unit=0 flags=0x1
+  647 id=646        'Pitch Envelope Mode Loop'                   short='EnLP'               steps=1 default=1.000 unit=0 flags=0x1
+  648 id=647        'Op. A Envelope Mode Release'                short='EnRA'               steps=1 default=1.000 unit=0 flags=0x1
+  649 id=648        'Op. B Envelope Mode Release'                short='EnRB'               steps=1 default=1.000 unit=0 flags=0x1
+  650 id=649        'Op. C Envelope Mode Release'                short='EnRC'               steps=1 default=1.000 unit=0 flags=0x1
+  651 id=650        'Op. D Envelope Mode Release'                short='EnRD'               steps=1 default=1.000 unit=0 flags=0x1
+  652 id=651        'Op. E Envelope Mode Release'                short='EnRE'               steps=1 default=1.000 unit=0 flags=0x1
+  653 id=652        'Op. F Envelope Mode Release'                short='EnRF'               steps=1 default=1.000 unit=0 flags=0x1
+  654 id=653        'Op. X Envelope Mode Release'                short='EnRX'               steps=1 default=1.000 unit=0 flags=0x1
+  655 id=654        'Op. Z Envelope Mode Release'                short='EnRZ'               steps=1 default=1.000 unit=0 flags=0x1
+  656 id=655        'Pitch Envelope Mode Release'                short='EnRP'               steps=1 default=1.000 unit=0 flags=0x1
+  657 id=656        'Op. A On/Off BL'                            short='A BL'               steps=1 default=0.000 unit=0 flags=0x1
+  658 id=657        'Op. A On/Off BR'                            short='A BR'               steps=1 default=0.000 unit=0 flags=0x1
+  659 id=658        'Op. A On/Off TR'                            short='A TR'               steps=1 default=0.000 unit=0 flags=0x1
+  660 id=659        'Op. A On/Off TL'                            short='A TL'               steps=1 default=0.000 unit=0 flags=0x1
+  661 id=660        'Op. B On/Off BL'                            short='B BL'               steps=1 default=0.000 unit=0 flags=0x1
+  662 id=661        'Op. B On/Off BR'                            short='B BR'               steps=1 default=0.000 unit=0 flags=0x1
+  663 id=662        'Op. B On/Off TR'                            short='B TR'               steps=1 default=0.000 unit=0 flags=0x1
+  664 id=663        'Op. B On/Off TL'                            short='B TL'               steps=1 default=0.000 unit=0 flags=0x1
+  665 id=664        'Op. C On/Off BL'                            short='C BL'               steps=1 default=0.000 unit=0 flags=0x1
+  666 id=665        'Op. C On/Off BR'                            short='C BR'               steps=1 default=0.000 unit=0 flags=0x1
+  667 id=666        'Op. C On/Off TR'                            short='C TR'               steps=1 default=0.000 unit=0 flags=0x1
+  668 id=667        'Op. C On/Off TL'                            short='C TL'               steps=1 default=0.000 unit=0 flags=0x1
+  669 id=668        'Op. D On/Off BL'                            short='D BL'               steps=1 default=0.000 unit=0 flags=0x1
+  670 id=669        'Op. D On/Off BR'                            short='D BR'               steps=1 default=0.000 unit=0 flags=0x1
+  671 id=670        'Op. D On/Off TR'                            short='D TR'               steps=1 default=0.000 unit=0 flags=0x1
+  672 id=671        'Op. D On/Off TL'                            short='D TL'               steps=1 default=0.000 unit=0 flags=0x1
+  673 id=672        'Op. E On/Off BL'                            short='E BL'               steps=1 default=0.000 unit=0 flags=0x1
+  674 id=673        'Op. E On/Off BR'                            short='E BR'               steps=1 default=0.000 unit=0 flags=0x1
+  675 id=674        'Op. E On/Off TR'                            short='E TR'               steps=1 default=0.000 unit=0 flags=0x1
+  676 id=675        'Op. E On/Off TL'                            short='E TL'               steps=1 default=0.000 unit=0 flags=0x1
+  677 id=676        'Op. F On/Off BL'                            short='F BL'               steps=1 default=0.000 unit=0 flags=0x1
+  678 id=677        'Op. F On/Off BR'                            short='F BR'               steps=1 default=0.000 unit=0 flags=0x1
+  679 id=678        'Op. F On/Off TR'                            short='F TR'               steps=1 default=0.000 unit=0 flags=0x1
+  680 id=679        'Op. F On/Off TL'                            short='F TL'               steps=1 default=0.000 unit=0 flags=0x1
+  681 id=680        'Op. X On/Off BL'                            short='X BL'               steps=1 default=0.000 unit=0 flags=0x1
+  682 id=681        'Op. X On/Off BR'                            short='X BR'               steps=1 default=0.000 unit=0 flags=0x1
+  683 id=682        'Op. X On/Off TR'                            short='X TR'               steps=1 default=0.000 unit=0 flags=0x1
+  684 id=683        'Op. X On/Off TL'                            short='X TL'               steps=1 default=0.000 unit=0 flags=0x1
+  685 id=684        'Op. Z On/Off BL'                            short='Z BL'               steps=1 default=0.000 unit=0 flags=0x1
+  686 id=685        'Op. Z On/Off BR'                            short='Z BR'               steps=1 default=0.000 unit=0 flags=0x1
+  687 id=686        'Op. Z On/Off TR'                            short='Z TR'               steps=1 default=0.000 unit=0 flags=0x1
+  688 id=687        'Op. Z On/Off TL'                            short='Z TL'               steps=1 default=0.000 unit=0 flags=0x1
+  689 id=688        'Pitch On/Off BL'                            short='P BL'               steps=1 default=0.000 unit=0 flags=0x1
+  690 id=689        'Pitch On/Off BR'                            short='P BR'               steps=1 default=0.000 unit=0 flags=0x1
+  691 id=690        'Pitch On/Off TR'                            short='P TR'               steps=1 default=0.000 unit=0 flags=0x1
+  692 id=691        'Pitch On/Off TL'                            short='P TL'               steps=1 default=0.000 unit=0 flags=0x1
+  693 id=692        'Op. A Output Level BL'                      short='LABL'               steps=0 default=0.500 unit=0 flags=0x1
+  694 id=693        'Op. A Output Level BR'                      short='LABR'               steps=0 default=0.500 unit=0 flags=0x1
+  695 id=694        'Op. A Output Level TR'                      short='LATR'               steps=0 default=0.500 unit=0 flags=0x1
+  696 id=695        'Op. A Output Level TL'                      short='LATL'               steps=0 default=0.500 unit=0 flags=0x1
+  697 id=696        'Op. B Output Level BL'                      short='LBBL'               steps=0 default=0.500 unit=0 flags=0x1
+  698 id=697        'Op. B Output Level BR'                      short='LBBR'               steps=0 default=0.500 unit=0 flags=0x1
+  699 id=698        'Op. B Output Level TR'                      short='LBTR'               steps=0 default=0.500 unit=0 flags=0x1
+  700 id=699        'Op. B Output Level TL'                      short='LBTL'               steps=0 default=0.500 unit=0 flags=0x1
+  701 id=700        'Op. C Output Level BL'                      short='LCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  702 id=701        'Op. C Output Level BR'                      short='LCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  703 id=702        'Op. C Output Level TR'                      short='LCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  704 id=703        'Op. C Output Level TL'                      short='LCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  705 id=704        'Op. D Output Level BL'                      short='LDBL'               steps=0 default=0.500 unit=0 flags=0x1
+  706 id=705        'Op. D Output Level BR'                      short='LDBR'               steps=0 default=0.500 unit=0 flags=0x1
+  707 id=706        'Op. D Output Level TR'                      short='LDTR'               steps=0 default=0.500 unit=0 flags=0x1
+  708 id=707        'Op. D Output Level TL'                      short='LDTL'               steps=0 default=0.500 unit=0 flags=0x1
+  709 id=708        'Op. E Output Level BL'                      short='LEBL'               steps=0 default=0.500 unit=0 flags=0x1
+  710 id=709        'Op. E Output Level BR'                      short='LEBR'               steps=0 default=0.500 unit=0 flags=0x1
+  711 id=710        'Op. E Output Level TR'                      short='LETR'               steps=0 default=0.500 unit=0 flags=0x1
+  712 id=711        'Op. E Output Level TL'                      short='LETL'               steps=0 default=0.500 unit=0 flags=0x1
+  713 id=712        'Op. F Output Level BL'                      short='LFBL'               steps=0 default=0.500 unit=0 flags=0x1
+  714 id=713        'Op. F Output Level BR'                      short='LFBR'               steps=0 default=0.500 unit=0 flags=0x1
+  715 id=714        'Op. F Output Level TR'                      short='LFTR'               steps=0 default=0.500 unit=0 flags=0x1
+  716 id=715        'Op. F Output Level TL'                      short='LFTL'               steps=0 default=0.500 unit=0 flags=0x1
+  717 id=716        'Op. X Output Level BL'                      short='LXBL'               steps=0 default=0.500 unit=0 flags=0x1
+  718 id=717        'Op. X Output Level BR'                      short='LXBR'               steps=0 default=0.500 unit=0 flags=0x1
+  719 id=718        'Op. X Output Level TR'                      short='LXTR'               steps=0 default=0.500 unit=0 flags=0x1
+  720 id=719        'Op. X Output Level TL'                      short='LXTL'               steps=0 default=0.500 unit=0 flags=0x1
+  721 id=720        'Op. Z Output Level BL'                      short='LZBL'               steps=0 default=0.500 unit=0 flags=0x1
+  722 id=721        'Op. Z Output Level BR'                      short='LZBR'               steps=0 default=0.500 unit=0 flags=0x1
+  723 id=722        'Op. Z Output Level TR'                      short='LZTR'               steps=0 default=0.500 unit=0 flags=0x1
+  724 id=723        'Op. Z Output Level TL'                      short='LZTL'               steps=0 default=0.500 unit=0 flags=0x1
+  725 id=724        'Pitch Output Level BL'                      short='LPBL'               steps=0 default=0.500 unit=0 flags=0x1
+  726 id=725        'Pitch Output Level BR'                      short='LPBR'               steps=0 default=0.500 unit=0 flags=0x1
+  727 id=726        'Pitch Output Level TR'                      short='LPTR'               steps=0 default=0.500 unit=0 flags=0x1
+  728 id=727        'Pitch Output Level TL'                      short='LPTL'               steps=0 default=0.500 unit=0 flags=0x1
+  729 id=728        'Op. A WaveformBL'                           short='WABL'               steps=0 default=0.000 unit=0 flags=0x1
+  730 id=729        'Op. A WaveformBR'                           short='WABR'               steps=0 default=0.000 unit=0 flags=0x1
+  731 id=730        'Op. A WaveformTR'                           short='WATR'               steps=0 default=0.000 unit=0 flags=0x1
+  732 id=731        'Op. A WaveformTL'                           short='WATL'               steps=0 default=0.000 unit=0 flags=0x1
+  733 id=732        'Op. B WaveformBL'                           short='WBBL'               steps=0 default=0.000 unit=0 flags=0x1
+  734 id=733        'Op. B WaveformBR'                           short='WBBR'               steps=0 default=0.000 unit=0 flags=0x1
+  735 id=734        'Op. B WaveformTR'                           short='WBTR'               steps=0 default=0.000 unit=0 flags=0x1
+  736 id=735        'Op. B WaveformTL'                           short='WBTL'               steps=0 default=0.000 unit=0 flags=0x1
+  737 id=736        'Op. C WaveformBL'                           short='WCBL'               steps=0 default=0.000 unit=0 flags=0x1
+  738 id=737        'Op. C WaveformBR'                           short='WCBR'               steps=0 default=0.000 unit=0 flags=0x1
+  739 id=738        'Op. C WaveformTR'                           short='WCTR'               steps=0 default=0.000 unit=0 flags=0x1
+  740 id=739        'Op. C WaveformTL'                           short='WCTL'               steps=0 default=0.000 unit=0 flags=0x1
+  741 id=740        'Op. D WaveformBL'                           short='WDBL'               steps=0 default=0.000 unit=0 flags=0x1
+  742 id=741        'Op. D WaveformBR'                           short='WDBR'               steps=0 default=0.000 unit=0 flags=0x1
+  743 id=742        'Op. D WaveformTR'                           short='WDTR'               steps=0 default=0.000 unit=0 flags=0x1
+  744 id=743        'Op. D WaveformTL'                           short='WDTL'               steps=0 default=0.000 unit=0 flags=0x1
+  745 id=744        'Op. E WaveformBL'                           short='WEBL'               steps=0 default=0.000 unit=0 flags=0x1
+  746 id=745        'Op. E WaveformBR'                           short='WEBR'               steps=0 default=0.000 unit=0 flags=0x1
+  747 id=746        'Op. E WaveformTR'                           short='WETR'               steps=0 default=0.000 unit=0 flags=0x1
+  748 id=747        'Op. E WaveformTL'                           short='WETL'               steps=0 default=0.000 unit=0 flags=0x1
+  749 id=748        'Op. F WaveformBL'                           short='WFBL'               steps=0 default=0.000 unit=0 flags=0x1
+  750 id=749        'Op. F WaveformBR'                           short='WFBR'               steps=0 default=0.000 unit=0 flags=0x1
+  751 id=750        'Op. F WaveformTR'                           short='WFTR'               steps=0 default=0.000 unit=0 flags=0x1
+  752 id=751        'Op. F WaveformTL'                           short='WFTL'               steps=0 default=0.000 unit=0 flags=0x1
+  753 id=752        'Op. X WaveformBL'                           short='WXBL'               steps=0 default=0.000 unit=0 flags=0x1
+  754 id=753        'Op. X WaveformBR'                           short='WXBR'               steps=0 default=0.000 unit=0 flags=0x1
+  755 id=754        'Op. X WaveformTR'                           short='WXTR'               steps=0 default=0.000 unit=0 flags=0x1
+  756 id=755        'Op. X WaveformTL'                           short='WXTL'               steps=0 default=0.000 unit=0 flags=0x1
+  757 id=756        'Op. Z WaveformBL'                           short='WZBL'               steps=0 default=0.000 unit=0 flags=0x1
+  758 id=757        'Op. Z WaveformBR'                           short='WZBR'               steps=0 default=0.000 unit=0 flags=0x1
+  759 id=758        'Op. Z WaveformTR'                           short='WZTR'               steps=0 default=0.000 unit=0 flags=0x1
+  760 id=759        'Op. Z WaveformTL'                           short='WZTL'               steps=0 default=0.000 unit=0 flags=0x1
+  761 id=760        'Pitch WaveformBL'                           short='WPBL'               steps=0 default=0.000 unit=0 flags=0x1
+  762 id=761        'Pitch WaveformBR'                           short='WPBR'               steps=0 default=0.000 unit=0 flags=0x1
+  763 id=762        'Pitch WaveformTR'                           short='WPTR'               steps=0 default=0.000 unit=0 flags=0x1
+  764 id=763        'Pitch WaveformTL'                           short='WPTL'               steps=0 default=0.000 unit=0 flags=0x1
+  765 id=764        'Op. A Frequency RatioBL'                    short='RABL'               steps=0 default=0.000 unit=0 flags=0x1
+  766 id=765        'Op. A Frequency RatioBR'                    short='RABR'               steps=0 default=0.000 unit=0 flags=0x1
+  767 id=766        'Op. A Frequency RatioTR'                    short='RATR'               steps=0 default=0.000 unit=0 flags=0x1
+  768 id=767        'Op. A Frequency RatioTL'                    short='RATL'               steps=0 default=0.000 unit=0 flags=0x1
+  769 id=768        'Op. B Frequency RatioBL'                    short='RBBL'               steps=0 default=0.000 unit=0 flags=0x1
+  770 id=769        'Op. B Frequency RatioBR'                    short='RBBR'               steps=0 default=0.000 unit=0 flags=0x1
+  771 id=770        'Op. B Frequency RatioTR'                    short='RBTR'               steps=0 default=0.000 unit=0 flags=0x1
+  772 id=771        'Op. B Frequency RatioTL'                    short='RBTL'               steps=0 default=0.000 unit=0 flags=0x1
+  773 id=772        'Op. C Frequency RatioBL'                    short='RCBL'               steps=0 default=0.000 unit=0 flags=0x1
+  774 id=773        'Op. C Frequency RatioBR'                    short='RCBR'               steps=0 default=0.000 unit=0 flags=0x1
+  775 id=774        'Op. C Frequency RatioTR'                    short='RCTR'               steps=0 default=0.000 unit=0 flags=0x1
+  776 id=775        'Op. C Frequency RatioTL'                    short='RCTL'               steps=0 default=0.000 unit=0 flags=0x1
+  777 id=776        'Op. D Frequency RatioBL'                    short='RDBL'               steps=0 default=0.000 unit=0 flags=0x1
+  778 id=777        'Op. D Frequency RatioBR'                    short='RDBR'               steps=0 default=0.000 unit=0 flags=0x1
+  779 id=778        'Op. D Frequency RatioTR'                    short='RDTR'               steps=0 default=0.000 unit=0 flags=0x1
+  780 id=779        'Op. D Frequency RatioTL'                    short='RDTL'               steps=0 default=0.000 unit=0 flags=0x1
+  781 id=780        'Op. E Frequency RatioBL'                    short='REBL'               steps=0 default=0.000 unit=0 flags=0x1
+  782 id=781        'Op. E Frequency RatioBR'                    short='REBR'               steps=0 default=0.000 unit=0 flags=0x1
+  783 id=782        'Op. E Frequency RatioTR'                    short='RETR'               steps=0 default=0.000 unit=0 flags=0x1
+  784 id=783        'Op. E Frequency RatioTL'                    short='RETL'               steps=0 default=0.000 unit=0 flags=0x1
+  785 id=784        'Op. F Frequency RatioBL'                    short='RFBL'               steps=0 default=0.000 unit=0 flags=0x1
+  786 id=785        'Op. F Frequency RatioBR'                    short='RFBR'               steps=0 default=0.000 unit=0 flags=0x1
+  787 id=786        'Op. F Frequency RatioTR'                    short='RFTR'               steps=0 default=0.000 unit=0 flags=0x1
+  788 id=787        'Op. F Frequency RatioTL'                    short='RFTL'               steps=0 default=0.000 unit=0 flags=0x1
+  789 id=788        'Op. X Frequency RatioBL'                    short='RXBL'               steps=0 default=0.000 unit=0 flags=0x1
+  790 id=789        'Op. X Frequency RatioBR'                    short='RXBR'               steps=0 default=0.000 unit=0 flags=0x1
+  791 id=790        'Op. X Frequency RatioTR'                    short='RXTR'               steps=0 default=0.000 unit=0 flags=0x1
+  792 id=791        'Op. X Frequency RatioTL'                    short='RXTL'               steps=0 default=0.000 unit=0 flags=0x1
+  793 id=792        'Op. Z Frequency RatioBL'                    short='RZBL'               steps=0 default=0.000 unit=0 flags=0x1
+  794 id=793        'Op. Z Frequency RatioBR'                    short='RZBR'               steps=0 default=0.000 unit=0 flags=0x1
+  795 id=794        'Op. Z Frequency RatioTR'                    short='RZTR'               steps=0 default=0.000 unit=0 flags=0x1
+  796 id=795        'Op. Z Frequency RatioTL'                    short='RZTL'               steps=0 default=0.000 unit=0 flags=0x1
+  797 id=796        'Pitch Frequency RatioBL'                    short='RPBL'               steps=0 default=0.000 unit=0 flags=0x1
+  798 id=797        'Pitch Frequency RatioBR'                    short='RPBR'               steps=0 default=0.000 unit=0 flags=0x1
+  799 id=798        'Pitch Frequency RatioTR'                    short='RPTR'               steps=0 default=0.000 unit=0 flags=0x1
+  800 id=799        'Pitch Frequency RatioTL'                    short='RPTL'               steps=0 default=0.000 unit=0 flags=0x1
+  801 id=800        'Op. A Frequency OffsetBL'                   short='OABL'               steps=0 default=0.091 unit=0 flags=0x1
+  802 id=801        'Op. A Frequency OffsetBR'                   short='OABR'               steps=0 default=0.091 unit=0 flags=0x1
+  803 id=802        'Op. A Frequency OffsetTR'                   short='OATR'               steps=0 default=0.091 unit=0 flags=0x1
+  804 id=803        'Op. A Frequency OffsetTL'                   short='OATL'               steps=0 default=0.091 unit=0 flags=0x1
+  805 id=804        'Op. B Frequency OffsetBL'                   short='OBBL'               steps=0 default=0.091 unit=0 flags=0x1
+  806 id=805        'Op. B Frequency OffsetBR'                   short='OBBR'               steps=0 default=0.091 unit=0 flags=0x1
+  807 id=806        'Op. B Frequency OffsetTR'                   short='OBTR'               steps=0 default=0.091 unit=0 flags=0x1
+  808 id=807        'Op. B Frequency OffsetTL'                   short='OBTL'               steps=0 default=0.091 unit=0 flags=0x1
+  809 id=808        'Op. C Frequency OffsetBL'                   short='OCBL'               steps=0 default=0.091 unit=0 flags=0x1
+  810 id=809        'Op. C Frequency OffsetBR'                   short='OCBR'               steps=0 default=0.091 unit=0 flags=0x1
+  811 id=810        'Op. C Frequency OffsetTR'                   short='OCTR'               steps=0 default=0.091 unit=0 flags=0x1
+  812 id=811        'Op. C Frequency OffsetTL'                   short='OCTL'               steps=0 default=0.091 unit=0 flags=0x1
+  813 id=812        'Op. D Frequency OffsetBL'                   short='ODBL'               steps=0 default=0.091 unit=0 flags=0x1
+  814 id=813        'Op. D Frequency OffsetBR'                   short='ODBR'               steps=0 default=0.091 unit=0 flags=0x1
+  815 id=814        'Op. D Frequency OffsetTR'                   short='ODTR'               steps=0 default=0.091 unit=0 flags=0x1
+  816 id=815        'Op. D Frequency OffsetTL'                   short='ODTL'               steps=0 default=0.091 unit=0 flags=0x1
+  817 id=816        'Op. E Frequency OffsetBL'                   short='OEBL'               steps=0 default=0.091 unit=0 flags=0x1
+  818 id=817        'Op. E Frequency OffsetBR'                   short='OEBR'               steps=0 default=0.091 unit=0 flags=0x1
+  819 id=818        'Op. E Frequency OffsetTR'                   short='OETR'               steps=0 default=0.091 unit=0 flags=0x1
+  820 id=819        'Op. E Frequency OffsetTL'                   short='OETL'               steps=0 default=0.091 unit=0 flags=0x1
+  821 id=820        'Op. F Frequency OffsetBL'                   short='OFBL'               steps=0 default=0.091 unit=0 flags=0x1
+  822 id=821        'Op. F Frequency OffsetBR'                   short='OFBR'               steps=0 default=0.091 unit=0 flags=0x1
+  823 id=822        'Op. F Frequency OffsetTR'                   short='OFTR'               steps=0 default=0.091 unit=0 flags=0x1
+  824 id=823        'Op. F Frequency OffsetTL'                   short='OFTL'               steps=0 default=0.091 unit=0 flags=0x1
+  825 id=824        'Op. X Frequency OffsetBL'                   short='OXBL'               steps=0 default=0.091 unit=0 flags=0x1
+  826 id=825        'Op. X Frequency OffsetBR'                   short='OXBR'               steps=0 default=0.091 unit=0 flags=0x1
+  827 id=826        'Op. X Frequency OffsetTR'                   short='OXTR'               steps=0 default=0.091 unit=0 flags=0x1
+  828 id=827        'Op. X Frequency OffsetTL'                   short='OXTL'               steps=0 default=0.091 unit=0 flags=0x1
+  829 id=828        'Op. Z Frequency OffsetBL'                   short='OZBL'               steps=0 default=0.091 unit=0 flags=0x1
+  830 id=829        'Op. Z Frequency OffsetBR'                   short='OZBR'               steps=0 default=0.091 unit=0 flags=0x1
+  831 id=830        'Op. Z Frequency OffsetTR'                   short='OZTR'               steps=0 default=0.091 unit=0 flags=0x1
+  832 id=831        'Op. Z Frequency OffsetTL'                   short='OZTL'               steps=0 default=0.091 unit=0 flags=0x1
+  833 id=832        'Pitch Frequency OffsetBL'                   short='OPBL'               steps=0 default=0.091 unit=0 flags=0x1
+  834 id=833        'Pitch Frequency OffsetBR'                   short='OPBR'               steps=0 default=0.091 unit=0 flags=0x1
+  835 id=834        'Pitch Frequency OffsetTR'                   short='OPTR'               steps=0 default=0.091 unit=0 flags=0x1
+  836 id=835        'Pitch Frequency OffsetTL'                   short='OPTL'               steps=0 default=0.091 unit=0 flags=0x1
+  837 id=836        'Filt. Routing Serial/Parallel BL'           short='ZSBL'               steps=0 default=0.500 unit=0 flags=0x1
+  838 id=837        'Filt. Routing Serial/Parallel BR'           short='ZSBR'               steps=0 default=0.500 unit=0 flags=0x1
+  839 id=838        'Filt. Routing Serial/Parallel TR'           short='ZSTR'               steps=0 default=0.500 unit=0 flags=0x1
+  840 id=839        'Filt. Routing Serial/Parallel TL'           short='ZSTL'               steps=0 default=0.500 unit=0 flags=0x1
+  841 id=840        'Filter Routing Mix BL'                      short='ZMBL'               steps=0 default=0.500 unit=0 flags=0x1
+  842 id=841        'Filter Routing Mix BR'                      short='ZMBR'               steps=0 default=0.500 unit=0 flags=0x1
+  843 id=842        'Filter Routing Mix TR'                      short='ZMTR'               steps=0 default=0.500 unit=0 flags=0x1
+  844 id=843        'Filter Routing Mix TL'                      short='ZMTL'               steps=0 default=0.500 unit=0 flags=0x1
+  845 id=844        'Filter 1 Mode BL'                           short='F1BL'               steps=0 default=0.500 unit=0 flags=0x1
+  846 id=845        'Filter 1 Mode BR'                           short='F1BR'               steps=0 default=0.500 unit=0 flags=0x1
+  847 id=846        'Filter 1 Mode TR'                           short='F1TR'               steps=0 default=0.500 unit=0 flags=0x1
+  848 id=847        'Filter 1 Mode TL'                           short='F1TL'               steps=0 default=0.500 unit=0 flags=0x1
+  849 id=848        'Filter 2 Mode BL'                           short='F2BL'               steps=0 default=0.500 unit=0 flags=0x1
+  850 id=849        'Filter 2 Mode BR'                           short='F2BR'               steps=0 default=0.500 unit=0 flags=0x1
+  851 id=850        'Filter 2 Mode TR'                           short='F2TR'               steps=0 default=0.500 unit=0 flags=0x1
+  852 id=851        'Filter 2 Mode TL'                           short='F2TL'               steps=0 default=0.500 unit=0 flags=0x1
+  853 id=852        'Filter Cutoff BL'                           short='ZCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  854 id=853        'Filter Cutoff BR'                           short='ZCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  855 id=854        'Filter Cutoff TR'                           short='ZCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  856 id=855        'Filter Cutoff TL'                           short='ZCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  857 id=856        'Filter Cutoff Spread BL'                    short='ZSBL'               steps=0 default=0.500 unit=0 flags=0x1
+  858 id=857        'Filter Cutoff Spread BR'                    short='ZSBR'               steps=0 default=0.500 unit=0 flags=0x1
+  859 id=858        'Filter Cutoff Spread TR'                    short='ZSTR'               steps=0 default=0.500 unit=0 flags=0x1
+  860 id=859        'Filter Cutoff Spread TL'                    short='ZSTL'               steps=0 default=0.500 unit=0 flags=0x1
+  861 id=860        'Filter Envelope Amount BL'                  short='ZEBL'               steps=0 default=0.497 unit=0 flags=0x1
+  862 id=861        'Filter Envelope Amount BR'                  short='ZEBR'               steps=0 default=0.497 unit=0 flags=0x1
+  863 id=862        'Filter Envelope Amount TR'                  short='ZETR'               steps=0 default=0.497 unit=0 flags=0x1
+  864 id=863        'Filter Envelope Amount TL'                  short='ZETL'               steps=0 default=0.497 unit=0 flags=0x1
+  865 id=864        'Filter 1 Resonance BL'                      short='F1BL'               steps=0 default=0.500 unit=0 flags=0x1
+  866 id=865        'Filter 1 Resonance BR'                      short='F1BR'               steps=0 default=0.500 unit=0 flags=0x1
+  867 id=866        'Filter 1 Resonance TR'                      short='F1TR'               steps=0 default=0.500 unit=0 flags=0x1
+  868 id=867        'Filter 1 Resonance TL'                      short='F1TL'               steps=0 default=0.500 unit=0 flags=0x1
+  869 id=868        'Filter 2 Resonance BL'                      short='F2BL'               steps=0 default=0.500 unit=0 flags=0x1
+  870 id=869        'Filter 2 Resonance BR'                      short='F2BR'               steps=0 default=0.500 unit=0 flags=0x1
+  871 id=870        'Filter 2 Resonance TR'                      short='F2TR'               steps=0 default=0.500 unit=0 flags=0x1
+  872 id=871        'Filter 2 Resonance TL'                      short='F2TL'               steps=0 default=0.500 unit=0 flags=0x1
+  873 id=872        'Noise Cutoff BL'                            short='NCBL'               steps=0 default=0.500 unit=0 flags=0x1
+  874 id=873        'Noise Cutoff BR'                            short='NCBR'               steps=0 default=0.500 unit=0 flags=0x1
+  875 id=874        'Noise Cutoff TR'                            short='NCTR'               steps=0 default=0.500 unit=0 flags=0x1
+  876 id=875        'Noise Cutoff TL'                            short='NCTL'               steps=0 default=0.500 unit=0 flags=0x1
+  877 id=876        'Noise Resonance BL'                         short='NRBL'               steps=0 default=0.500 unit=0 flags=0x1
+  878 id=877        'Noise Resonance BR'                         short='NRBR'               steps=0 default=0.500 unit=0 flags=0x1
+  879 id=878        'Noise Resonance TR'                         short='NRTR'               steps=0 default=0.500 unit=0 flags=0x1
+  880 id=879        'Noise Resonance TL'                         short='NRTL'               steps=0 default=0.500 unit=0 flags=0x1
+  881 id=880        'Noise Amplitude BL'                         short='NABL'               steps=0 default=0.500 unit=0 flags=0x1
+  882 id=881        'Noise Amplitude BR'                         short='NABR'               steps=0 default=0.500 unit=0 flags=0x1
+  883 id=882        'Noise Amplitude TR'                         short='NATR'               steps=0 default=0.500 unit=0 flags=0x1
+  884 id=883        'Noise Amplitude TL'                         short='NATL'               steps=0 default=0.500 unit=0 flags=0x1
+  885 id=884        'Saturator Gain BL'                          short='SGBL'               steps=0 default=0.500 unit=0 flags=0x1
+  886 id=885        'Saturator Gain BR'                          short='SGBR'               steps=0 default=0.500 unit=0 flags=0x1
+  887 id=886        'Saturator Gain TR'                          short='SGTR'               steps=0 default=0.500 unit=0 flags=0x1
+  888 id=887        'Saturator Gain TL'                          short='SGTL'               steps=0 default=0.500 unit=0 flags=0x1
+  889 id=888        'Saturator Level BL'                         short='SLBL'               steps=0 default=0.500 unit=0 flags=0x1
+  890 id=889        'Saturator Level BR'                         short='SLBR'               steps=0 default=0.500 unit=0 flags=0x1
+  891 id=890        'Saturator Level TR'                         short='SLTR'               steps=0 default=0.500 unit=0 flags=0x1
+  892 id=891        'Saturator Level TL'                         short='SLTL'               steps=0 default=0.500 unit=0 flags=0x1
+  893 id=892        'Saturator Asymmetry BL'                     short='SABL'               steps=0 default=0.500 unit=0 flags=0x1
+  894 id=893        'Saturator Asymmetry BR'                     short='SABR'               steps=0 default=0.500 unit=0 flags=0x1
+  895 id=894        'Saturator Asymmetry TR'                     short='SATR'               steps=0 default=0.500 unit=0 flags=0x1
+  896 id=895        'Saturator Asymmetry TL'                     short='SATL'               steps=0 default=0.500 unit=0 flags=0x1
+  897 id=896        'Op. A Modulation Pitchbend Up'              short='MPUA'               steps=0 default=0.497 unit=0 flags=0x1
+  898 id=897        'Op. B Modulation Pitchbend Up'              short='MPUB'               steps=0 default=0.497 unit=0 flags=0x1
+  899 id=898        'Op. C Modulation Pitchbend Up'              short='MPUC'               steps=0 default=0.497 unit=0 flags=0x1
+  900 id=899        'Op. D Modulation Pitchbend Up'              short='MPUD'               steps=0 default=0.497 unit=0 flags=0x1
+  901 id=900        'Op. E Modulation Pitchbend Up'              short='MPUE'               steps=0 default=0.497 unit=0 flags=0x1
+  902 id=901        'Op. F Modulation Pitchbend Up'              short='MPUF'               steps=0 default=0.497 unit=0 flags=0x1
+  903 id=902        'Op. X Modulation Pitchbend Up'              short='MPUX'               steps=0 default=0.497 unit=0 flags=0x1
+  904 id=903        'Op. Z Modulation Pitchbend Up'              short='MPUZ'               steps=0 default=0.497 unit=0 flags=0x1
+  905 id=904        'Pitch Modulation Pitchbend Up'              short='MPUP'               steps=0 default=0.497 unit=0 flags=0x1
+  906 id=905        'Op. A Modulation Pitchbend Down'            short='MPDA'               steps=0 default=0.497 unit=0 flags=0x1
+  907 id=906        'Op. B Modulation Pitchbend Down'            short='MPDB'               steps=0 default=0.497 unit=0 flags=0x1
+  908 id=907        'Op. C Modulation Pitchbend Down'            short='MPDC'               steps=0 default=0.497 unit=0 flags=0x1
+  909 id=908        'Op. D Modulation Pitchbend Down'            short='MPDD'               steps=0 default=0.497 unit=0 flags=0x1
+  910 id=909        'Op. E Modulation Pitchbend Down'            short='MPDE'               steps=0 default=0.497 unit=0 flags=0x1
+  911 id=910        'Op. F Modulation Pitchbend Down'            short='MPDF'               steps=0 default=0.497 unit=0 flags=0x1
+  912 id=911        'Op. X Modulation Pitchbend Down'            short='MPDX'               steps=0 default=0.497 unit=0 flags=0x1
+  913 id=912        'Op. Z Modulation Pitchbend Down'            short='MPDZ'               steps=0 default=0.497 unit=0 flags=0x1
+  914 id=913        'Pitch Modulation Pitchbend Down'            short='MPDP'               steps=0 default=0.497 unit=0 flags=0x1
+  915 id=914        'Op. A Modulation Aftertouch'                short='MATA'               steps=0 default=0.497 unit=0 flags=0x1
+  916 id=915        'Op. B Modulation Aftertouch'                short='MATB'               steps=0 default=0.497 unit=0 flags=0x1
+  917 id=916        'Op. C Modulation Aftertouch'                short='MATC'               steps=0 default=0.497 unit=0 flags=0x1
+  918 id=917        'Op. D Modulation Aftertouch'                short='MATD'               steps=0 default=0.497 unit=0 flags=0x1
+  919 id=918        'Op. E Modulation Aftertouch'                short='MATE'               steps=0 default=0.497 unit=0 flags=0x1
+  920 id=919        'Op. F Modulation Aftertouch'                short='MATF'               steps=0 default=0.497 unit=0 flags=0x1
+  921 id=920        'Op. X Modulation Aftertouch'                short='MATX'               steps=0 default=0.497 unit=0 flags=0x1
+  922 id=921        'Op. Z Modulation Aftertouch'                short='MATZ'               steps=0 default=0.497 unit=0 flags=0x1
+  923 id=922        'Pitch Modulation Aftertouch'                short='MATP'               steps=0 default=0.497 unit=0 flags=0x1
+  924 id=923        'Op. A Modulation Modwheel'                  short='MMWA'               steps=0 default=0.497 unit=0 flags=0x1
+  925 id=924        'Op. B Modulation Modwheel'                  short='MMWB'               steps=0 default=0.497 unit=0 flags=0x1
+  926 id=925        'Op. C Modulation Modwheel'                  short='MMWC'               steps=0 default=0.497 unit=0 flags=0x1
+  927 id=926        'Op. D Modulation Modwheel'                  short='MMWD'               steps=0 default=0.497 unit=0 flags=0x1
+  928 id=927        'Op. E Modulation Modwheel'                  short='MMWE'               steps=0 default=0.497 unit=0 flags=0x1
+  929 id=928        'Op. F Modulation Modwheel'                  short='MMWF'               steps=0 default=0.497 unit=0 flags=0x1
+  930 id=929        'Op. X Modulation Modwheel'                  short='MMWX'               steps=0 default=0.497 unit=0 flags=0x1
+  931 id=930        'Op. Z Modulation Modwheel'                  short='MMWZ'               steps=0 default=0.497 unit=0 flags=0x1
+  932 id=931        'Pitch Modulation Modwheel'                  short='MMWP'               steps=0 default=0.497 unit=0 flags=0x1
+  933 id=932        'Op. A Modulation Breath Ctlr'               short='MBCA'               steps=0 default=0.497 unit=0 flags=0x1
+  934 id=933        'Op. B Modulation Breath Ctlr'               short='MBCB'               steps=0 default=0.497 unit=0 flags=0x1
+  935 id=934        'Op. C Modulation Breath Ctlr'               short='MBCC'               steps=0 default=0.497 unit=0 flags=0x1
+  936 id=935        'Op. D Modulation Breath Ctlr'               short='MBCD'               steps=0 default=0.497 unit=0 flags=0x1
+  937 id=936        'Op. E Modulation Breath Ctlr'               short='MBCE'               steps=0 default=0.497 unit=0 flags=0x1
+  938 id=937        'Op. F Modulation Breath Ctlr'               short='MBCF'               steps=0 default=0.497 unit=0 flags=0x1
+  939 id=938        'Op. X Modulation Breath Ctlr'               short='MBCX'               steps=0 default=0.497 unit=0 flags=0x1
+  940 id=939        'Op. Z Modulation Breath Ctlr'               short='MBCZ'               steps=0 default=0.497 unit=0 flags=0x1
+  941 id=940        'Pitch Modulation Breath Ctlr'               short='MBCP'               steps=0 default=0.497 unit=0 flags=0x1
+  942 id=941        'Op. A Modulation Controller 1'              short='MC1A'               steps=0 default=0.497 unit=0 flags=0x1
+  943 id=942        'Op. B Modulation Controller 1'              short='MC1B'               steps=0 default=0.497 unit=0 flags=0x1
+  944 id=943        'Op. C Modulation Controller 1'              short='MC1C'               steps=0 default=0.497 unit=0 flags=0x1
+  945 id=944        'Op. D Modulation Controller 1'              short='MC1D'               steps=0 default=0.497 unit=0 flags=0x1
+  946 id=945        'Op. E Modulation Controller 1'              short='MC1E'               steps=0 default=0.497 unit=0 flags=0x1
+  947 id=946        'Op. F Modulation Controller 1'              short='MC1F'               steps=0 default=0.497 unit=0 flags=0x1
+  948 id=947        'Op. X Modulation Controller 1'              short='MC1X'               steps=0 default=0.497 unit=0 flags=0x1
+  949 id=948        'Op. Z Modulation Controller 1'              short='MC1Z'               steps=0 default=0.497 unit=0 flags=0x1
+  950 id=949        'Pitch Modulation Controller 1'              short='MC1P'               steps=0 default=0.497 unit=0 flags=0x1
+  951 id=950        'Op. A Modulation Controller 2'              short='MC2A'               steps=0 default=0.497 unit=0 flags=0x1
+  952 id=951        'Op. B Modulation Controller 2'              short='MC2B'               steps=0 default=0.497 unit=0 flags=0x1
+  953 id=952        'Op. C Modulation Controller 2'              short='MC2C'               steps=0 default=0.497 unit=0 flags=0x1
+  954 id=953        'Op. D Modulation Controller 2'              short='MC2D'               steps=0 default=0.497 unit=0 flags=0x1
+  955 id=954        'Op. E Modulation Controller 2'              short='MC2E'               steps=0 default=0.497 unit=0 flags=0x1
+  956 id=955        'Op. F Modulation Controller 2'              short='MC2F'               steps=0 default=0.497 unit=0 flags=0x1
+  957 id=956        'Op. X Modulation Controller 2'              short='MC2X'               steps=0 default=0.497 unit=0 flags=0x1
+  958 id=957        'Op. Z Modulation Controller 2'              short='MC2Z'               steps=0 default=0.497 unit=0 flags=0x1
+  959 id=958        'Pitch Modulation Controller 2'              short='MC2P'               steps=0 default=0.497 unit=0 flags=0x1
+  960 id=959        'Op. A Modulation Input Envelope'            short='MInA'               steps=0 default=0.497 unit=0 flags=0x1
+  961 id=960        'Op. B Modulation Input Envelope'            short='MInB'               steps=0 default=0.497 unit=0 flags=0x1
+  962 id=961        'Op. C Modulation Input Envelope'            short='MInC'               steps=0 default=0.497 unit=0 flags=0x1
+  963 id=962        'Op. D Modulation Input Envelope'            short='MInD'               steps=0 default=0.497 unit=0 flags=0x1
+  964 id=963        'Op. E Modulation Input Envelope'            short='MInE'               steps=0 default=0.497 unit=0 flags=0x1
+  965 id=964        'Op. F Modulation Input Envelope'            short='MInF'               steps=0 default=0.497 unit=0 flags=0x1
+  966 id=965        'Op. X Modulation Input Envelope'            short='MInX'               steps=0 default=0.497 unit=0 flags=0x1
+  967 id=966        'Op. Z Modulation Input Envelope'            short='MInZ'               steps=0 default=0.497 unit=0 flags=0x1
+  968 id=967        'Pitch Modulation Input Envelope'            short='MInP'               steps=0 default=0.497 unit=0 flags=0x1
+  969 id=968        'Op. A Modulation LFO 1'                     short='ML1A'               steps=0 default=0.497 unit=0 flags=0x1
+  970 id=969        'Op. B Modulation LFO 1'                     short='ML1B'               steps=0 default=0.497 unit=0 flags=0x1
+  971 id=970        'Op. C Modulation LFO 1'                     short='ML1C'               steps=0 default=0.497 unit=0 flags=0x1
+  972 id=971        'Op. D Modulation LFO 1'                     short='ML1D'               steps=0 default=0.497 unit=0 flags=0x1
+  973 id=972        'Op. E Modulation LFO 1'                     short='ML1E'               steps=0 default=0.497 unit=0 flags=0x1
+  974 id=973        'Op. F Modulation LFO 1'                     short='ML1F'               steps=0 default=0.497 unit=0 flags=0x1
+  975 id=974        'Op. X Modulation LFO 1'                     short='ML1X'               steps=0 default=0.497 unit=0 flags=0x1
+  976 id=975        'Op. Z Modulation LFO 1'                     short='ML1Z'               steps=0 default=0.497 unit=0 flags=0x1
+  977 id=976        'Pitch Modulation LFO 1'                     short='ML1P'               steps=0 default=0.497 unit=0 flags=0x1
+  978 id=977        'Op. A Modulation LFO 1 * ATC'               short='M1AA'               steps=0 default=0.497 unit=0 flags=0x1
+  979 id=978        'Op. B Modulation LFO 1 * ATC'               short='M1AB'               steps=0 default=0.497 unit=0 flags=0x1
+  980 id=979        'Op. C Modulation LFO 1 * ATC'               short='M1AC'               steps=0 default=0.497 unit=0 flags=0x1
+  981 id=980        'Op. D Modulation LFO 1 * ATC'               short='M1AD'               steps=0 default=0.497 unit=0 flags=0x1
+  982 id=981        'Op. E Modulation LFO 1 * ATC'               short='M1AE'               steps=0 default=0.497 unit=0 flags=0x1
+  983 id=982        'Op. F Modulation LFO 1 * ATC'               short='M1AF'               steps=0 default=0.497 unit=0 flags=0x1
+  984 id=983        'Op. X Modulation LFO 1 * ATC'               short='M1AX'               steps=0 default=0.497 unit=0 flags=0x1
+  985 id=984        'Op. Z Modulation LFO 1 * ATC'               short='M1AZ'               steps=0 default=0.497 unit=0 flags=0x1
+  986 id=985        'Pitch Modulation LFO 1 * ATC'               short='M1AP'               steps=0 default=0.497 unit=0 flags=0x1
+  987 id=986        'Op. A Modulation LFO 1 * MW'                short='M1MA'               steps=0 default=0.497 unit=0 flags=0x1
+  988 id=987        'Op. B Modulation LFO 1 * MW'                short='M1MB'               steps=0 default=0.497 unit=0 flags=0x1
+  989 id=988        'Op. C Modulation LFO 1 * MW'                short='M1MC'               steps=0 default=0.497 unit=0 flags=0x1
+  990 id=989        'Op. D Modulation LFO 1 * MW'                short='M1MD'               steps=0 default=0.497 unit=0 flags=0x1
+  991 id=990        'Op. E Modulation LFO 1 * MW'                short='M1ME'               steps=0 default=0.497 unit=0 flags=0x1
+  992 id=991        'Op. F Modulation LFO 1 * MW'                short='M1MF'               steps=0 default=0.497 unit=0 flags=0x1
+  993 id=992        'Op. X Modulation LFO 1 * MW'                short='M1MX'               steps=0 default=0.497 unit=0 flags=0x1
+  994 id=993        'Op. Z Modulation LFO 1 * MW'                short='M1MZ'               steps=0 default=0.497 unit=0 flags=0x1
+  995 id=994        'Pitch Modulation LFO 1 * MW'                short='M1MP'               steps=0 default=0.497 unit=0 flags=0x1
+  996 id=995        'Op. A Modulation LFO 1 * BC'                short='M1BA'               steps=0 default=0.497 unit=0 flags=0x1
+  997 id=996        'Op. B Modulation LFO 1 * BC'                short='M1BB'               steps=0 default=0.497 unit=0 flags=0x1
+  998 id=997        'Op. C Modulation LFO 1 * BC'                short='M1BC'               steps=0 default=0.497 unit=0 flags=0x1
+  999 id=998        'Op. D Modulation LFO 1 * BC'                short='M1BD'               steps=0 default=0.497 unit=0 flags=0x1
+ 1000 id=999        'Op. E Modulation LFO 1 * BC'                short='M1BE'               steps=0 default=0.497 unit=0 flags=0x1
+ 1001 id=1000       'Op. F Modulation LFO 1 * BC'                short='M1BF'               steps=0 default=0.497 unit=0 flags=0x1
+ 1002 id=1001       'Op. X Modulation LFO 1 * BC'                short='M1BX'               steps=0 default=0.497 unit=0 flags=0x1
+ 1003 id=1002       'Op. Z Modulation LFO 1 * BC'                short='M1BZ'               steps=0 default=0.497 unit=0 flags=0x1
+ 1004 id=1003       'Pitch Modulation LFO 1 * BC'                short='M1BP'               steps=0 default=0.497 unit=0 flags=0x1
+ 1005 id=1004       'Op. A Modulation LFO 1 * Ctrl 1'            short='M11A'               steps=0 default=0.497 unit=0 flags=0x1
+ 1006 id=1005       'Op. B Modulation LFO 1 * Ctrl 1'            short='M11B'               steps=0 default=0.497 unit=0 flags=0x1
+ 1007 id=1006       'Op. C Modulation LFO 1 * Ctrl 1'            short='M11C'               steps=0 default=0.497 unit=0 flags=0x1
+ 1008 id=1007       'Op. D Modulation LFO 1 * Ctrl 1'            short='M11D'               steps=0 default=0.497 unit=0 flags=0x1
+ 1009 id=1008       'Op. E Modulation LFO 1 * Ctrl 1'            short='M11E'               steps=0 default=0.497 unit=0 flags=0x1
+ 1010 id=1009       'Op. F Modulation LFO 1 * Ctrl 1'            short='M11F'               steps=0 default=0.497 unit=0 flags=0x1
+ 1011 id=1010       'Op. X Modulation LFO 1 * Ctrl 1'            short='M11X'               steps=0 default=0.497 unit=0 flags=0x1
+ 1012 id=1011       'Op. Z Modulation LFO 1 * Ctrl 1'            short='M11Z'               steps=0 default=0.497 unit=0 flags=0x1
+ 1013 id=1012       'Pitch Modulation LFO 1 * Ctrl 1'            short='M11P'               steps=0 default=0.497 unit=0 flags=0x1
+ 1014 id=1013       'Op. A Modulation LFO 1 * Ctrl 2'            short='M12A'               steps=0 default=0.497 unit=0 flags=0x1
+ 1015 id=1014       'Op. B Modulation LFO 1 * Ctrl 2'            short='M12B'               steps=0 default=0.497 unit=0 flags=0x1
+ 1016 id=1015       'Op. C Modulation LFO 1 * Ctrl 2'            short='M12C'               steps=0 default=0.497 unit=0 flags=0x1
+ 1017 id=1016       'Op. D Modulation LFO 1 * Ctrl 2'            short='M12D'               steps=0 default=0.497 unit=0 flags=0x1
+ 1018 id=1017       'Op. E Modulation LFO 1 * Ctrl 2'            short='M12E'               steps=0 default=0.497 unit=0 flags=0x1
+ 1019 id=1018       'Op. F Modulation LFO 1 * Ctrl 2'            short='M12F'               steps=0 default=0.497 unit=0 flags=0x1
+ 1020 id=1019       'Op. X Modulation LFO 1 * Ctrl 2'            short='M12X'               steps=0 default=0.497 unit=0 flags=0x1
+ 1021 id=1020       'Op. Z Modulation LFO 1 * Ctrl 2'            short='M12Z'               steps=0 default=0.497 unit=0 flags=0x1
+ 1022 id=1021       'Pitch Modulation LFO 1 * Ctrl 2'            short='M12P'               steps=0 default=0.497 unit=0 flags=0x1
+ 1023 id=1022       'Op. A Modulation LFO 2'                     short='ML2A'               steps=0 default=0.497 unit=0 flags=0x1
+ 1024 id=1023       'Op. B Modulation LFO 2'                     short='ML2B'               steps=0 default=0.497 unit=0 flags=0x1
+ 1025 id=1024       'Op. C Modulation LFO 2'                     short='ML2C'               steps=0 default=0.497 unit=0 flags=0x1
+ 1026 id=1025       'Op. D Modulation LFO 2'                     short='ML2D'               steps=0 default=0.497 unit=0 flags=0x1
+ 1027 id=1026       'Op. E Modulation LFO 2'                     short='ML2E'               steps=0 default=0.497 unit=0 flags=0x1
+ 1028 id=1027       'Op. F Modulation LFO 2'                     short='ML2F'               steps=0 default=0.497 unit=0 flags=0x1
+ 1029 id=1028       'Op. X Modulation LFO 2'                     short='ML2X'               steps=0 default=0.497 unit=0 flags=0x1
+ 1030 id=1029       'Op. Z Modulation LFO 2'                     short='ML2Z'               steps=0 default=0.497 unit=0 flags=0x1
+ 1031 id=1030       'Pitch Modulation LFO 2'                     short='ML2P'               steps=0 default=0.497 unit=0 flags=0x1
+ 1032 id=1031       'Op. A Modulation LFO 2 * ATC'               short='M2AA'               steps=0 default=0.497 unit=0 flags=0x1
+ 1033 id=1032       'Op. B Modulation LFO 2 * ATC'               short='M2AB'               steps=0 default=0.497 unit=0 flags=0x1
+ 1034 id=1033       'Op. C Modulation LFO 2 * ATC'               short='M2AC'               steps=0 default=0.497 unit=0 flags=0x1
+ 1035 id=1034       'Op. D Modulation LFO 2 * ATC'               short='M2AD'               steps=0 default=0.497 unit=0 flags=0x1
+ 1036 id=1035       'Op. E Modulation LFO 2 * ATC'               short='M2AE'               steps=0 default=0.497 unit=0 flags=0x1
+ 1037 id=1036       'Op. F Modulation LFO 2 * ATC'               short='M2AF'               steps=0 default=0.497 unit=0 flags=0x1
+ 1038 id=1037       'Op. X Modulation LFO 2 * ATC'               short='M2AX'               steps=0 default=0.497 unit=0 flags=0x1
+ 1039 id=1038       'Op. Z Modulation LFO 2 * ATC'               short='M2AZ'               steps=0 default=0.497 unit=0 flags=0x1
+ 1040 id=1039       'Pitch Modulation LFO 2 * ATC'               short='M2AP'               steps=0 default=0.497 unit=0 flags=0x1
+ 1041 id=1040       'Op. A Modulation LFO 2 * MW'                short='M2MA'               steps=0 default=0.497 unit=0 flags=0x1
+ 1042 id=1041       'Op. B Modulation LFO 2 * MW'                short='M2MB'               steps=0 default=0.497 unit=0 flags=0x1
+ 1043 id=1042       'Op. C Modulation LFO 2 * MW'                short='M2MC'               steps=0 default=0.497 unit=0 flags=0x1
+ 1044 id=1043       'Op. D Modulation LFO 2 * MW'                short='M2MD'               steps=0 default=0.497 unit=0 flags=0x1
+ 1045 id=1044       'Op. E Modulation LFO 2 * MW'                short='M2ME'               steps=0 default=0.497 unit=0 flags=0x1
+ 1046 id=1045       'Op. F Modulation LFO 2 * MW'                short='M2MF'               steps=0 default=0.497 unit=0 flags=0x1
+ 1047 id=1046       'Op. X Modulation LFO 2 * MW'                short='M2MX'               steps=0 default=0.497 unit=0 flags=0x1
+ 1048 id=1047       'Op. Z Modulation LFO 2 * MW'                short='M2MZ'               steps=0 default=0.497 unit=0 flags=0x1
+ 1049 id=1048       'Pitch Modulation LFO 2 * MW'                short='M2MP'               steps=0 default=0.497 unit=0 flags=0x1
+ 1050 id=1049       'Op. A Modulation LFO 2 * BC'                short='M2BA'               steps=0 default=0.497 unit=0 flags=0x1
+ 1051 id=1050       'Op. B Modulation LFO 2 * BC'                short='M2BB'               steps=0 default=0.497 unit=0 flags=0x1
+ 1052 id=1051       'Op. C Modulation LFO 2 * BC'                short='M2BC'               steps=0 default=0.497 unit=0 flags=0x1
+ 1053 id=1052       'Op. D Modulation LFO 2 * BC'                short='M2BD'               steps=0 default=0.497 unit=0 flags=0x1
+ 1054 id=1053       'Op. E Modulation LFO 2 * BC'                short='M2BE'               steps=0 default=0.497 unit=0 flags=0x1
+ 1055 id=1054       'Op. F Modulation LFO 2 * BC'                short='M2BF'               steps=0 default=0.497 unit=0 flags=0x1
+ 1056 id=1055       'Op. X Modulation LFO 2 * BC'                short='M2BX'               steps=0 default=0.497 unit=0 flags=0x1
+ 1057 id=1056       'Op. Z Modulation LFO 2 * BC'                short='M2BZ'               steps=0 default=0.497 unit=0 flags=0x1
+ 1058 id=1057       'Pitch Modulation LFO 2 * BC'                short='M2BP'               steps=0 default=0.497 unit=0 flags=0x1
+ 1059 id=1058       'Op. A Modulation LFO 2 * Ctrl 1'            short='M21A'               steps=0 default=0.497 unit=0 flags=0x1
+ 1060 id=1059       'Op. B Modulation LFO 2 * Ctrl 1'            short='M21B'               steps=0 default=0.497 unit=0 flags=0x1
+ 1061 id=1060       'Op. C Modulation LFO 2 * Ctrl 1'            short='M21C'               steps=0 default=0.497 unit=0 flags=0x1
+ 1062 id=1061       'Op. D Modulation LFO 2 * Ctrl 1'            short='M21D'               steps=0 default=0.497 unit=0 flags=0x1
+ 1063 id=1062       'Op. E Modulation LFO 2 * Ctrl 1'            short='M21E'               steps=0 default=0.497 unit=0 flags=0x1
+ 1064 id=1063       'Op. F Modulation LFO 2 * Ctrl 1'            short='M21F'               steps=0 default=0.497 unit=0 flags=0x1
+ 1065 id=1064       'Op. X Modulation LFO 2 * Ctrl 1'            short='M21X'               steps=0 default=0.497 unit=0 flags=0x1
+ 1066 id=1065       'Op. Z Modulation LFO 2 * Ctrl 1'            short='M21Z'               steps=0 default=0.497 unit=0 flags=0x1
+ 1067 id=1066       'Pitch Modulation LFO 2 * Ctrl 1'            short='M21P'               steps=0 default=0.497 unit=0 flags=0x1
+ 1068 id=1067       'Op. A Modulation LFO 2 * Ctrl 2'            short='M22A'               steps=0 default=0.497 unit=0 flags=0x1
+ 1069 id=1068       'Op. B Modulation LFO 2 * Ctrl 2'            short='M22B'               steps=0 default=0.497 unit=0 flags=0x1
+ 1070 id=1069       'Op. C Modulation LFO 2 * Ctrl 2'            short='M22C'               steps=0 default=0.497 unit=0 flags=0x1
+ 1071 id=1070       'Op. D Modulation LFO 2 * Ctrl 2'            short='M22D'               steps=0 default=0.497 unit=0 flags=0x1
+ 1072 id=1071       'Op. E Modulation LFO 2 * Ctrl 2'            short='M22E'               steps=0 default=0.497 unit=0 flags=0x1
+ 1073 id=1072       'Op. F Modulation LFO 2 * Ctrl 2'            short='M22F'               steps=0 default=0.497 unit=0 flags=0x1
+ 1074 id=1073       'Op. X Modulation LFO 2 * Ctrl 2'            short='M22X'               steps=0 default=0.497 unit=0 flags=0x1
+ 1075 id=1074       'Op. Z Modulation LFO 2 * Ctrl 2'            short='M22Z'               steps=0 default=0.497 unit=0 flags=0x1
+ 1076 id=1075       'Pitch Modulation LFO 2 * Ctrl 2'            short='M22P'               steps=0 default=0.497 unit=0 flags=0x1
+ 1077 id=1076       'LFO 1 Invert'                               short='L1In'               steps=1 default=0.000 unit=0 flags=0x1
+ 1078 id=1077       'LFO 2 Invert'                               short='L2In'               steps=1 default=0.000 unit=0 flags=0x1
+ 1079 id=1078       'LFO 1 On/Off'                               short='L1On'               steps=1 default=0.000 unit=0 flags=0x1
+ 1080 id=1079       'Number of LFO1 Waveform'                    short='L1Wf'               steps=0 default=0.000 unit=0 flags=0x1
+ 1081 id=1080       'LFO 1 Rate'                                 short='L1Ra'               steps=0 default=0.500 unit=0 flags=0x1
+ 1082 id=1081       'LFO 1 Delay Time'                           short='L1De'               steps=0 default=0.500 unit=0 flags=0x1
+ 1083 id=1082       'FreeRun or KeySync of LFO 1'                short='L1Fr'               steps=1 default=0.000 unit=0 flags=0x1
+ 1084 id=1083       'MIDI Tempo Sync of LFO 1 Rate'              short='L1TS'               steps=1 default=0.000 unit=0 flags=0x1
+ 1085 id=1084       'Velocity Scaling of LFO 1 Rate'             short='L1VS'               steps=0 default=0.500 unit=0 flags=0x1
+ 1086 id=1085       'Key Scaling of LFO 1 Rate'                  short='L1KS'               steps=0 default=0.500 unit=0 flags=0x1
+ 1087 id=1086       'LFO 2 On/Off'                               short='L2On'               steps=1 default=0.000 unit=0 flags=0x1
+ 1088 id=1087       'Number of LFO2 Waveform'                    short='L2Wf'               steps=0 default=0.000 unit=0 flags=0x1
+ 1089 id=1088       'LFO 2 Rate'                                 short='L2Ra'               steps=0 default=0.500 unit=0 flags=0x1
+ 1090 id=1089       'LFO 2 Delay Time'                           short='L2De'               steps=0 default=0.500 unit=0 flags=0x1
+ 1091 id=1090       'FreeRun or KeySync of LFO 2'                short='L2Fr'               steps=1 default=0.000 unit=0 flags=0x1
+ 1092 id=1091       'MIDI Tempo Sync of LFO 2 Rate'              short='L2TS'               steps=1 default=0.000 unit=0 flags=0x1
+ 1093 id=1092       'Velocity Scaling of LFO 2 Rate'             short='L2VS'               steps=0 default=0.500 unit=0 flags=0x1
+ 1094 id=1093       'Key Scaling of LFO 2 Rate'                  short='L2KS'               steps=0 default=0.500 unit=0 flags=0x1
+ 1095 id=1835623529 'Pitchbend'                                  short='PB'                 steps=0 default=0.500 unit=0 flags=0x1
+ 1096 id=1835623530 'Aftertouch'                                 short='AT'                 steps=0 default=0.000 unit=0 flags=0x1
+ 1097 id=1835623531 'Modulation Wheel'                           short='ModW'               steps=0 default=0.000 unit=0 flags=0x1
+ 1098 id=1835623532 'Breath Controller'                          short='Brth'               steps=0 default=0.000 unit=0 flags=0x1
+ 1099 id=1835623533 'Controller 1'                               short='Ctl1'               steps=0 default=0.000 unit=0 flags=0x1
+ 1100 id=1835623534 'Controller 2'                               short='Ctl2'               steps=0 default=0.000 unit=0 flags=0x1
+ 1101 id=1835623535 'Hold Pedal'                                 short='Hold'               steps=0 default=0.000 unit=0 flags=0x1
+ 1102 id=1835623536 'Sustenuto Pedal'                            short='Sost'               steps=0 default=0.000 unit=0 flags=0x1
+IMidiMapping: bus0 ch0 CC1 -> 0x0 paramId=0x6d69646b

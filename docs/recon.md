@@ -57,13 +57,31 @@ Split Learn, Split Bass, Shuffle, Hold, Rotate Left/Right, Key Sync, BPM Sync, B
 Note the developer string "Arpeggiator - KEY SYNC currently only works correctly with
 external MIDI-Keyboard Input."
 
-VST2: the standard canDo strings `sendVstEvents`, `sendVstMidiEvent`,
-`sendVstMidiEventFlagIsRealtime`, `receiveVstEvents`, `receiveVstMidiEvent` exist at
-0xb8a0c0. Which ones the dispatcher answers with 1 is a decomp question.
+VST2 (verified headless with `tools/vst2host.py` against the installed FM8.dll): uniqueID
+`0x4e696638` ('Nif8'), 1094 parameters, 128 programs, 0 in / 2 out, flags 0x139. canDo answers:
+`sendVstEvents` 1, `sendVstMidiEvent` 1, `sendVstTimeInfo` 1, `receiveVstEvents` 1,
+`receiveVstMidiEvent` 1, `receiveVstTimeInfo` 1, `offline` -1, `bypass` 0,
+`sendVstMidiEventFlagIsRealtime` 0. On the first processed block the stock plugin already sends
+two MIDI events to the host through `audioMasterProcessEvents`: CC7 (volume 102) and CC10
+(pan 64). So the NI VST2 layer has a working, sample-stamped MIDI output path; arp MIDI out
+only has to feed it. Parameter indices: `Morph X` 21, `Morph Y` 22, `Morph Random X` 23,
+`Morph Random Y` 24, `Morph Rnd. Seed` 25, `Arpeggiator On` 136. Full list in
+`docs/vst2_params.txt`.
 
-VST3: bus name strings `Midi In` and `Midi Out` and the class `Vst::EventBus` exist, so the
-NI VST3 wrapper has code for an event output bus. Whether FM8 registers it is a decomp
-question.
+VST3 (verified headless with `tools/vst3host.py`): two classes, `FM8` and `FM8 FX`, both
+"Audio Module Class"; single-component (the component also implements `IEditController`).
+Buses: audio out `Out 1` (stereo), event in `Event Input` (16 channels), **no event output
+bus**. So the VST3 arp MIDI out needs a wrapper that adds an event output bus and fills
+`ProcessData::outputEvents`. 1103 parameters; parameter ids equal the VST2 indices (`Morph X`
+id 21, `Morph Y` id 22, `Arpeggiator On` id 136), plus a `Default` program parameter id
+1295090176 and MIDI controller parameters at the end (`Controller 2`, `Hold Pedal`,
+`Sustenuto Pedal`). `IMidiMapping` maps CC1 on channel 0 to parameter id 0x6d69646b, so in
+VST3 the mod wheel reaches the plugin as a parameter change, not as a MIDI event. Full list in
+`docs/vst3_params.txt`. The bus name strings `Midi In`/`Midi Out` and `Vst::EventBus` in the
+binary belong to the generic NI VST3 layer, not to a registered FM8 bus.
+
+Note: a process that has loaded FM8.vst3 or FM8.dll never fully exits (teardown blocks in
+kernel), so the probe tools terminate themselves hard and may leave a zombie process behind.
 
 EXE: imports `midiOutOpen`, `midiOutShortMsg`, `midiStreamOut` and has
 `NI::NSA::WinMidiOutputDevice`, `NI::SEQ::MidiOut`, preference strings `Pref Send MIDI
