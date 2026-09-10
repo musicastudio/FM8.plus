@@ -1,0 +1,6 @@
+[submodule "third_party/minhook"]
+	path = third_party/minhook
+	url = https://github.com/TsudaKageyu/minhook
+[submodule "third_party/vst3_pluginterfaces"]
+	path = third_party/vst3_pluginterfaces
+	url = https://github.com/steinbergmedia/vst3_pluginterfaces
