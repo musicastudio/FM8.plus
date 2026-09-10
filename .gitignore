@@ -7,3 +7,5 @@ build/
 dist/
 *.o
 *.obj
+/build/
+/out/

@@ -1,0 +1,56 @@
+#include "settings.h"
+#include <shlobj.h>
+#include <cwchar>
+#include <cstdlib>
+
+namespace fm8plus::settings {
+namespace {
+HMODULE g_self = nullptr;
+std::wstring g_iniPath;
+bool  g_modWheelMorph = false;
+float g_radius = 0.5f;
+float g_startDeg = -90.0f;
+std::wstring g_midiOut;
+
+std::wstring iniPath() {
+    wchar_t* base = nullptr;
+    if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &base) != S_OK) return L"";
+    std::wstring dir = std::wstring(base) + L"\\FM8.plus";
+    CoTaskMemFree(base);
+    CreateDirectoryW(dir.c_str(), nullptr);
+    return dir + L"\\FM8.plus.ini";
+}
+} // namespace
+
+void load(HMODULE self) {
+    g_self = self;
+    g_iniPath = iniPath();
+    if (g_iniPath.empty()) return;
+    const wchar_t* s = L"FM8.plus"; const wchar_t* p = g_iniPath.c_str();
+    g_modWheelMorph = GetPrivateProfileIntW(s, L"mod_wheel_morph", 0, p) != 0;
+    wchar_t buf[64];
+    GetPrivateProfileStringW(s, L"morph_radius", L"0.5", buf, 64, p);   g_radius = (float)_wtof(buf);
+    GetPrivateProfileStringW(s, L"morph_start_deg", L"-90", buf, 64, p); g_startDeg = (float)_wtof(buf);
+    wchar_t dev[256];
+    GetPrivateProfileStringW(s, L"midi_out_device", L"", dev, 256, p);  g_midiOut = dev;
+}
+
+void save() {
+    if (g_iniPath.empty()) return;
+    const wchar_t* s = L"FM8.plus"; const wchar_t* p = g_iniPath.c_str();
+    WritePrivateProfileStringW(s, L"mod_wheel_morph", g_modWheelMorph ? L"1" : L"0", p);
+    wchar_t buf[64];
+    swprintf(buf, 64, L"%.4f", g_radius);   WritePrivateProfileStringW(s, L"morph_radius", buf, p);
+    swprintf(buf, 64, L"%.1f", g_startDeg); WritePrivateProfileStringW(s, L"morph_start_deg", buf, p);
+    WritePrivateProfileStringW(s, L"midi_out_device", g_midiOut.c_str(), p);
+}
+
+HMODULE self() { return g_self; }
+bool  defaultModWheelMorph() { return g_modWheelMorph; }
+void  setDefaultModWheelMorph(bool v) { g_modWheelMorph = v; save(); }
+float morphRadius() { return g_radius; }
+float morphStartDeg() { return g_startDeg; }
+std::wstring midiOutDevice() { return g_midiOut; }
+void setMidiOutDevice(const std::wstring& n) { g_midiOut = n; save(); }
+
+} // namespace fm8plus::settings

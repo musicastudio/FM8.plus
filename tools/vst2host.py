@@ -226,6 +226,53 @@ def main():
                     show("changed again")
                 n2 = h.d(effGetChunk, idx, 0, C.cast(C.pointer(pp), C.c_void_p))
                 print(f"getChunk({what}) after trailer set -> {n2} bytes (was {n})")
+        elif cmd == "plus":
+            # End-to-end test of the FM8.plus proxy: arp MIDI out (Clone / MIDI only) and mod-wheel morph.
+            effGetChunk, effSetChunk = 23, 24
+            pp = C.c_void_p()
+
+            def set_trailer(modwheel, arpmode):
+                n = h.d(effGetChunk, 0, 0, C.cast(C.pointer(pp), C.c_void_p))
+                data = bytearray(C.string_at(pp, n))
+                assert bytes(data[-12:-4]) == b"FM8PLUS1", "no FM8.plus trailer (proxy not active?)"
+                data[-4] = 1 if modwheel else 0
+                data[-3] = arpmode
+                blob = C.create_string_buffer(bytes(data), len(data))
+                h.d(effSetChunk, 0, len(data), C.cast(blob, C.c_void_p))
+
+            def run_chord(blocks=180):
+                h.received.clear()
+                h.send([(0x90, 60, 100), (0x90, 64, 100), (0x90, 67, 100)])
+                peak = h.process(blocks)
+                h.send([(0x80, 60, 0), (0x80, 64, 0), (0x80, 67, 0)])
+                peak = max(peak, h.process(20))
+                notes = [m for _, _, m in h.received if (m[0] & 0xf0) in (0x80, 0x90)]
+                return peak, len(h.received), notes
+
+            idx = h.param_index("Arpeggiator On") or 136
+            e.setParameter(h.eff, idx, 1.0)
+            print(f"Arp On index {idx} set")
+
+            for label, mode in (("Internal", 0), ("Clone to MIDI", 1), ("MIDI only", 2)):
+                set_trailer(False, mode)
+                peak, total, notes = run_chord()
+                non = [n for n in notes if (n[0] & 0xf0) == 0x90 and n[2] > 0]
+                print(f"  arp={label:14} audio_peak={peak:.3f}  host_events={total:3d}  arp_noteons={len(non)}"
+                      f"  first={notes[0].hex(' ') if notes else '--'}")
+
+            # Mod wheel morph: CC1 sweep should move Morph X/Y (indices 21/22).
+            set_trailer(True, 0)
+            e.setParameter(h.eff, 21, 0.5); e.setParameter(h.eff, 22, 0.5)
+            print("  morph before:", f"X={e.getParameter(h.eff,21):.3f} Y={e.getParameter(h.eff,22):.3f}")
+            seen = []
+            for cc in (0, 32, 64, 96, 127):
+                h.send([(0xB0, 1, cc)])
+                h.process(4)
+                seen.append((cc, round(e.getParameter(h.eff, 21), 3), round(e.getParameter(h.eff, 22), 3)))
+            for cc, x, y in seen:
+                print(f"    CC1={cc:3d} -> Morph X={x:.3f} Y={y:.3f}")
+            moved = len({(x, y) for _, x, y in seen}) > 1
+            print("  morph result:", "MOVES with mod wheel" if moved else "NO CHANGE")
         elif cmd == "arp":
             idx = h.param_index("Arp On") or h.param_index("Arpeggiator On")
             print("Arp On index:", idx)

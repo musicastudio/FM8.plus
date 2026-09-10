@@ -3,6 +3,10 @@
 #pragma once
 #include <cstdint>
 
+#ifndef VSTCALLBACK
+#define VSTCALLBACK __cdecl
+#endif
+
 struct AEffect;
 typedef intptr_t (*AudioMasterCallback)(AEffect*, int32_t opcode, int32_t index, intptr_t value, void* ptr, float opt);
 typedef intptr_t (*AEffectDispatcherProc)(AEffect*, int32_t opcode, int32_t index, intptr_t value, void* ptr, float opt);
