@@ -26,16 +26,16 @@ Prefer scripts, or building it yourself? From an elevated PowerShell run `powers
 
 Having the Arpeggiator provide MIDI output is one of the most requested features for FM8, appearing on Reddit and various forums, and something I have wanted for a long time.
 
-Next, the idea of using the modwheel (or another midi CC) to rotate the morph control was asked by me on the Native Instruments forums in 2013, with my original diagram.
+Next, the idea of using the modwheel (or another midi CC) to rotate the morph control was asked by me on the Native Instruments forums in 2013. I came up with this diagram:
 
 <kbd>
 <img width="465" height="517" alt="FM8_Native_Instruments ModWheel Idea" src="https://github.com/user-attachments/assets/8932e0ba-739a-4813-bd0c-96d18f929c9c" border="2" />
 </kbd>
 <br /><br />
 
-I found [this reddit wishlist by Manifold_dnb](https://www.reddit.com/r/edmproduction/comments/7o87oy/native_instruments_fm9_wishlist_fm8/) with tempo detachment and gain taken from this list as further potential enhancements.
+More ideas came from the internet, with [this reddit wishlist by Manifold_dnb](https://www.reddit.com/r/edmproduction/comments/7o87oy/native_instruments_fm9_wishlist_fm8/) containing some relatively easy to implement ideas, like DAW tempo detachment and increasing the output gain.
 
-This project began with the question: **Can modern AI tooling allow us to make these "dreams" a reality?**
+**Can modern AI tooling allow us to make these "dreams" a reality?**
 
 Using Claude Fable 5.1, The three modules (the standalone `FM8.exe`, the VST2 `FM8.dll`, and `FM8.vst3`) were disassembled with [Ghidra](https://ghidra-sre.org/), and the decompiled C was read function by function to locate the internal machinery each feature had to reach, namely the arpeggiator dispatch, the MIDI event handler, the internal Morph X/Y setter, and the form resource that holds the FM8 logo.
 
