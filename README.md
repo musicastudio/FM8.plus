@@ -22,6 +22,14 @@ Download the latest installer from the [Releases page](https://github.com/musica
 
 Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` reverses everything.
 
+## How it was made
+
+FM8 ships only as compiled binaries, so the first job was understanding code nobody has the source to. The three modules (the standalone `FM8.exe`, the VST2 `FM8.dll`, and `FM8.vst3`) were disassembled with [Ghidra](https://ghidra-sre.org/), and the decompiled C was read function by function to locate the internal machinery each feature had to reach, namely the arpeggiator dispatch, the MIDI event handler, the internal Morph X/Y setter, and the form resource that holds the FM8 logo.
+
+That reverse engineering was driven by Claude Fable 5.1. It worked through Ghidra's decompiler output, proposed and adversarially checked where each hook belonged, and confirmed the target functions are byte-identical across all three binaries so one set of detours works in every host. From there it wrote the hook code, the per-host proxies, and the headless test hosts that verify each feature against the real FM8, and the whole thing was built and checked with the model in the loop end to end. The reverse-engineering notes and the exact hook addresses are in [docs/hooks.md](docs/hooks.md) and [docs/design.md](docs/design.md).
+
+To be clear about what that means, this repository contains no Native Instruments source and no decompiled FM8 content. The analysis only informed where FM8.plus attaches its own code at runtime; the stock binaries are never touched on disk.
+
 ## How it works
 
 One shared feature core is attached to each host by the least invasive loader that host allows. The VST2 and VST3 proxies keep the original filename; the real module is renamed in place to `FM8.plus.core` and loaded by the proxy, so existing projects keep loading (same uniqueID and class IDs) and gain the features. The standalone uses a `version.dll` sideload, since FM8.exe imports only four version APIs and version.dll is not a KnownDLL, so the app-directory copy wins and FM8.exe is never touched.
