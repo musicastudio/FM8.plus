@@ -42,6 +42,10 @@ struct InstanceState {
     int      outCount = 0;
     NoteMask intOn, extOn;
 
+    // FM8 EditBuffer pointer, captured on the audio thread (used by the internal morph setter for
+    // the standalone and VST3 paths). null until the engine has processed once.
+    std::atomic<void*> editBuf{nullptr};
+
     // Global knobs mirrored from settings (read on the audio thread).
     std::atomic<float> morphRadius{0.5f};
     std::atomic<float> morphStartDeg{-90.0f};
@@ -59,6 +63,15 @@ namespace Core {
 // thread_local instance being processed right now (set by a shim around the real process call).
 extern thread_local InstanceState* current;
 
+// Single-instance fallback used when `current` is null (the standalone has one engine and no
+// process wrapper to set the thread_local). Shims for hosted plugins leave this null.
+void setSingleton(InstanceState* s);
+
+// Optional callback fired at the end of each arp dispatch with the active instance. The standalone
+// uses it to flush queued events to its WinMM port and apply morph every block; hosted shims drain
+// in their own process wrapper and leave this unset.
+void setArpBlockCallback(void (*cb)(InstanceState&));
+
 // Validate the module at `base` is the expected FM8 build; returns false if the timestamp differs.
 bool validateBuild(void* base);
 
@@ -71,8 +84,19 @@ void uninstall();
 // Feature 1 math: CC1 value 0..127 into a Morph X/Y in 0..1 on a circle.
 void morphXYFromCc(const InstanceState& st, uint8_t cc1, float& x, float& y);
 
+// Drive FM8's internal Morph X/Y setter with the captured EditBuffer (standalone/VST3 morph).
+// Returns false if no EditBuffer has been captured yet. SEH-guarded against a bad pointer.
+bool setMorphXY(InstanceState& st, float x, float y);
+
+// Apply a pending mod-wheel value (st.lastCc1) via the internal setter; clears it. No-op if morph
+// off, no CC pending, or no EditBuffer. Used by the standalone/VST3 per-block wrappers.
+void applyPendingMorphInternal(InstanceState& st);
+
 // Flush external note-offs for every sounding out-note (call on mode change / stop / close).
 void flushExternal(InstanceState& st);
+
+// Resolve a hook Site to an absolute address in the installed module (for shim-added hooks).
+void* addressOf(const Site& s);
 
 } // namespace Core
 } // namespace fm8plus

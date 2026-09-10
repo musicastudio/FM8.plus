@@ -29,9 +29,9 @@ void showMenu(HWND hwnd, InstanceState* st) {
             settings::setDefaultModWheelMorph(v);
             break;
         }
-        case ID_ARP_INT:   Core::flushExternal(*st); st->arpMode.store((uint8_t)ArpMode::Internal); break;
-        case ID_ARP_CLONE: st->arpMode.store((uint8_t)ArpMode::CloneToMidi); break;
-        case ID_ARP_MIDI:  st->arpMode.store((uint8_t)ArpMode::MidiOnly); break;
+        case ID_ARP_INT:   Core::flushExternal(*st); st->arpMode.store((uint8_t)ArpMode::Internal); settings::setArpModeDefault(0); break;
+        case ID_ARP_CLONE: st->arpMode.store((uint8_t)ArpMode::CloneToMidi); settings::setArpModeDefault(1); break;
+        case ID_ARP_MIDI:  st->arpMode.store((uint8_t)ArpMode::MidiOnly); settings::setArpModeDefault(2); break;
     }
     DestroyMenu(m);
     InvalidateRect(hwnd, nullptr, FALSE);
@@ -87,6 +87,29 @@ void Overlay::detach() {
 
 void Overlay::refresh(InstanceState&) {
     if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
+namespace {
+struct FindCtx { DWORD pid; HWND found; };
+BOOL CALLBACK findMain(HWND h, LPARAM lp) {
+    auto* c = (FindCtx*)lp;
+    DWORD pid = 0; GetWindowThreadProcessId(h, &pid);
+    if (pid == c->pid && IsWindowVisible(h) && GetWindow(h, GW_OWNER) == nullptr) {
+        wchar_t t[128]; GetWindowTextW(h, t, 128);
+        if (wcsstr(t, L"FM8")) { c->found = h; return FALSE; }
+    }
+    return TRUE;
+}
+} // namespace
+
+void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeoutMs) {
+    const unsigned step = 250;
+    for (unsigned waited = 0; waited <= timeoutMs; waited += step) {
+        FindCtx c{GetCurrentProcessId(), nullptr};
+        EnumWindows(findMain, (LPARAM)&c);
+        if (c.found) { attach(c.found, st, self); return; }
+        Sleep(step);
+    }
 }
 
 } // namespace fm8plus::ui

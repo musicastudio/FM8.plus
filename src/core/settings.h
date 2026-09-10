@@ -13,6 +13,8 @@ HMODULE self();                   // module handle for resource/UI ownership
 
 bool  defaultModWheelMorph();
 void  setDefaultModWheelMorph(bool v);
+int   arpModeDefault();            // 0 Internal, 1 Clone, 2 MIDI only (standalone + fresh instances)
+void  setArpModeDefault(int m);
 float morphRadius();
 float morphStartDeg();
 std::wstring midiOutDevice();     // standalone only; empty = first device

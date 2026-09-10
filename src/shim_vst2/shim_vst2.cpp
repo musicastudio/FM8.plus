@@ -99,36 +99,25 @@ void applyMorph(AEffect* eff, InstanceState& st) {
     eff->setParameter(eff, 22, y);   // Morph Y
 }
 
-void scanCc1(InstanceState& st, VstEvents* ev) {
-    if (!ev || !st.modWheelMorph.load(std::memory_order_relaxed)) return;
-    for (int i = 0; i < ev->numEvents; ++i) {
-        auto* e = ev->events[i];
-        if (!e || e->type != kVstMidiType) continue;
-        auto* m = (VstMidiEvent*)e;
-        uint8_t status = (uint8_t)m->midiData[0], d1 = (uint8_t)m->midiData[1], d2 = (uint8_t)m->midiData[2];
-        if ((status & 0xf0) == 0xb0 && d1 == 1) st.lastCc1.store(d2, std::memory_order_relaxed);
-    }
-}
-
 void __cdecl thunkProcess(AEffect* eff, float** in, float** out, int32_t frames) {
     Record* r = recFor(eff);
     if (!r) return;
-    applyMorph(eff, r->st);
     r->st.clearBlock();
     Core::current = &r->st;
-    r->origProcess(eff, in, out, frames);
+    r->origProcess(eff, in, out, frames);   // core detours capture CC1 and fill the out-buffer
     Core::current = nullptr;
+    applyMorph(eff, r->st);                 // CC1 seen this block -> host setParameter for next block
     drainToHost(eff, r->st);
 }
 
 void __cdecl thunkProcessD(AEffect* eff, double** in, double** out, int32_t frames) {
     Record* r = recFor(eff);
     if (!r || !r->origProcessD) return;
-    applyMorph(eff, r->st);
     r->st.clearBlock();
     Core::current = &r->st;
     r->origProcessD(eff, in, out, frames);
     Core::current = nullptr;
+    applyMorph(eff, r->st);
     drainToHost(eff, r->st);
 }
 
@@ -136,9 +125,6 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
     Record* r = recFor(eff);
     if (!r) return 0;
     switch (op) {
-        case effProcessEvents:
-            scanCc1(r->st, (VstEvents*)ptr);
-            return r->origDispatcher(eff, op, idx, val, ptr, opt);
         case effGetChunk: {
             intptr_t n = r->origDispatcher(eff, op, idx, val, ptr, opt);
             void** pp = (void**)ptr;

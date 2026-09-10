@@ -9,6 +9,10 @@ namespace Core {
 
 thread_local InstanceState* current = nullptr;
 
+namespace { InstanceState* g_singleton = nullptr; void (*g_arpBlockCb)(InstanceState&) = nullptr; }
+void setSingleton(InstanceState* s) { g_singleton = s; }
+void setArpBlockCallback(void (*cb)(InstanceState&)) { g_arpBlockCb = cb; }
+
 // Resolved absolute addresses of the two detoured functions and the callees we invoke.
 namespace {
 void*  g_base       = nullptr;
@@ -59,32 +63,44 @@ bool routeArpEvent(InstanceState& st, uint8_t status, uint8_t d1, uint8_t d2, in
     return playInternal;
 }
 
+// Internal morph setter type: setParameterByTag(EditBuffer* this, uint tag, float value, char thread).
+using SetByTagFn = intptr_t (*)(void* editBuf, uint32_t tag, float value, char thread);
+
 // Detour of ArpRunDispatch (0x1800e7250 family): mark the arp window so the MIDI-handler detour
-// can tell arp events from live input, and forward the in-block position.
+// can tell arp events from live input, forward the in-block position, and capture the EditBuffer
+// pointer (param_1 == EditBuffer; +0x29e8 -> arp) for the internal morph setter.
 void __fastcall detourArpRun(void* core, uint32_t destSel, int inBlockPos) {
-    InstanceState* st = current;
+    InstanceState* st = current ? current : g_singleton;
     if (!st) { o_arpRun(core, destSel, inBlockPos); return; }
+    st->editBuf.store(core, std::memory_order_relaxed);   // param_1 == EditBuffer (runs every block)
     const bool prev = tl_inArp; const int32_t prevPos = tl_arpPos;
     tl_inArp = true; tl_arpPos = inBlockPos;
     o_arpRun(core, destSel, inBlockPos);   // runs the engine and dispatches events through the MIDI handler
     tl_inArp = prev; tl_arpPos = prevPos;
+    if (g_arpBlockCb) g_arpBlockCb(*st);   // standalone: flush to WinMM + apply morph
 }
 
-// Detour of MidiEventHandler (0x1800e6660 family). Live input passes straight through. Arp events
-// (tl_inArp) are routed by mode: cloned or suppressed for MIDI out, and only played internally as
-// the mask logic allows.
+// Detour of MidiEventHandler (0x1800e6660 family). Arp events (tl_inArp) are routed by mode: cloned
+// or suppressed for MIDI out, and only played internally as the mask logic allows. Live input passes
+// straight through, but a live CC1 (mod wheel) is captured for the morph feature.
 void __fastcall detourMidiHandler(void* fm8midi, void* ev, int flag) {
-    InstanceState* st = current;
-    if (!st || !tl_inArp || st->arpMode.load(std::memory_order_relaxed) == (uint8_t)ArpMode::Internal) {
-        o_midiHnd(fm8midi, ev, flag);
-        return;
-    }
+    InstanceState* st = current ? current : g_singleton;
+    if (!st) { o_midiHnd(fm8midi, ev, flag); return; }
+
     const uint32_t w = *(uint32_t*)((uint8_t*)ev + kElemPackedWord);
     const uint8_t status = (uint8_t)(w >> 16);
     const uint8_t d1 = (uint8_t)(w >> 8) & 0x7f;
     const uint8_t d2 = (uint8_t)w & 0x7f;
-    if (routeArpEvent(*st, status, d1, d2, tl_arpPos))
-        o_midiHnd(fm8midi, ev, flag);
+
+    if (tl_inArp && st->arpMode.load(std::memory_order_relaxed) != (uint8_t)ArpMode::Internal) {
+        if (routeArpEvent(*st, status, d1, d2, tl_arpPos))
+            o_midiHnd(fm8midi, ev, flag);
+        return;
+    }
+    // Live input: capture CC1 for the mod-wheel morph, then pass through unchanged.
+    if ((status & 0xf0) == 0xb0 && d1 == 1 && st->modWheelMorph.load(std::memory_order_relaxed))
+        st->lastCc1.store(d2, std::memory_order_relaxed);
+    o_midiHnd(fm8midi, ev, flag);
 }
 } // namespace
 
@@ -136,6 +152,30 @@ void flushExternal(InstanceState& st) {
     for (int ch = 0; ch < 16; ++ch)
         for (int n = 0; n < 128; ++n)
             if (st.extOn.test(ch, n)) { st.pushOut((uint8_t)(0x80 | ch), (uint8_t)n, 0, 0); st.extOn.clear(ch, n); }
+}
+
+void* addressOf(const Site& s) { return g_installed ? addr(s) : nullptr; }
+
+bool setMorphXY(InstanceState& st, float x, float y) {
+    void* eb = st.editBuf.load(std::memory_order_relaxed);
+    if (!eb || !g_installed) return false;
+    auto set = (SetByTagFn)addr(kSetParameterByTag);
+    __try {
+        set(eb, kTagMorphX, x, 1);
+        set(eb, kTagMorphY, y, 1);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        st.editBuf.store(nullptr, std::memory_order_relaxed);  // bad pointer, stop trying until re-captured
+        return false;
+    }
+}
+
+void applyPendingMorphInternal(InstanceState& st) {
+    if (!st.modWheelMorph.load(std::memory_order_relaxed)) return;
+    uint8_t cc = st.lastCc1.exchange(0xff, std::memory_order_relaxed);
+    if (cc == 0xff) return;
+    float x, y; morphXYFromCc(st, cc, x, y);
+    setMorphXY(st, x, y);
 }
 
 } // namespace Core

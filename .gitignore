@@ -9,3 +9,4 @@ dist/
 *.obj
 /build/
 /out/
+/third_party/pluginterfaces

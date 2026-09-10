@@ -38,8 +38,16 @@ fm8_shim(shim_vst2 src/shim_vst2/shim_vst2.cpp "FM8" "dll")
 
 # --- VST3 proxy: builds FM8.vst3 (single-file module) ----------------------
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_vst3/shim_vst3.cpp")
+  # The Steinberg headers reference themselves via a "pluginterfaces/" prefix, so the vendored
+  # submodule must be reachable under that name. Ensure a junction to it exists (idempotent).
+  set(PI_LINK "${CMAKE_CURRENT_SOURCE_DIR}/third_party/pluginterfaces")
+  if(NOT EXISTS "${PI_LINK}/vst/ivstaudioprocessor.h")
+    file(TO_NATIVE_PATH "${PI_LINK}" PI_LINK_NATIVE)
+    file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/third_party/vst3_pluginterfaces" PI_SRC_NATIVE)
+    execute_process(COMMAND cmd /c mklink /J "${PI_LINK_NATIVE}" "${PI_SRC_NATIVE}")
+  endif()
   fm8_shim(shim_vst3 src/shim_vst3/shim_vst3.cpp "FM8" "vst3")
-  target_include_directories(shim_vst3 PRIVATE third_party/vst3_pluginterfaces)
+  target_include_directories(shim_vst3 PRIVATE third_party)
 endif()
 
 # --- standalone sideload: builds version.dll -------------------------------

@@ -75,7 +75,9 @@ constexpr Site kAEffectDispatcher  = {0, 0x2e8f60, 0}; // VstIntPtr f(AEffect*, 
 // ---- VST3 buses (VST3 only) ------------------------------------------------
 constexpr Site kVst3CreateInstance = {0, 0, 0x0bc830}; // tresult f(factory, int cidTag, FUnknown** args, void* ctx)
 constexpr Site kVst3Process        = {0, 0, 0x0c7920}; // f(IAudioProcessor*, ProcessData*)
-constexpr Site kVst3GetBusCount    = {0, 0, 0x16da80}; // int32 f(this, MediaType, BusDirection)
+constexpr Site kVst3GetBusCount    = {0, 0, 0x16da80}; // int32 f(this, MediaType, BusDirection)  IComponent slot 7
+constexpr Site kVst3GetBusInfo     = {0, 0, 0x0c5540}; // tresult f(this, MediaType, BusDirection, int32 idx, BusInfo&)  slot 8
+constexpr Site kVst3ActivateBus    = {0, 0, 0x0c3b80}; // tresult f(this, MediaType, BusDirection, int32 idx, TBool)  slot 10
 constexpr Site kVst3EventBusReg    = {0, 0, 0x16d4b0}; // f(componentBase, wchar* name, int channelCount, int)
 
 // VST3 static vtable pointers (.rdata VAs, base 0x180000000).
