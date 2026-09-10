@@ -69,10 +69,20 @@ using SetByTagFn = intptr_t (*)(void* editBuf, uint32_t tag, float value, char t
 // Detour of ArpRunDispatch (0x1800e7250 family): mark the arp window so the MIDI-handler detour
 // can tell arp events from live input, forward the in-block position, and capture the EditBuffer
 // pointer (param_1 == EditBuffer; +0x29e8 -> arp) for the internal morph setter.
+// Walk core -> VstObject (*(core+8)) -> EditBuffer (*(VstObject+0x55d0)), matching what the
+// dispatch does internally (FUN_1800ef7f0 returns *(x+0x55d0)). SEH-guarded: a bad chain yields null.
+void* editBufFromCore(void* core) {
+    __try {
+        void* outer = *(void**)((uint8_t*)core + 8);
+        if (!outer) return nullptr;
+        return *(void**)((uint8_t*)outer + kVstObjEditBuf);
+    } __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+}
+
 void __fastcall detourArpRun(void* core, uint32_t destSel, int inBlockPos) {
     InstanceState* st = current ? current : g_singleton;
     if (!st) { o_arpRun(core, destSel, inBlockPos); return; }
-    st->editBuf.store(core, std::memory_order_relaxed);   // param_1 == EditBuffer (runs every block)
+    if (void* eb = editBufFromCore(core)) st->editBuf.store(eb, std::memory_order_relaxed);
     const bool prev = tl_inArp; const int32_t prevPos = tl_arpPos;
     tl_inArp = true; tl_arpPos = inBlockPos;
     o_arpRun(core, destSel, inBlockPos);   // runs the engine and dispatches events through the MIDI handler

@@ -5,7 +5,9 @@
 #include <cstdint>
 #include <cstring>
 #include <cstddef>
+#include <cstdlib>
 #include <string>
+#include <vector>
 #include "../vst2/vst2.h"
 #include "../core/fm8plus.h"
 #include "../core/settings.h"
@@ -30,7 +32,8 @@ struct Record {
     AEffectDispatcherProc origDispatcher = nullptr;
     AEffectProcessProc     origProcess = nullptr;
     AEffectProcessDoubleProc origProcessD = nullptr;
-    std::string chunkBuf;                 // persists our effGetChunk return
+    std::string chunkBuf;                 // persists our effGetChunk return (dispatch thread only)
+    std::vector<char> drainBuf;           // preallocated VstEvents scratch (audio thread, no alloc)
     ui::Overlay overlay;
 };
 constexpr int kMaxInst = 64;
@@ -62,19 +65,20 @@ bool ensureCore() {
     return g_coreHooked;
 }
 
-// Send the instance's queued arp events to the host via audioMasterProcessEvents.
-void drainToHost(AEffect* eff, InstanceState& st) {
+// Send the instance's queued arp events to the host via audioMasterProcessEvents. Uses the record's
+// preallocated buffer, so nothing is heap-allocated on the audio thread.
+void drainToHost(AEffect* eff, Record& r) {
+    InstanceState& st = r.st;
     if (st.outCount <= 0) return;
     // VstEvents header + pointer array, then the VstMidiEvent bodies.
     const int n = st.outCount;
     const size_t hdrSize = offsetof(VstEvents, events);   // 16 on x64 (numEvents + pad + reserved)
-    std::string buf;
-    buf.resize(hdrSize + sizeof(void*) * n + sizeof(VstMidiEvent) * n);
-    auto* hdr = (VstEvents*)buf.data();
+    char* buf = r.drainBuf.data();
+    auto* hdr = (VstEvents*)buf;
     hdr->numEvents = n;
     hdr->reserved = 0;
-    auto* ptrs = (VstEvent**)(buf.data() + hdrSize);
-    auto* bodies = (VstMidiEvent*)(buf.data() + hdrSize + sizeof(void*) * n);
+    auto* ptrs = (VstEvent**)(buf + hdrSize);
+    auto* bodies = (VstMidiEvent*)(buf + hdrSize + sizeof(void*) * n);
     for (int i = 0; i < n; ++i) {
         VstMidiEvent& m = bodies[i];
         std::memset(&m, 0, sizeof m);
@@ -95,6 +99,10 @@ void applyMorph(AEffect* eff, InstanceState& st) {
     uint8_t cc = st.lastCc1.exchange(0xff, std::memory_order_relaxed);
     if (cc == 0xff) return;
     float x, y; Core::morphXYFromCc(st, cc, x, y);
+    // Test hook: FM8PLUS_INTERNAL_MORPH exercises the same internal setter path the VST3 and
+    // standalone shims use, so the headless VST2 host can validate the EditBuffer capture.
+    static const bool useInternal = getenv("FM8PLUS_INTERNAL_MORPH") != nullptr;
+    if (useInternal) { Core::setMorphXY(st, x, y); return; }
     eff->setParameter(eff, 21, x);   // Morph X
     eff->setParameter(eff, 22, y);   // Morph Y
 }
@@ -107,7 +115,7 @@ void __cdecl thunkProcess(AEffect* eff, float** in, float** out, int32_t frames)
     r->origProcess(eff, in, out, frames);   // core detours capture CC1 and fill the out-buffer
     Core::current = nullptr;
     applyMorph(eff, r->st);                 // CC1 seen this block -> host setParameter for next block
-    drainToHost(eff, r->st);
+    drainToHost(eff, *r);
 }
 
 void __cdecl thunkProcessD(AEffect* eff, double** in, double** out, int32_t frames) {
@@ -118,7 +126,7 @@ void __cdecl thunkProcessD(AEffect* eff, double** in, double** out, int32_t fram
     r->origProcessD(eff, in, out, frames);
     Core::current = nullptr;
     applyMorph(eff, r->st);
-    drainToHost(eff, r->st);
+    drainToHost(eff, *r);
 }
 
 intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t val, void* ptr, float opt) {
@@ -165,7 +173,7 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
         }
         case effStopProcess:
             Core::flushExternal(r->st);
-            drainToHost(eff, r->st);
+            drainToHost(eff, *r);
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
         default:
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
@@ -176,10 +184,12 @@ AEffect* wrap(AEffect* real) {
     if (!real || real->magic != kEffectMagic) return real;
     Record* r = recAlloc(real);
     if (!r) return real;   // out of slots, pass through unwrapped
-    r->st.arpMode.store((uint8_t)ArpMode::Internal);
+    r->st.arpMode.store((uint8_t)settings::arpModeDefault());
     r->st.modWheelMorph.store(settings::defaultModWheelMorph());
     r->st.morphRadius.store(settings::morphRadius());
     r->st.morphStartDeg.store(settings::morphStartDeg());
+    r->drainBuf.resize(offsetof(VstEvents, events) +
+                       InstanceState::kMaxOut * (sizeof(void*) + sizeof(VstMidiEvent)));
     r->origDispatcher = real->dispatcher;
     r->origProcess = real->processReplacing;
     r->origProcessD = real->processDoubleReplacing;
