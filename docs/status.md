@@ -28,7 +28,10 @@ event out: 1 bus(es)
 ```
 
 **Standalone**: builds; `version.dll` exports exactly the four functions FM8.exe imports; reuses the
-same core proven under VST2.
+same core proven under VST2. Confirmed by launching the real FM8.exe with `version.dll` sideloaded:
+our DLL loads, the init runs (the `%APPDATA%\FM8.plus` settings dir is created), and the floating
+**FM8+** button appears on FM8's window with the working toggle menu (mod-wheel-morph checkbox and
+the three-way arp MIDI-out submenu). Screenshotted.
 
 **Installer**: `install.ps1` / `uninstall.ps1` round-trip verified in a scratch tree (originals
 renamed to `FM8.plus.core`, proxies dropped in, `version.dll` sideloaded; uninstall restores stock).
@@ -40,8 +43,8 @@ renamed to `FM8.plus.core`, proxies dropped in, `version.dll` sideloaded; uninst
   cache bus layouts and need one plugin rescan after install.
 - **VST3 mod-wheel morph** relies on the host delivering param id `0x6d69646b` in
   `inputParameterChanges`; confirmed as the mapping target, not yet observed live.
-- **Standalone** arp-out to a WinMM port and the overlay button on FM8's main window are wired but
-  only a real run confirms the port selection and the overlay parenting over FM8's GL surface.
+- **Standalone** overlay button and menu confirmed on a real run (see above); the arp-out to a WinMM
+  port and the actual audio still need a listening test with a MIDI monitor.
 - **VST2 host coverage.** Plugin-to-host MIDI is not routed by every host; where a host drops it,
   Clone/MIDI-only produce nothing downstream (the mode is labelled honestly).
 

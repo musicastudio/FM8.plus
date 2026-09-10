@@ -6,8 +6,12 @@
 namespace fm8plus::ui {
 namespace {
 const wchar_t* kClass = L"FM8plusOverlay";
-constexpr int kW = 52, kH = 18;
+constexpr int kW = 58, kH = 20;
 enum { ID_MORPH = 1, ID_ARP_INT = 2, ID_ARP_CLONE = 3, ID_ARP_MIDI = 4 };
+
+// Per-window data behind GWLP_USERDATA: the instance state and, for the standalone's top-level
+// floating button, the FM8 window it tracks (null for the plugin child window).
+struct OData { InstanceState* st; HWND target; };
 
 void showMenu(HWND hwnd, InstanceState* st) {
     HMENU m = CreatePopupMenu();
@@ -20,6 +24,7 @@ void showMenu(HWND hwnd, InstanceState* st) {
     AppendMenuW(arp, MF_STRING | (mode == ArpMode::MidiOnly    ? MF_CHECKED : 0), ID_ARP_MIDI,  L"MIDI only (FM8 silent)");
     AppendMenuW(m, MF_POPUP, (UINT_PTR)arp, L"Arpeggiator MIDI out");
 
+    SetForegroundWindow(hwnd);   // required so the popup dismisses correctly for a top-level tool window
     POINT pt; GetCursorPos(&pt);
     int cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN, pt.x, pt.y, 0, hwnd, nullptr);
     switch (cmd) {
@@ -40,10 +45,22 @@ void showMenu(HWND hwnd, InstanceState* st) {
 }
 
 LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    auto* st = (InstanceState*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+    auto* d = (OData*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+    InstanceState* st = d ? d->st : nullptr;
     switch (msg) {
         case WM_LBUTTONUP:
             if (st) showMenu(hwnd, st);
+            return 0;
+        case WM_TIMER:
+            // Standalone: keep the floating button glued to FM8's window; close when FM8 goes away.
+            if (d && d->target) {
+                if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
+                RECT r; GetWindowRect(d->target, &r);
+                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 8, r.top + 62, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+            return 0;
+        case WM_NCDESTROY:
+            delete d; SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             return 0;
         case WM_PAINT: {
             PAINTSTRUCT ps; HDC dc = BeginPaint(hwnd, &ps);
@@ -77,13 +94,15 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     if (hwnd_ || !parent) return;
     st_ = st;
     ensureClass(self);
+    auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
     hwnd_ = CreateWindowExW(WS_EX_TOPMOST, kClass, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
                             2, 2, kW, kH, parent, nullptr, self, nullptr);
-    if (hwnd_) SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)st);
+    if (hwnd_) SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
+    else delete d;
 }
 
 void Overlay::detach() {
-    if (hwnd_) { DestroyWindow(hwnd_); hwnd_ = nullptr; }
+    if (hwnd_) { DestroyWindow(hwnd_); hwnd_ = nullptr; }   // WM_NCDESTROY frees the OData
     st_ = nullptr;
 }
 
@@ -105,13 +124,30 @@ BOOL CALLBACK findMain(HWND h, LPARAM lp) {
 } // namespace
 
 void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeoutMs) {
+    HWND fm8 = nullptr;
     const unsigned step = 250;
-    for (unsigned waited = 0; waited <= timeoutMs; waited += step) {
+    for (unsigned waited = 0; waited <= timeoutMs && !fm8; waited += step) {
         FindCtx c{GetCurrentProcessId(), nullptr};
         EnumWindows(findMain, (LPARAM)&c);
-        if (c.found) { attach(c.found, st, self); return; }
-        Sleep(step);
+        if (c.found) fm8 = c.found; else Sleep(step);
     }
+    if (!fm8) return;
+
+    // A top-level floating button (this worker thread owns it and pumps its messages), glued to the
+    // FM8 window by a timer. A child of FM8's own window would be dead here, since this thread has no
+    // pump and FM8's GL surface would cover it.
+    ensureClass(self);
+    RECT r; GetWindowRect(fm8, &r);
+    auto* d = new OData{st, fm8};
+    hwnd_ = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
+                            r.left + 8, r.top + 62, kW, kH, nullptr, nullptr, self, nullptr);
+    if (!hwnd_) { delete d; return; }
+    st_ = st;
+    SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
+    SetTimer(hwnd_, 1, 500, nullptr);
+    MSG m;
+    while (GetMessageW(&m, nullptr, 0, 0) > 0) { TranslateMessage(&m); DispatchMessageW(&m); }
+    hwnd_ = nullptr;   // window destroyed (FM8 closed); the message loop and this thread end
 }
 
 } // namespace fm8plus::ui
