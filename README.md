@@ -26,7 +26,7 @@ Prefer scripts, or building it yourself? From an elevated PowerShell run `powers
 
 Having the Arpeggiator provide MIDI output is one of the most requested features for FM8, appearing on Reddit and various forums, and something I have wanted for a long time.
 
-Next, the idea of using the modwheel (or another midi CC) to rotate the morph control was asked by me on the Native Instruments forums in 2013. I came up with this diagram:
+Next, an idea I've wanted for a while was using the modwheel (or another midi CC) to rotate the morph control, as the morph tool allows for some incredible texture variations and transitions. This idea was even asked by me on the Native Instruments forums in 2013, where I shared this diagram:
 
 <kbd>
 <img width="465" height="517" alt="FM8_Native_Instruments ModWheel Idea" src="https://github.com/user-attachments/assets/8932e0ba-739a-4813-bd0c-96d18f929c9c" border="2" />
