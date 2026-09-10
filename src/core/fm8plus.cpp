@@ -82,6 +82,7 @@ void* editBufFromCore(void* core) {
 void __fastcall detourArpRun(void* core, uint32_t destSel, int inBlockPos) {
     InstanceState* st = current ? current : g_singleton;
     if (!st) { o_arpRun(core, destSel, inBlockPos); return; }
+    if (st->pendingFlush.exchange(false, std::memory_order_relaxed)) flushExternal(*st);  // audio-thread flush
     if (void* eb = editBufFromCore(core)) st->editBuf.store(eb, std::memory_order_relaxed);
     const bool prev = tl_inArp; const int32_t prevPos = tl_arpPos;
     tl_inArp = true; tl_arpPos = inBlockPos;

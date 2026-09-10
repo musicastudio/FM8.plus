@@ -29,9 +29,11 @@ void showMenu(HWND hwnd, InstanceState* st) {
             settings::setDefaultModWheelMorph(v);
             break;
         }
-        case ID_ARP_INT:   Core::flushExternal(*st); st->arpMode.store((uint8_t)ArpMode::Internal); settings::setArpModeDefault(0); break;
-        case ID_ARP_CLONE: st->arpMode.store((uint8_t)ArpMode::CloneToMidi); settings::setArpModeDefault(1); break;
-        case ID_ARP_MIDI:  st->arpMode.store((uint8_t)ArpMode::MidiOnly); settings::setArpModeDefault(2); break;
+        // Mode changes ask the audio thread to flush stranded external notes (no UI-thread access to
+        // the out-buffer / note masks).
+        case ID_ARP_INT:   st->arpMode.store((uint8_t)ArpMode::Internal);    st->pendingFlush.store(true); settings::setArpModeDefault(0); break;
+        case ID_ARP_CLONE: st->arpMode.store((uint8_t)ArpMode::CloneToMidi); st->pendingFlush.store(true); settings::setArpModeDefault(1); break;
+        case ID_ARP_MIDI:  st->arpMode.store((uint8_t)ArpMode::MidiOnly);    st->pendingFlush.store(true); settings::setArpModeDefault(2); break;
     }
     DestroyMenu(m);
     InvalidateRect(hwnd, nullptr, FALSE);

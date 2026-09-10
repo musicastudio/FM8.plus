@@ -35,6 +35,7 @@ struct InstanceState {
     std::atomic<uint8_t> arpMode{(uint8_t)ArpMode::Internal};
     std::atomic<bool>    modWheelMorph{false};
     std::atomic<uint8_t> lastCc1{0xff};   // 0xff = none seen this block (VST2/EXE morph)
+    std::atomic<bool>    pendingFlush{false}; // set by the UI thread on mode change; the audio thread flushes
 
     // Audio-thread-only working set.
     static constexpr int kMaxOut = 1024;

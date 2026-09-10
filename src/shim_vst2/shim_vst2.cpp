@@ -162,7 +162,7 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
             r->overlay.attach((HWND)ptr, &r->st, settings::self());
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
         case effEditClose:
-            Core::flushExternal(r->st);
+            r->st.pendingFlush.store(true);   // audio thread flushes; UI thread must not touch the buffer
             r->overlay.detach();
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
         case effClose: {
