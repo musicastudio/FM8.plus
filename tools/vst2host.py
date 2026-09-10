@@ -158,7 +158,11 @@ class Host:
         return None
 
     def send(self, msgs):
+        # Keep the VstEvents buffer alive until the next block is processed: FM8 stores the pointer in
+        # effProcessEvents and reads it during processReplacing, so letting it be freed here is a
+        # use-after-free that occasionally crashes when Python reuses the memory.
         ve = make_events(msgs)
+        self._pending_events = ve
         self.d(effProcessEvents, 0, 0, C.cast(C.pointer(ve), C.c_void_p))
 
     def process(self, blocks=1):
@@ -227,16 +231,17 @@ def main():
                 n2 = h.d(effGetChunk, idx, 0, C.cast(C.pointer(pp), C.c_void_p))
                 print(f"getChunk({what}) after trailer set -> {n2} bytes (was {n})")
         elif cmd == "plus":
-            # End-to-end test of the FM8.plus proxy: arp MIDI out (Clone / MIDI only) and mod-wheel morph.
+            # End-to-end test of the FM8.plus proxy: arp MIDI out, any-CC morph + blocking, gain, tempo.
             effGetChunk, effSetChunk = 23, 24
             pp = C.c_void_p()
 
-            def set_trailer(modwheel, arpmode):
+            def set_trailer(arpmode=0, tempomode=0, gaindb=0, morphcc=-1):
                 n = h.d(effGetChunk, 0, 0, C.cast(C.pointer(pp), C.c_void_p))
                 data = bytearray(C.string_at(pp, n))
-                assert bytes(data[-12:-4]) == b"FM8PLUS1", "no FM8.plus trailer (proxy not active?)"
-                data[-4] = 1 if modwheel else 0
-                data[-3] = arpmode
+                assert bytes(data[-14:-6]) == b"FM8PLUS2", "no FM8.plus v2 trailer (proxy not active?)"
+                mc = morphcc & 0xffff
+                data[-6] = arpmode; data[-5] = tempomode; data[-4] = gaindb & 0xff
+                data[-3] = mc & 0xff; data[-2] = (mc >> 8) & 0xff
                 blob = C.create_string_buffer(bytes(data), len(data))
                 h.d(effSetChunk, 0, len(data), C.cast(blob, C.c_void_p))
 
@@ -246,33 +251,43 @@ def main():
                 peak = h.process(blocks)
                 h.send([(0x80, 60, 0), (0x80, 64, 0), (0x80, 67, 0)])
                 peak = max(peak, h.process(20))
-                notes = [m for _, _, m in h.received if (m[0] & 0xf0) in (0x80, 0x90)]
-                return peak, len(h.received), notes
+                non = [m for _, _, m in h.received if (m[0] & 0xf0) == 0x90 and m[2] > 0]
+                return peak, len(h.received), non
 
             idx = h.param_index("Arpeggiator On") or 136
             e.setParameter(h.eff, idx, 1.0)
-            print(f"Arp On index {idx} set")
-
+            print(f"Arp On index {idx} set\n(1+2) Arp MIDI out:")
             for label, mode in (("Internal", 0), ("Clone to MIDI", 1), ("MIDI only", 2)):
-                set_trailer(False, mode)
-                peak, total, notes = run_chord()
-                non = [n for n in notes if (n[0] & 0xf0) == 0x90 and n[2] > 0]
-                print(f"  arp={label:14} audio_peak={peak:.3f}  host_events={total:3d}  arp_noteons={len(non)}"
-                      f"  first={notes[0].hex(' ') if notes else '--'}")
+                set_trailer(arpmode=mode)
+                peak, total, non = run_chord()
+                print(f"  arp={label:14} audio_peak={peak:.3f}  host_events={total:3d}  arp_noteons={len(non)}")
 
-            # Mod wheel morph: CC1 sweep should move Morph X/Y (indices 21/22).
-            set_trailer(True, 0)
+            print("(1) Morph Rotate Control on an arbitrary CC (CC 11 Expression), CC1 should be inert:")
+            set_trailer(morphcc=11)
             e.setParameter(h.eff, 21, 0.5); e.setParameter(h.eff, 22, 0.5)
-            print("  morph before:", f"X={e.getParameter(h.eff,21):.3f} Y={e.getParameter(h.eff,22):.3f}")
             seen = []
             for cc in (0, 32, 64, 96, 127):
-                h.send([(0xB0, 1, cc)])
-                h.process(4)
+                h.send([(0xB0, 11, cc)]); h.process(4)
                 seen.append((cc, round(e.getParameter(h.eff, 21), 3), round(e.getParameter(h.eff, 22), 3)))
             for cc, x, y in seen:
-                print(f"    CC1={cc:3d} -> Morph X={x:.3f} Y={y:.3f}")
-            moved = len({(x, y) for _, x, y in seen}) > 1
-            print("  morph result:", "MOVES with mod wheel" if moved else "NO CHANGE")
+                print(f"    CC11={cc:3d} -> Morph X={x:.3f} Y={y:.3f}")
+            moved11 = len({(x, y) for _, x, y in seen}) > 1
+            e.setParameter(h.eff, 21, 0.5); e.setParameter(h.eff, 22, 0.5)
+            h.send([(0xB0, 1, 0)]); h.process(4); h.send([(0xB0, 1, 127)]); h.process(4)
+            moved1 = (round(e.getParameter(h.eff, 21), 3), round(e.getParameter(h.eff, 22), 3)) != (0.5, 0.5)
+            print(f"  morph follows CC11: {'YES' if moved11 else 'NO'};  responds to CC1 (should be NO): {'YES' if moved1 else 'NO'}")
+
+            print("(3) Increase Gain (measure output peak of a held note):")
+            for db in (0, 6, 10):
+                set_trailer(gaindb=db)
+                h.received.clear(); h.send([(0x90, 60, 100)]); peak = h.process(60); h.send([(0x80, 60, 0)]); h.process(8)
+                print(f"    gain=+{db:2d} dB -> peak {peak:.3f}  (expected x{10**(db/20):.2f})")
+
+            print("(2b) Tempo Override (arp note density over 200 blocks; 2x should ~double):")
+            for label, tm in (("Off", 0), ("2x Host", 3), ("0.5x Host", 2)):
+                set_trailer(arpmode=1, tempomode=tm)
+                _, _, non = run_chord(200)
+                print(f"    tempo={label:10} -> {len(non)} arp note-ons")
         elif cmd == "arp":
             idx = h.param_index("Arp On") or h.param_index("Arpeggiator On")
             print("Arp On index:", idx)

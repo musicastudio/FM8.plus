@@ -7,12 +7,20 @@
 // UI thread can flip them; the note masks and out-buffer are touched only on the audio thread.
 #pragma once
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 #include "rvas.h"
 
 namespace fm8plus {
 
 enum class ArpMode : uint8_t { Internal = 0, CloneToMidi = 1, MidiOnly = 2 };
+
+// Host-tempo multiplier for the Tempo Override modes (1 .25x, 2 .5x, 3 2x, 4 4x; 0/5 = no scale).
+inline double tempoFactor(uint8_t mode) {
+    return mode == 1 ? 0.25 : mode == 2 ? 0.5 : mode == 3 ? 2.0 : mode == 4 ? 4.0 : 1.0;
+}
+// Extra output gain 0..10 dB as a linear multiplier.
+inline float gainLinear(int8_t db) { return db > 0 ? (float)std::pow(10.0, db / 20.0) : 1.0f; }
 
 // One MIDI message queued for the host, with its in-block sample offset.
 struct MidiMsg {
@@ -33,8 +41,10 @@ struct NoteMask {
 // through Core::current for the duration of one process call.
 struct InstanceState {
     std::atomic<uint8_t> arpMode{(uint8_t)ArpMode::Internal};
-    std::atomic<bool>    modWheelMorph{false};
-    std::atomic<uint8_t> lastCc1{0xff};   // 0xff = none seen this block (VST2/EXE morph)
+    std::atomic<int16_t> morphCc{-1};       // -1 = off, else the MIDI CC number that rotates the morph
+    std::atomic<uint8_t> morphPending{0xff}; // last value of that CC this block, 0xff = none
+    std::atomic<uint8_t> tempoMode{0};      // 0 off, 1 .25x, 2 .5x, 3 2x, 4 4x, 5 custom (host tempo scale)
+    std::atomic<int8_t>  gainDb{0};         // extra output gain 0..10 dB
     std::atomic<bool>    pendingFlush{false}; // set by the UI thread on mode change; the audio thread flushes
 
     // Audio-thread-only working set.

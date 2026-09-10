@@ -14,10 +14,15 @@
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
 
 using namespace fm8plus;
 namespace S = Steinberg;
 namespace V = Steinberg::Vst;
+
+// The SDK declares interface IIDs but leaves their storage to the client; define the one we QI for.
+DEF_CLASS_IID(Steinberg::Vst::IMidiMapping)
 
 namespace {
 HMODULE g_self = nullptr, g_core = nullptr;
@@ -30,13 +35,19 @@ std::wstring selfDir() {
 }
 
 // Per-component state, keyed by the process() `this` pointer. Fixed array, audio-thread-safe scan.
-struct Rec { std::atomic<void*> key{nullptr}; InstanceState st; };
+struct Rec {
+    std::atomic<void*> key{nullptr};
+    InstanceState st;
+    V::IMidiMapping* midiMap = nullptr;   // for mapping the selected CC to a parameter id
+    int16_t cachedCc = -2;
+    uint32_t cachedPid = 0;
+};
 constexpr int kMax = 64;
 Rec g_rec[kMax];
 Rec* recFor(void* k) {
     for (auto& r : g_rec) if (r.key.load(std::memory_order_relaxed) == k) return &r;
     for (auto& r : g_rec) { void* e = nullptr; if (r.key.compare_exchange_strong(e, k)) {
-        r.st.modWheelMorph.store(settings::defaultModWheelMorph());
+        r.st.morphCc.store((int16_t)settings::morphCcDefault());
         r.st.arpMode.store((uint8_t)settings::arpModeDefault());
         r.st.morphRadius.store(settings::morphRadius());
         r.st.morphStartDeg.store(settings::morphStartDeg());
@@ -86,13 +97,13 @@ S::tresult h_activateBus(void* self, V::MediaType type, V::BusDirection dir, S::
     return o_activate(self, type, dir, index, state);
 }
 
-// Read the mod-wheel parameter (id 0x6d69646b) from the block's input changes; returns 0..127 or -1.
-int readModWheel(V::IParameterChanges* changes) {
-    if (!changes) return -1;
+// Read the value of one parameter (by id) from the block's input changes; returns 0..127 or -1.
+int readCcParam(V::IParameterChanges* changes, uint32_t pid) {
+    if (!changes || !pid) return -1;
     S::int32 count = changes->getParameterCount();
     for (S::int32 i = 0; i < count; ++i) {
         V::IParamValueQueue* q = changes->getParameterData(i);
-        if (!q || q->getParameterId() != kVst3ModWheelParamId) continue;
+        if (!q || q->getParameterId() != pid) continue;
         S::int32 pts = q->getPointCount();
         if (pts <= 0) return -1;
         S::int32 off = 0; V::ParamValue val = 0;
@@ -102,14 +113,37 @@ int readModWheel(V::IParameterChanges* changes) {
     return -1;
 }
 
+// The parameter id FM8 maps the selected CC to (VST3 delivers CCs as parameter changes, not events).
+uint32_t paramIdForCc(Rec* r, void* self, int16_t cc) {
+    if (cc == r->cachedCc) return r->cachedPid;
+    if (!r->midiMap) {
+        auto* unk = (S::FUnknown*)self;   // IAudioProcessor* derives FUnknown; QI reaches IMidiMapping
+        unk->queryInterface(V::IMidiMapping::iid, (void**)&r->midiMap);
+    }
+    uint32_t pid = 0;
+    if (r->midiMap && r->midiMap->getMidiControllerAssignment(0, 0, (V::CtrlNumber)cc, pid) != S::kResultTrue)
+        pid = (cc == 1) ? kVst3ModWheelParamId : 0;   // fall back to the known mod-wheel id
+    r->cachedCc = cc; r->cachedPid = pid;
+    return pid;
+}
+
 S::tresult h_process(void* self, V::ProcessData& data) {
     Rec* r = recFor(self);
     if (!r) return o_process(self, data);
     InstanceState& st = r->st;
 
-    if (st.modWheelMorph.load(std::memory_order_relaxed)) {
-        int cc = readModWheel(data.inputParameterChanges);
-        if (cc >= 0) st.lastCc1.store((uint8_t)cc, std::memory_order_relaxed);
+    const int16_t mc = st.morphCc.load(std::memory_order_relaxed);
+    if (mc >= 0) {
+        uint32_t pid = paramIdForCc(r, self, mc);
+        int v = readCcParam(data.inputParameterChanges, pid);
+        if (v >= 0) st.morphPending.store((uint8_t)v, std::memory_order_relaxed);
+    }
+
+    // Tempo Override: scale the host tempo/position FM8 reads (Custom is not host-driven, so skip it).
+    const double tf = fm8plus::tempoFactor(st.tempoMode.load(std::memory_order_relaxed));
+    if (tf != 1.0 && data.processContext) {
+        data.processContext->tempo *= tf;
+        data.processContext->projectTimeMusic *= tf;
     }
 
     st.clearBlock();
@@ -118,6 +152,16 @@ S::tresult h_process(void* self, V::ProcessData& data) {
     Core::current = nullptr;
 
     Core::applyPendingMorphInternal(st);     // uses the captured EditBuffer
+
+    // Increase Gain: multiply the rendered output (32-bit float buffers).
+    const int8_t db = st.gainDb.load(std::memory_order_relaxed);
+    if (db > 0 && data.symbolicSampleSize == V::kSample32 && data.outputs) {
+        const float g = gainLinear(db);
+        for (S::int32 b = 0; b < data.numOutputs; ++b)
+            for (S::int32 c = 0; c < data.outputs[b].numChannels; ++c)
+                if (float* buf = data.outputs[b].channelBuffers32[c])
+                    for (S::int32 i = 0; i < data.numSamples; ++i) buf[i] *= g;
+    }
 
     if (st.outCount > 0 && data.outputEvents) {
         for (int i = 0; i < st.outCount; ++i) {

@@ -69,7 +69,7 @@ DWORD WINAPI overlayThread(LPVOID) {
 
 void initOnce() {
     settings::load(g_self);
-    g_inst.modWheelMorph.store(settings::defaultModWheelMorph());
+    g_inst.morphCc.store((int16_t)settings::morphCcDefault());
     g_inst.arpMode.store((uint8_t)settings::arpModeDefault());
     g_inst.morphRadius.store(settings::morphRadius());
     g_inst.morphStartDeg.store(settings::morphStartDeg());

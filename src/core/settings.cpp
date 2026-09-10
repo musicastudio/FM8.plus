@@ -7,7 +7,7 @@ namespace fm8plus::settings {
 namespace {
 HMODULE g_self = nullptr;
 std::wstring g_iniPath;
-bool  g_modWheelMorph = false;
+int   g_morphCc = -1;
 int   g_arpMode = 0;
 float g_radius = 0.5f;
 float g_startDeg = -90.0f;
@@ -28,7 +28,8 @@ void load(HMODULE self) {
     g_iniPath = iniPath();
     if (g_iniPath.empty()) return;
     const wchar_t* s = L"FM8.plus"; const wchar_t* p = g_iniPath.c_str();
-    g_modWheelMorph = GetPrivateProfileIntW(s, L"mod_wheel_morph", 0, p) != 0;
+    g_morphCc = (int)(short)GetPrivateProfileIntW(s, L"morph_cc", 0xffff, p);  // 0xffff -> -1 (off)
+    if (g_morphCc < -1 || g_morphCc > 127) g_morphCc = -1;
     g_arpMode = (int)GetPrivateProfileIntW(s, L"arp_mode", 0, p);
     if (g_arpMode < 0 || g_arpMode > 2) g_arpMode = 0;
     wchar_t buf[64];
@@ -41,7 +42,7 @@ void load(HMODULE self) {
 void save() {
     if (g_iniPath.empty()) return;
     const wchar_t* s = L"FM8.plus"; const wchar_t* p = g_iniPath.c_str();
-    WritePrivateProfileStringW(s, L"mod_wheel_morph", g_modWheelMorph ? L"1" : L"0", p);
+    wchar_t cc[8]; swprintf(cc, 8, L"%d", g_morphCc); WritePrivateProfileStringW(s, L"morph_cc", cc, p);
     wchar_t mb[8]; swprintf(mb, 8, L"%d", g_arpMode); WritePrivateProfileStringW(s, L"arp_mode", mb, p);
     wchar_t buf[64];
     swprintf(buf, 64, L"%.4f", g_radius);   WritePrivateProfileStringW(s, L"morph_radius", buf, p);
@@ -50,8 +51,8 @@ void save() {
 }
 
 HMODULE self() { return g_self; }
-bool  defaultModWheelMorph() { return g_modWheelMorph; }
-void  setDefaultModWheelMorph(bool v) { g_modWheelMorph = v; save(); }
+int   morphCcDefault() { return g_morphCc; }
+void  setMorphCcDefault(int cc) { g_morphCc = (cc < -1 || cc > 127) ? -1 : cc; save(); }
 int   arpModeDefault() { return g_arpMode; }
 void  setArpModeDefault(int m) { g_arpMode = (m < 0 || m > 2) ? 0 : m; save(); }
 float morphRadius() { return g_radius; }

@@ -7,16 +7,50 @@ namespace fm8plus::ui {
 namespace {
 const wchar_t* kClass = L"FM8plusOverlay";
 constexpr int kW = 58, kH = 20;
-enum { ID_MORPH = 1, ID_ARP_INT = 2, ID_ARP_CLONE = 3, ID_ARP_MIDI = 4 };
+
+// Command id ranges (kept apart so one TrackPopupMenu return value tells us which control fired).
+enum {
+    ID_MORPH_OFF = 1000, ID_MORPH_CC0 = 1001,          // ID_MORPH_CC0 + n  for CC n (0..127)
+    ID_ARP_INT = 2000, ID_ARP_CLONE, ID_ARP_MIDI,
+    ID_TEMPO_OFF = 3000,                                // ID_TEMPO_OFF + mode (0..5)
+    ID_GAIN_OFF = 4000,                                 // ID_GAIN_OFF + db (0..10)
+};
 
 // Per-window data behind GWLP_USERDATA: the instance state and, for the standalone's top-level
 // floating button, the FM8 window it tracks (null for the plugin child window).
 struct OData { InstanceState* st; HWND target; };
 
+// Common MIDI CC names; unnamed controllers show just "CC n".
+const wchar_t* ccName(int cc) {
+    switch (cc) {
+        case 0: return L"Bank Select"; case 1: return L"Mod Wheel"; case 2: return L"Breath";
+        case 4: return L"Foot"; case 5: return L"Portamento Time"; case 6: return L"Data Entry";
+        case 7: return L"Volume"; case 8: return L"Balance"; case 10: return L"Pan";
+        case 11: return L"Expression"; case 64: return L"Sustain"; case 65: return L"Portamento";
+        case 66: return L"Sostenuto"; case 67: return L"Soft Pedal"; case 71: return L"Resonance";
+        case 74: return L"Cutoff"; case 84: return L"Portamento Ctrl"; case 91: return L"Reverb";
+        case 93: return L"Chorus"; case 94: return L"Detune"; case 95: return L"Phaser";
+        case 120: return L"All Sound Off"; case 121: return L"Reset Controllers"; case 123: return L"All Notes Off";
+        default: return nullptr;
+    }
+}
+
 void showMenu(HWND hwnd, InstanceState* st) {
     HMENU m = CreatePopupMenu();
-    AppendMenuW(m, MF_STRING | (st->modWheelMorph.load() ? MF_CHECKED : 0), ID_MORPH, L"Mod wheel rotates Morph");
-    AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
+
+    // (1) Morph Rotate Control: Off, then CC 0..127 (named where known). The current CC is checked.
+    const int16_t curCc = st->morphCc.load();
+    HMENU morph = CreatePopupMenu();
+    AppendMenuW(morph, MF_STRING | (curCc < 0 ? MF_CHECKED : 0), ID_MORPH_OFF, L"Off");
+    AppendMenuW(morph, MF_SEPARATOR, 0, nullptr);
+    for (int cc = 0; cc < 128; ++cc) {
+        wchar_t label[48]; const wchar_t* nm = ccName(cc);
+        if (nm) swprintf(label, 48, L"CC %d (%s)", cc, nm); else swprintf(label, 48, L"CC %d", cc);
+        AppendMenuW(morph, MF_STRING | (curCc == cc ? MF_CHECKED : 0), ID_MORPH_CC0 + cc, label);
+    }
+    AppendMenuW(m, MF_POPUP, (UINT_PTR)morph, L"Morph Rotate Control");
+
+    // (2) Arpeggiator MIDI out.
     HMENU arp = CreatePopupMenu();
     auto mode = (ArpMode)st->arpMode.load();
     AppendMenuW(arp, MF_STRING | (mode == ArpMode::Internal    ? MF_CHECKED : 0), ID_ARP_INT,   L"Internal");
@@ -24,22 +58,39 @@ void showMenu(HWND hwnd, InstanceState* st) {
     AppendMenuW(arp, MF_STRING | (mode == ArpMode::MidiOnly    ? MF_CHECKED : 0), ID_ARP_MIDI,  L"MIDI only (FM8 silent)");
     AppendMenuW(m, MF_POPUP, (UINT_PTR)arp, L"Arpeggiator MIDI out");
 
+    // (3) Tempo Override.
+    const uint8_t tm = st->tempoMode.load();
+    const wchar_t* tempoLabels[] = {L"Off", L"0.25x Host", L"0.5x Host", L"2x Host", L"4x Host", L"Custom"};
+    HMENU tempo = CreatePopupMenu();
+    for (int i = 0; i < 6; ++i)
+        AppendMenuW(tempo, MF_STRING | (tm == i ? MF_CHECKED : 0), ID_TEMPO_OFF + i, tempoLabels[i]);
+    AppendMenuW(m, MF_POPUP, (UINT_PTR)tempo, L"Tempo Override");
+
+    // (4) Increase Gain.
+    const int8_t db = st->gainDb.load();
+    HMENU gain = CreatePopupMenu();
+    AppendMenuW(gain, MF_STRING | (db == 0 ? MF_CHECKED : 0), ID_GAIN_OFF, L"Off");
+    for (int d = 1; d <= 10; ++d) {
+        wchar_t label[16]; swprintf(label, 16, L"+%d dB", d);
+        AppendMenuW(gain, MF_STRING | (db == d ? MF_CHECKED : 0), ID_GAIN_OFF + d, label);
+    }
+    AppendMenuW(m, MF_POPUP, (UINT_PTR)gain, L"Increase Gain");
+
     SetForegroundWindow(hwnd);   // required so the popup dismisses correctly for a top-level tool window
     POINT pt; GetCursorPos(&pt);
     int cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN, pt.x, pt.y, 0, hwnd, nullptr);
-    switch (cmd) {
-        case ID_MORPH: {
-            bool v = !st->modWheelMorph.load();
-            st->modWheelMorph.store(v);
-            settings::setDefaultModWheelMorph(v);
-            break;
-        }
-        // Mode changes ask the audio thread to flush stranded external notes (no UI-thread access to
-        // the out-buffer / note masks).
-        case ID_ARP_INT:   st->arpMode.store((uint8_t)ArpMode::Internal);    st->pendingFlush.store(true); settings::setArpModeDefault(0); break;
-        case ID_ARP_CLONE: st->arpMode.store((uint8_t)ArpMode::CloneToMidi); st->pendingFlush.store(true); settings::setArpModeDefault(1); break;
-        case ID_ARP_MIDI:  st->arpMode.store((uint8_t)ArpMode::MidiOnly);    st->pendingFlush.store(true); settings::setArpModeDefault(2); break;
+
+    if (cmd == ID_MORPH_OFF) { st->morphCc.store(-1); settings::setMorphCcDefault(-1); }
+    else if (cmd >= ID_MORPH_CC0 && cmd < ID_MORPH_CC0 + 128) {
+        int cc = cmd - ID_MORPH_CC0; st->morphCc.store((int16_t)cc); settings::setMorphCcDefault(cc);
     }
+    // Arp mode changes ask the audio thread to flush stranded external notes.
+    else if (cmd == ID_ARP_INT)   { st->arpMode.store((uint8_t)ArpMode::Internal);    st->pendingFlush.store(true); settings::setArpModeDefault(0); }
+    else if (cmd == ID_ARP_CLONE) { st->arpMode.store((uint8_t)ArpMode::CloneToMidi); st->pendingFlush.store(true); settings::setArpModeDefault(1); }
+    else if (cmd == ID_ARP_MIDI)  { st->arpMode.store((uint8_t)ArpMode::MidiOnly);    st->pendingFlush.store(true); settings::setArpModeDefault(2); }
+    else if (cmd >= ID_TEMPO_OFF && cmd <= ID_TEMPO_OFF + 5) st->tempoMode.store((uint8_t)(cmd - ID_TEMPO_OFF));
+    else if (cmd >= ID_GAIN_OFF && cmd <= ID_GAIN_OFF + 10)  st->gainDb.store((int8_t)(cmd - ID_GAIN_OFF));
+
     DestroyMenu(m);
     InvalidateRect(hwnd, nullptr, FALSE);
 }

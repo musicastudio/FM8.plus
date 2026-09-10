@@ -108,9 +108,12 @@ void __fastcall detourMidiHandler(void* fm8midi, void* ev, int flag) {
             o_midiHnd(fm8midi, ev, flag);
         return;
     }
-    // Live input: capture CC1 for the mod-wheel morph, then pass through unchanged.
-    if ((status & 0xf0) == 0xb0 && d1 == 1 && st->modWheelMorph.load(std::memory_order_relaxed))
-        st->lastCc1.store(d2, std::memory_order_relaxed);
+    // Live input: if this is the selected morph CC, capture its value. Forwarding is decided by the
+    // per-host shim (VST2 blocks it upstream at effProcessEvents; others may forward). Here we only
+    // capture and pass through, since skipping FM8's handler mid-dispatch can strand the event.
+    const int16_t mc = st->morphCc.load(std::memory_order_relaxed);
+    if (mc >= 0 && (status & 0xf0) == 0xb0 && d1 == (uint8_t)mc)
+        st->morphPending.store(d2, std::memory_order_relaxed);
     o_midiHnd(fm8midi, ev, flag);
 }
 } // namespace
@@ -182,8 +185,8 @@ bool setMorphXY(InstanceState& st, float x, float y) {
 }
 
 void applyPendingMorphInternal(InstanceState& st) {
-    if (!st.modWheelMorph.load(std::memory_order_relaxed)) return;
-    uint8_t cc = st.lastCc1.exchange(0xff, std::memory_order_relaxed);
+    if (st.morphCc.load(std::memory_order_relaxed) < 0) return;
+    uint8_t cc = st.morphPending.exchange(0xff, std::memory_order_relaxed);
     if (cc == 0xff) return;
     float x, y; morphXYFromCc(st, cc, x, y);
     setMorphXY(st, x, y);
