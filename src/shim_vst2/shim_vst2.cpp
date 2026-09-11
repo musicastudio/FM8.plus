@@ -78,7 +78,9 @@ bool ensureCore() {
     if (!g_core) return false;
     settings::load(g_self);
     g_coreHooked = Core::install((void*)g_core, Bin::Vst2);
-    if (g_coreHooked) Core::shiftLogoLeft(g_core, 11);   // shift the logo before the editor form is built
+    // Make room for the "+" before the editor form is built: serve the rebuilt header forms, or
+    // fall back to patching the wordmark rect in the mapped resource.
+    if (g_coreHooked && !Core::serveForms(g_core)) Core::shiftLogoLeft(g_core, 11);
     return g_coreHooked;
 }
 
@@ -225,9 +227,11 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
             }
             return r->origDispatcher(eff, op, idx, fm8Len, ptr, opt);
         }
-        case effEditOpen:
-            r->overlay.attach((HWND)ptr, &r->st, settings::self());
-            return r->origDispatcher(eff, op, idx, val, ptr, opt);
+        case effEditOpen: {
+            intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);   // FM8 creates its child first,
+            r->overlay.attach((HWND)ptr, &r->st, settings::self());          // so ours is newest = top of Z order
+            return rv;
+        }
         case effEditClose:
             r->st.pendingFlush.store(true);   // audio thread flushes; UI thread must not touch the buffer
             r->overlay.detach();

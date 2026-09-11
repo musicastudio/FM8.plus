@@ -3,6 +3,12 @@
 #include <windows.h>
 #include <cmath>
 #include "MinHook.h"
+#include "rsrc.h"
+#if __has_include("gui/forms/frm5.h") && __has_include("gui/forms/frm15.h")
+#include "gui/forms/frm5.h"     // generated into the build tree by tools/gen_forms.py (NI data, never in the repo)
+#include "gui/forms/frm15.h"
+#define FM8PLUS_HAVE_FORMS 1
+#endif
 
 namespace fm8plus {
 namespace Core {
@@ -193,6 +199,18 @@ void shiftLogoLeft(void* module, int px) {
             }
         }
     }
+}
+
+bool serveForms(void* module) {
+#ifdef FM8PLUS_HAVE_FORMS
+    if (!Rsrc::install((HMODULE)module)) return false;
+    Rsrc::overrideForm(5, kFrm5, sizeof kFrm5);
+    Rsrc::overrideForm(15, kFrm15, sizeof kFrm15);
+    return true;
+#else
+    (void)module;
+    return false;
+#endif
 }
 
 bool setMorphXY(InstanceState& st, float x, float y) {

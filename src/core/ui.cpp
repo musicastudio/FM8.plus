@@ -115,9 +115,12 @@ void renderPlus(HWND hwnd, OData* d) {
         }
     }
 
-    POINT ptSrc{0, 0}, ptDst{wr.left, wr.top}; SIZE sz{w, h};
+    POINT ptSrc{0, 0}; SIZE sz{w, h};
     BLENDFUNCTION bf{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
-    UpdateLayeredWindow(hwnd, screen, &ptDst, &sz, mem, &ptSrc, 0, &bf, ULW_ALPHA);
+    // pptDst stays null so the window keeps its position. For the plugin overlay (a child window) a
+    // non-null pptDst is taken relative to the parent's client area, so passing the screen rect here
+    // used to shove the "+" off by the editor's screen position (found with tools/vsteditor.py).
+    UpdateLayeredWindow(hwnd, screen, nullptr, &sz, mem, &ptSrc, 0, &bf, ULW_ALPHA);
 
     SelectObject(mem, oldBm); DeleteObject(dib); DeleteDC(mem); ReleaseDC(nullptr, screen);
 }
@@ -251,11 +254,17 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     st_ = st;
     ensureClass(self);
     auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
-    hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST, kClass, L"",
+    hwnd_ = CreateWindowExW(WS_EX_LAYERED, kClass, L"",
                             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
                             109, 22, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
-    if (hwnd_) { SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d); renderPlus(hwnd_, d); }
-    else delete d;
+    if (hwnd_) {
+        SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
+        // FM8's own editor child (NIVSTChildWindow, full-size) sits above a newly created sibling
+        // whichever is created first, so raise ours explicitly. A single raise sticks: FM8 never
+        // re-raises its window (tools/vsteditor.py watches the Z order over time).
+        SetWindowPos(hwnd_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        renderPlus(hwnd_, d);
+    } else delete d;
 }
 
 void Overlay::detach() {

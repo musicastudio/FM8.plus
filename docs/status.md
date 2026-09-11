@@ -39,6 +39,33 @@ event out: 1 bus(es)
     [0] 'FM8+ Arp Out' channels=16 busType=0 flags=0x1
 ```
 
+**Editor overlay (the "+" button), VST2 and VST3, in a real window** (`tools/vsteditor.py`, a
+ctypes GUI host that opens the editor in a top-level window, dumps the child-window tree with Z order
+and positions, and screenshots just that window). First report from Reaper (2026-09-10): the logo
+shifted but no "+" in either format. The harness found three separate causes, all fixed:
+
+| Cause | Symptom in the harness | Fix |
+|-------|------------------------|-----|
+| `UpdateLayeredWindow` `pptDst` is parent-relative for a child window; the shim passed the screen rect | overlay created at (109,22) but found at (109+editorX, 22+editorY) | pass `pptDst = nullptr` |
+| FM8's full-size `NIVSTChildWindow` sits above a newly created sibling either way | overlay directly below FM8's child in Z order from the moment the editor opens | explicit `SetWindowPos(HWND_TOP)` after creation (a single raise sticks; FM8 never re-raises) |
+| The VST3 shim had no editor hook at all | no `FM8plusOverlay` window in the process | hook `IEditController::createView` and the view's `attached`/`removed` from the live vtables, gated to FM8+ instances |
+
+After the fixes both formats show `FM8plusOverlay > NIVSTChildWindow` at (109,22) right after the
+editor opens, and the screenshot shows the "+" beside the shifted logo with no intervention.
+
+**GUI analysis and layout tooling** (`docs/gui.md` and its three sub-documents, `tools/fm8gui.py`,
+`tools/frm_grammar.py`, `tools/gen_forms.py`, 2026-09-10). FM8's GUI is 74 `FRM` form resources
+built from 13 NGL control classes; the byte grammar of every class, the picture (PNG/TGA), font
+(picture-font strips, TrueType) and manifest formats, and the runtime (form classes, events,
+parameter links, software rendering) are documented from the decompilation.
+
+| Check | Result |
+|-------|--------|
+| Decompile every FRM to typed XML and recompile | pass (74/74 byte-exact) |
+| Previewer reconstructs the editor from form data (pictures, 9-slice panels, picture-font captions) | pass (`build/gui/preview/3.png` matches the real editor) |
+| Rebuilt header forms served to FM8 through its own import table (`Rsrc`), replacing the byte patch | pass (VST2 and VST3: `FM8.dll!FindResourceA -> FM8.plus.dll`, wordmark shifted, "+" beside it) |
+| VST2 feature regression after the shim change | pass (same numbers as above) |
+
 **Standalone**: the `FM8.plus.exe` launcher starts the untouched `FM8.exe` suspended, injects
 `FM8.plus.dll` (its `DllMain` detects the FM8.exe host and runs the standalone attach), and resumes.
 Confirmed on a real run: FM8.exe starts, our DLL is loaded into it, and the attach thread runs (the
@@ -78,9 +105,11 @@ ships. Nothing Native Instruments produced is redistributed in the repo, the bin
   an FM8+ instance shows the 11px gap (no "+"). Cosmetic, stock file untouched, and absent when only
   one of the two is loaded.
 
-- The **overlay button** is a Win32 child over the editor. If a host's GL surface repaints over it in
-  some DAW, the fallback is the INI plus the native NGL menu (a later upgrade, addresses already
-  located in `docs/hooks.md`).
+- The **overlay button** is a Win32 child over the editor, raised once above FM8's child at creation.
+  If some DAW re-raises the plug-in window later, the "+" would vanish there; the cheap upgrade is a
+  periodic re-raise timer (the standalone already has one), and the deeper fallback is the INI plus
+  the native NGL menu (addresses already located in `docs/hooks.md`). Run
+  `python tools/vsteditor.py vst2|vst3 [path]` after any overlay or shim change.
 - **Standalone morph** applies via the internal setter using the EditBuffer captured from the arp
   dispatch, which runs every block; if a future FM8 build gates that call, capture the EditBuffer
   from another per-block site instead.

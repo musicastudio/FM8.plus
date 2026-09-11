@@ -116,5 +116,10 @@ void* addressOf(const Site& s);
 // opens). Idempotent (only patches a rect still at the original coordinates). No hooks required.
 void shiftLogoLeft(void* module, int px);
 
+// Serve FM8.plus's rebuilt forms (build/gui/forms/*.h, generated from the local FM8 by
+// tools/gen_forms.py) through the module's import table (see rsrc.h). Returns false when the headers
+// were not generated or the hook failed; callers then fall back to shiftLogoLeft.
+bool serveForms(void* module);
+
 } // namespace Core
 } // namespace fm8plus

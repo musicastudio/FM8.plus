@@ -11,6 +11,7 @@
 #include <cstring>
 #include "../core/fm8plus.h"
 #include "../core/settings.h"
+#include "../core/ui.h"
 #include "MinHook.h"
 
 #include "pluginterfaces/base/ipluginbase.h"
@@ -34,6 +35,7 @@ DEF_CLASS_IID(Steinberg::IPluginFactory3)
 DEF_CLASS_IID(Steinberg::Vst::IComponent)
 DEF_CLASS_IID(Steinberg::Vst::IAudioProcessor)
 DEF_CLASS_IID(Steinberg::Vst::IMidiMapping)
+DEF_CLASS_IID(Steinberg::Vst::IEditController)
 
 namespace {
 HMODULE g_self = nullptr, g_core = nullptr;
@@ -90,35 +92,43 @@ std::wstring selfDir() {
     return k == std::wstring::npos ? L"." : s.substr(0, k);
 }
 
-// Per-component state, keyed by an interface pointer of one of OUR instances. Fixed array; audio
-// thread does a lock-free scan. We key both the IComponent and IAudioProcessor subobject pointers,
-// since the host calls getBusCount on the former and process on the latter.
+// Per-instance state, keyed by an interface pointer of one of OUR instances. Fixed array; audio
+// thread does a lock-free scan. One logical instance registers several keys (the IComponent,
+// IAudioProcessor and IEditController subobjects, later its IPlugView), all pointing at one primary
+// record whose InstanceState the audio thread and the overlay menu share.
 struct Rec {
     std::atomic<void*> key{nullptr};
+    Rec* primary = nullptr;          // record owning the shared state (itself for the first key)
     InstanceState st;
     V::IMidiMapping* midiMap = nullptr;
     int16_t cachedCc = -2;
     uint32_t cachedPid = 0;
+    ui::Overlay overlay;             // used on the primary only
 };
-constexpr int kMax = 128;   // two keys per logical instance, so ~64 instances
+constexpr int kMax = 256;   // four keys per logical instance, so ~64 instances
 Rec g_rec[kMax];
 
 Rec* recFor(void* k) {   // lookup only, never allocates: null => not one of ours => stay stock
     for (auto& r : g_rec) if (r.key.load(std::memory_order_relaxed) == k) return &r;
     return nullptr;
 }
-void registerOurs(void* k) {
-    if (!k || recFor(k)) return;
+Rec* registerOurs(void* k, Rec* primary = nullptr) {
+    if (!k) return nullptr;
+    if (Rec* e = recFor(k)) return e;
     for (auto& r : g_rec) {
         void* e = nullptr;
         if (r.key.compare_exchange_strong(e, k)) {
-            r.st.morphCc.store((int16_t)settings::morphCcDefault());
-            r.st.arpMode.store((uint8_t)settings::arpModeDefault());
-            r.st.morphRadius.store(settings::morphRadius());
-            r.st.morphStartDeg.store(settings::morphStartDeg());
-            return;
+            r.primary = primary ? primary : &r;
+            if (!primary) {
+                r.st.morphCc.store((int16_t)settings::morphCcDefault());
+                r.st.arpMode.store((uint8_t)settings::arpModeDefault());
+                r.st.morphRadius.store(settings::morphRadius());
+                r.st.morphStartDeg.store(settings::morphStartDeg());
+            }
+            return &r;
         }
     }
+    return nullptr;
 }
 
 // Trampolines to the originals.
@@ -195,7 +205,7 @@ uint32_t paramIdForCc(Rec* r, void* self, int16_t cc) {
 S::tresult h_process(void* self, V::ProcessData& data) {
     Rec* r = recFor(self);
     if (!r) return o_process(self, data);   // not ours: stock FM8 processing
-    InstanceState& st = r->st;
+    InstanceState& st = r->primary->st;
 
     const int16_t mc = st.morphCc.load(std::memory_order_relaxed);
     if (mc >= 0) {
@@ -254,13 +264,55 @@ S::tresult h_process(void* self, V::ProcessData& data) {
     return rv;
 }
 
+// --- editor overlay: hook IEditController::createView and the returned IPlugView's attached/removed
+// so the "+" button is parented to the host's editor HWND (same overlay the VST2 shim uses). The
+// functions are found from the live vtables (slot 17 of IEditController; slots 4 and 5 of IPlugView),
+// so no reverse-engineered addresses are needed; both are gated to our instances by the registry.
+using CreateViewFn = void*     (PLUGIN_API*)(void* self, S::FIDString name);
+using AttachedFn   = S::tresult (PLUGIN_API*)(void* self, void* parent, S::FIDString type);
+using RemovedFn    = S::tresult (PLUGIN_API*)(void* self);
+CreateViewFn o_createView = nullptr;
+AttachedFn   o_attached   = nullptr;
+RemovedFn    o_removed    = nullptr;
+
+inline void* vslot(void* obj, int i) { return (*(void***)obj)[i]; }
+bool hookSlot(void* obj, int slot, void* det, void** orig) {   // idempotent per target address
+    void* t = vslot(obj, slot);
+    if (*orig) return true;
+    return MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;
+}
+
+S::tresult PLUGIN_API h_attached(void* self, void* parent, S::FIDString type) {
+    S::tresult rv = o_attached(self, parent, type);   // FM8 creates its child first, so ours lands on top
+    Rec* r = recFor(self);
+    if (r && rv == S::kResultOk) r->primary->overlay.attach((HWND)parent, &r->primary->st, g_self);
+    return rv;
+}
+S::tresult PLUGIN_API h_removed(void* self) {
+    if (Rec* r = recFor(self)) {
+        r->primary->overlay.detach();
+        r->key.store(nullptr);   // ponytail: a view is attached once per createView in every host we know
+    }
+    return o_removed(self);
+}
+void* PLUGIN_API h_createView(void* self, S::FIDString name) {
+    void* view = o_createView(self, name);
+    Rec* r = recFor(self);
+    if (view && r) {
+        registerOurs(view, r->primary);
+        hookSlot(view, 4, (void*)&h_attached, (void**)&o_attached);
+        hookSlot(view, 5, (void*)&h_removed,  (void**)&o_removed);
+    }
+    return view;
+}
+
 bool ensureCore() {
     if (g_core) return g_hooked;
     g_core = LoadLibraryW((selfDir() + L"\\FM8.vst3").c_str());   // the UNTOUCHED stock module
     if (!g_core) return false;
     settings::load(g_self);
     if (!Core::install((void*)g_core, Bin::Vst3)) return false;
-    Core::shiftLogoLeft(g_core, 11);
+    if (!Core::serveForms(g_core)) Core::shiftLogoLeft(g_core, 11);
     auto mk = [](const Site& s, void* det, void** orig) {
         void* t = Core::addressOf(s);
         return t && MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;
@@ -325,13 +377,22 @@ public:
         S::tresult r = f1_->createInstance(eff, _iid, obj);
         if (rc && r == S::kResultOk && obj && *obj) {
             auto* unk = (S::FUnknown*)*obj;
+            Rec* prim = nullptr;
             void* comp = nullptr;
             if (unk->queryInterface(V::IComponent::iid, &comp) == S::kResultOk && comp) {
-                registerOurs(comp); ((S::FUnknown*)comp)->release();
+                prim = registerOurs(comp); ((S::FUnknown*)comp)->release();
             }
             void* ap = nullptr;
             if (unk->queryInterface(V::IAudioProcessor::iid, &ap) == S::kResultOk && ap) {
-                registerOurs(ap); ((S::FUnknown*)ap)->release();
+                registerOurs(ap, prim); ((S::FUnknown*)ap)->release();
+            }
+            // FM8 is single-component: the controller is a subobject of the same instance. Register it
+            // and hook its createView so the editor's IPlugView reaches h_attached.
+            void* ctrl = nullptr;
+            if (unk->queryInterface(V::IEditController::iid, &ctrl) == S::kResultOk && ctrl) {
+                registerOurs(ctrl, prim);
+                hookSlot(ctrl, 17, (void*)&h_createView, (void**)&o_createView);   // IEditController::createView
+                ((S::FUnknown*)ctrl)->release();
             }
         }
         return r;

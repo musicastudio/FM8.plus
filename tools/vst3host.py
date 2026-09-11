@@ -169,6 +169,10 @@ def main():
             print("IMidiMapping: not supported")
     # ponytail: the plugin's DLL detach deadlocks on exit (even os._exit), so skip detach entirely.
     sys.stdout.flush()
+    # The pseudo-handle is a 64-bit -1; the default c_int restype truncated it, so TerminateProcess
+    # failed and every run of this probe used to hang in that detach (12 zombie hosts, 2026-09-10).
+    C.windll.kernel32.GetCurrentProcess.restype = C.c_void_p
+    C.windll.kernel32.TerminateProcess.argtypes = [C.c_void_p, C.c_uint]
     C.windll.kernel32.TerminateProcess(C.windll.kernel32.GetCurrentProcess(), 0)
 
 
