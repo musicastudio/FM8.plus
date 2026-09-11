@@ -1,8 +1,12 @@
-# Builds installer\FM8.plus.ico by extracting FM8's own program icon and compositing
-# installer\icon_overlay.ico (the "+") over it. FM8's icon is identical for every 2022-12-23 install,
-# so this is a one-time asset step; the resulting .ico is committed and embedded into FM8.plus.exe.
+# Builds the FM8+ icon by extracting FM8's own program icon and compositing icon_overlay.ico (the
+# "+") over it.
 #
-#   powershell -ExecutionPolicy Bypass -File tools\make_icon.ps1 [-Fm8Exe <path>]
+# IMPORTANT: the result contains Native Instruments' artwork, so it must NEVER be committed to this
+# repo or shipped in the installer. The installer runs this script on the END USER's machine against
+# their own licensed FM8.exe (see MakeIcon in installer\FM8.plus.iss); only our "+" overlay ships.
+# installer\FM8.plus.ico is gitignored for this reason.
+#
+#   powershell -ExecutionPolicy Bypass -File tools\make_icon.ps1 [-Fm8Exe <path>] [-Out <path>]
 param(
   [string]$Fm8Exe  = "C:\Program Files\Native Instruments\FM8\FM8.exe",
   [string]$Overlay = "$PSScriptRoot\..\installer\icon_overlay.ico",

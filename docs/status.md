@@ -51,6 +51,9 @@ FM8.plus as its own files beside stock FM8 (`FM8.plus.dll` in the VST2 folder, `
 VST3 folder, `FM8.plus.exe` + `FM8.plus.dll` beside `FM8.exe`) plus desktop and Start Menu shortcuts.
 No stock file is renamed, copied, or modified, so uninstall just removes the added files. The Inno
 installer compiles clean and the PE-timestamp build gate is verified against the installed binaries.
+The FM8+ shortcut icon is FM8's own icon with our "+" over it, so it is composited at install time by
+`tools\make_icon.ps1` from the user's own FM8.exe; only `installer\icon_overlay.ico` (our artwork)
+ships. Nothing Native Instruments produced is redistributed in the repo, the binaries, or the setup.
 
 ## Needs a DAW to confirm
 

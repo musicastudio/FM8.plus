@@ -56,12 +56,8 @@ endif()
 # Starts the real FM8.exe and injects FM8.plus.dll, which runs the standalone attach. No core link
 # needed (the injected DLL carries the features); this is a tiny GUI-subsystem executable.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/launcher/launcher.cpp")
-  set(LAUNCHER_SRC src/launcher/launcher.cpp)
-  # Embed the FM8+ icon if it has been generated (tools/make_icon.ps1); optional so a fresh clone
-  # still builds before the icon asset exists.
-  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/installer/FM8.plus.ico")
-    list(APPEND LAUNCHER_SRC src/launcher/launcher.rc)
-  endif()
-  add_executable(launcher WIN32 ${LAUNCHER_SRC})
+  # No icon is embedded: the FM8+ icon is FM8's own icon with our overlay, so it is composited on
+  # the user's machine from their own FM8 install at install time (never redistributed by us).
+  add_executable(launcher WIN32 src/launcher/launcher.cpp)
   set_target_properties(launcher PROPERTIES OUTPUT_NAME "FM8.plus")
 endif()

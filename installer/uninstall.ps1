@@ -21,6 +21,7 @@ Del (Join-Path (Split-Path $Vst3) "FM8.plus.vst3") "VST3 wrapper"
 $exeDir = Split-Path $Exe
 Del (Join-Path $exeDir "FM8.plus.exe") "Standalone launcher"
 Del (Join-Path $exeDir "FM8.plus.dll") "Standalone DLL"
+Del (Join-Path $exeDir "FM8.plus.ico") "Composited icon"
 Del (Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "FM8 Plus.lnk") "Desktop shortcut"
 Del (Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Native Instruments\FM8\FM8 Plus.lnk") "Start Menu shortcut"
 

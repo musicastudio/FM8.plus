@@ -24,14 +24,16 @@ DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 OutputBaseFilename=FM8.plus-Setup
-SetupIconFile=FM8.plus.ico
 UninstallDisplayIcon={app}\FM8.plus.ico
 Uninstallable=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 
 [Files]
-; A copy of the icon in the app dir gives the uninstaller a display icon.
-Source: "FM8.plus.ico"; DestDir: "{app}"; Flags: ignoreversion
+; The FM8+ icon is FM8's own program icon with our "+" overlay, so we must NOT redistribute it.
+; We ship only our overlay and the helper, and composite the icon on this machine at install time
+; from the user's own licensed FM8.exe (see MakeIcon below).
+Source: "icon_overlay.ico";      Flags: dontcopy
+Source: "..\tools\make_icon.ps1"; Flags: dontcopy
 ; VST2 wrapper -> the folder that holds the chosen FM8.dll.
 Source: "{#BuildDir}\FM8.plus.dll";  DestDir: "{code:DirVst2}"; Flags: ignoreversion; Check: DoVst2
 ; VST3 wrapper -> the folder that holds the chosen FM8.vst3.
@@ -41,9 +43,14 @@ Source: "{#BuildDir}\FM8.plus.exe";  DestDir: "{code:DirExe}"; Flags: ignorevers
 Source: "{#BuildDir}\FM8.plus.dll";  DestDir: "{code:DirExe}"; Flags: ignoreversion; Check: DoExe
 
 [Icons]
-; Start Menu entry next to FM8's own, and a desktop shortcut. Both launch FM8+.
-Name: "{commonprograms}\Native Instruments\FM8\FM8 Plus"; Filename: "{code:PathExe}"; WorkingDir: "{code:DirExe}"; IconFilename: "{code:PathExe}"; Comment: "FM8 with the FM8.plus features"; Check: DoExe
-Name: "{autodesktop}\FM8 Plus"; Filename: "{code:PathExe}"; WorkingDir: "{code:DirExe}"; IconFilename: "{code:PathExe}"; Comment: "FM8 with the FM8.plus features"; Check: DoExe
+; Start Menu entry next to FM8's own, and a desktop shortcut. Both launch FM8+ and use the icon
+; composited on this machine (falling back to the launcher's own if compositing did not run).
+Name: "{commonprograms}\Native Instruments\FM8\FM8 Plus"; Filename: "{code:PathExe}"; WorkingDir: "{code:DirExe}"; IconFilename: "{code:IconPath}"; Comment: "FM8 with the FM8.plus features"; Check: DoExe
+Name: "{autodesktop}\FM8 Plus"; Filename: "{code:PathExe}"; WorkingDir: "{code:DirExe}"; IconFilename: "{code:IconPath}"; Comment: "FM8 with the FM8.plus features"; Check: DoExe
+
+[UninstallDelete]
+; The icon is generated at install time, so Inno does not track it for removal.
+Type: files; Name: "{app}\FM8.plus.ico"
 
 [Code]
 const
@@ -82,6 +89,36 @@ function PathExe(Param: string): string; begin Result := ExtractFileDir(Val(2)) 
 function DoVst2: Boolean; begin Result := (Val(0) <> '') and FileExists(Val(0)); end;
 function DoVst3: Boolean; begin Result := (Val(1) <> '') and FileExists(Val(1)); end;
 function DoExe:  Boolean; begin Result := (Val(2) <> '') and FileExists(Val(2)); end;
+
+// Shortcut icon: the composited FM8+ icon if we managed to build it, else the launcher itself.
+function IconPath(Param: string): string;
+begin
+  Result := ExpandConstant('{app}\FM8.plus.ico');
+  if not FileExists(Result) then Result := ExtractFileDir(Val(2)) + '\FM8.plus.exe';
+end;
+
+// Build the FM8+ icon HERE, on the user's machine, from their own FM8.exe plus our "+" overlay.
+// FM8's icon is Native Instruments' artwork, so it is never shipped in this installer or the repo.
+// Runs at ssInstall, before [Icons], so the shortcuts can point at the result. Failure is harmless:
+// IconPath then falls back to the launcher.
+procedure MakeIcon;
+var rc: Integer; args: string;
+begin
+  if not DoExe then exit;
+  ExtractTemporaryFile('icon_overlay.ico');
+  ExtractTemporaryFile('make_icon.ps1');
+  ForceDirectories(ExpandConstant('{app}'));
+  args := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\make_icon.ps1') + '"'
+        + ' -Fm8Exe "'  + Val(2) + '"'
+        + ' -Overlay "' + ExpandConstant('{tmp}\icon_overlay.ico') + '"'
+        + ' -Out "'     + ExpandConstant('{app}\FM8.plus.ico') + '"';
+  Exec('powershell.exe', args, '', SW_HIDE, ewWaitUntilTerminated, rc);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then MakeIcon;
+end;
 
 procedure InitializeWizard;
 begin

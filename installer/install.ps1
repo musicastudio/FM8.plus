@@ -35,6 +35,20 @@ if (Test-Path $Exe) {
   Copy-To $exe $exeDir "Standalone launcher"
   Copy-To $dll $exeDir "Standalone DLL"
   $target = Join-Path $exeDir "FM8.plus.exe"
+
+  # Build the FM8+ icon here, from this machine's own FM8.exe plus our "+" overlay. FM8's icon is
+  # Native Instruments' artwork, so it is never shipped with FM8.plus; only the overlay is.
+  $icon = Join-Path $exeDir "FM8.plus.ico"
+  try {
+    & (Join-Path $PSScriptRoot "..\tools\make_icon.ps1") -Fm8Exe $Exe `
+        -Overlay (Join-Path $PSScriptRoot "icon_overlay.ico") -Out $icon | Out-Null
+    Write-Host "[Icon] composited $icon" -ForegroundColor Green
+  } catch {
+    Write-Host "[Icon] could not composite the FM8+ icon, shortcuts will use the launcher's own: $_" -ForegroundColor Yellow
+    $icon = $target
+  }
+  if (-not (Test-Path $icon)) { $icon = $target }
+
   $ws = New-Object -ComObject WScript.Shell
   $links = @(
     (Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "FM8 Plus.lnk"),
@@ -45,7 +59,7 @@ if (Test-Path $Exe) {
     $s = $ws.CreateShortcut($lnk)
     $s.TargetPath = $target
     $s.WorkingDirectory = $exeDir
-    $s.IconLocation = "$target,0"
+    $s.IconLocation = "$icon,0"
     $s.Description = "FM8 with the FM8.plus features"
     $s.Save()
     Write-Host "[Shortcut] $lnk" -ForegroundColor Green

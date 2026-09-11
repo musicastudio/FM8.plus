@@ -12,8 +12,8 @@ foreach ($f in 'FM8.plus.dll','FM8.plus.vst3','FM8.plus.exe') {
     throw "Missing $f in $build - build the Release config first (cmake --build build --config Release)."
   }
 }
-if (-not (Test-Path (Join-Path $PSScriptRoot 'FM8.plus.ico'))) {
-  throw "Missing installer\FM8.plus.ico - run tools\make_icon.ps1 first."
+foreach ($f in 'icon_overlay.ico') {
+  if (-not (Test-Path (Join-Path $PSScriptRoot $f))) { throw "Missing installer\$f." }
 }
 
 # ISCC lands in Program Files or, via winget, under LocalAppData.
