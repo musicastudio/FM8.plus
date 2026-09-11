@@ -1,7 +1,6 @@
 #include "ui.h"
 #include "fm8plus.h"
 #include "settings.h"
-#include "embedded_otf.h"
 #include <windowsx.h>
 #include <objidl.h>
 // GDI+ headers reference the min/max macros that the project's NOMINMAX removes; restore them locally.
@@ -10,7 +9,10 @@
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define FM8PLUS_TMP_MINMAX
 #endif
+#pragma warning(push)
+#pragma warning(disable : 4458)   // the Windows SDK's own GDI+ headers shadow members under /W4
 #include <gdiplus.h>
+#pragma warning(pop)
 #ifdef FM8PLUS_TMP_MINMAX
 #undef min
 #undef max
@@ -23,43 +25,38 @@ namespace fm8plus::ui {
 namespace {
 const wchar_t* kClass = L"FM8plusOverlay";
 constexpr int kW = 30, kH = 36;               // small transparent window holding just the "+"
-constexpr int kFontPx = 27;                   // custom "+" pixel size (~3px larger glyph)
 const int kLR = 107, kLG = 125, kLB = 134;    // sampled FM8 logo blue-grey (the "+" colour)
 const int kSR = 214, kSG = 235, kSB = 248;    // shimmer highlight colour
 constexpr int kTimerGlue = 1, kTimerShine = 2;
 
-// GDI+ startup and the embedded custom font, loaded once for this process.
-struct GpFont {
-    ULONG_PTR token = 0;
-    Gdiplus::PrivateFontCollection* coll = nullptr;
-    Gdiplus::FontFamily* fam = nullptr;
-    Gdiplus::FontStyle style = Gdiplus::FontStyleRegular;
-    bool ok = false;
-};
-GpFont& gpFont() {
-    static GpFont g; static bool init = false;
+// The "+" is drawn directly as a slanted cross, so FM8.plus carries no font dependency. The shape
+// is a plain 12-vertex polygon: two 3px bars spanning ~14.7px, sheared 10 degrees to the right to
+// sit italic beside FM8's own wordmark.
+constexpr float kPlusHalf  = 7.37f;    // half the overall arm span
+constexpr float kPlusThick = 1.515f;   // half the bar thickness
+constexpr float kPlusSlant = 0.1767f;  // tan(10 degrees) italic shear
+constexpr float kPlusDx    = 1.4f;     // nudge from the window centre, tuned against the logo
+constexpr float kPlusDy    = -1.54f;
+
+// Build the cross outline centred in a w x h window.
+void plusPoints(Gdiplus::PointF out[12], int w, int h) {
+    const float a = kPlusHalf, t = kPlusThick;
+    const float cx = w * 0.5f + kPlusDx, cy = h * 0.5f + kPlusDy;
+    const float px[12] = {  a,  t,  t, -t, -t, -a, -a, -t, -t,  t,  t,  a };
+    const float py[12] = { -t, -t, -a, -a, -t, -t,  t,  t,  a,  a,  t,  t };
+    for (int i = 0; i < 12; ++i)
+        out[i] = Gdiplus::PointF(cx + px[i] - py[i] * kPlusSlant, cy + py[i]);
+}
+
+// GDI+ startup, once for this process.
+bool gpReady() {
+    static ULONG_PTR token = 0; static bool init = false, ok = false;
     if (!init) {
         init = true;
         Gdiplus::GdiplusStartupInput in;
-        if (Gdiplus::GdiplusStartup(&g.token, &in, nullptr) == Gdiplus::Ok) {
-            g.coll = new Gdiplus::PrivateFontCollection();
-            g.coll->AddMemoryFont(kEmbeddedOtf, (INT)kEmbeddedOtfLen);
-            // The win32 family name varies by weight/style ("custom" for the regular,
-            // "Embedded Font" for the italic), so try a few candidates and pick whatever style the
-            // matching family actually provides (a single italic face may be exposed as Regular).
-            for (const wchar_t* nm : {L"Embedded Font", L"custom", L"EmbeddedFont"}) {
-                auto* fam = new Gdiplus::FontFamily(nm, g.coll);
-                if (fam->IsAvailable()) {
-                    for (Gdiplus::FontStyle s : {Gdiplus::FontStyleItalic, Gdiplus::FontStyleRegular,
-                                                 Gdiplus::FontStyleBoldItalic, Gdiplus::FontStyleBold})
-                        if (fam->IsStyleAvailable(s)) { g.fam = fam; g.style = s; g.ok = true; break; }
-                }
-                if (g.ok) break;
-                delete fam;
-            }
-        }
+        ok = Gdiplus::GdiplusStartup(&token, &in, nullptr) == Gdiplus::Ok;
     }
-    return g;
+    return ok;
 }
 
 // Command id ranges (kept apart so one TrackPopupMenu return value tells us which control fired).
@@ -93,27 +90,22 @@ void renderPlus(HWND hwnd, OData* d) {
     auto* px = (uint32_t*)bits;
     for (int i = 0; i < w * h; ++i) px[i] = 0;             // fully transparent
 
-    // Draw the "+" with the custom font (antialiased, per-pixel alpha) into a GDI+ PARGB
-    // bitmap, then copy it into the layered DIB. Centred; a highlight band sweeps across on hover.
-    GpFont& gf = gpFont();
-    if (gf.ok) {
+    // Draw the "+" as a filled polygon (antialiased, per-pixel alpha) into a GDI+ PARGB bitmap, then
+    // copy it into the layered DIB. Centred; a highlight band sweeps across on hover.
+    if (gpReady()) {
         Gdiplus::Bitmap bmp(w, h, PixelFormat32bppPARGB);
         Gdiplus::Graphics gr(&bmp);
         gr.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        gr.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
         gr.Clear(Gdiplus::Color(0, 0, 0, 0));
-        Gdiplus::Font font(gf.fam, (Gdiplus::REAL)kFontPx, gf.style, Gdiplus::UnitPixel);
-        Gdiplus::StringFormat sf;
-        sf.SetAlignment(Gdiplus::StringAlignmentCenter);
-        sf.SetLineAlignment(Gdiplus::StringAlignmentCenter);
-        Gdiplus::RectF box(0, 0, (Gdiplus::REAL)w, (Gdiplus::REAL)h);
+        Gdiplus::PointF pts[12];
+        plusPoints(pts, w, h);
         Gdiplus::SolidBrush base(Gdiplus::Color(255, kLR, kLG, kLB));
-        gr.DrawString(L"+", 1, &font, box, &sf, &base);
+        gr.FillPolygon(&base, pts, 12);
         if (d->hovering) {
             const Gdiplus::REAL bandX = d->shine * (w + 20) - 10;   // sweeping highlight band
             gr.SetClip(Gdiplus::RectF(bandX - 5, 0, 10, (Gdiplus::REAL)h));
             Gdiplus::SolidBrush shine(Gdiplus::Color(255, kSR, kSG, kSB));
-            gr.DrawString(L"+", 1, &font, box, &sf, &shine);
+            gr.FillPolygon(&shine, pts, 12);
             gr.ResetClip();
         }
         Gdiplus::Rect rr(0, 0, w, h); Gdiplus::BitmapData bd;

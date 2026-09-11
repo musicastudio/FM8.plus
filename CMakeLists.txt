@@ -21,8 +21,7 @@ add_library(fm8plus_core STATIC
   src/core/fm8plus.cpp
   src/core/settings.cpp
   src/core/ui.cpp
-  src/core/standalone.cpp
-  src/core/embedded_otf.cpp)
+  src/core/standalone.cpp)
 target_include_directories(fm8plus_core PUBLIC
   src/core
   third_party/minhook/include)
