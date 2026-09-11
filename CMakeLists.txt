@@ -21,6 +21,7 @@ add_library(fm8plus_core STATIC
   src/core/fm8plus.cpp
   src/core/settings.cpp
   src/core/ui.cpp
+  src/core/standalone.cpp
   src/core/embedded_otf.cpp)
 target_include_directories(fm8plus_core PUBLIC
   src/core
@@ -34,10 +35,10 @@ function(fm8_shim tgt src outname ext)
   set_target_properties(${tgt} PROPERTIES OUTPUT_NAME "${outname}" PREFIX "" SUFFIX ".${ext}")
 endfunction()
 
-# --- VST2 proxy: builds FM8.dll --------------------------------------------
-fm8_shim(shim_vst2 src/shim_vst2/shim_vst2.cpp "FM8" "dll")
+# --- VST2 wrapper: builds FM8.plus.dll (distinct plug-in, loads stock FM8.dll) ---------------
+fm8_shim(shim_vst2 src/shim_vst2/shim_vst2.cpp "FM8.plus" "dll")
 
-# --- VST3 proxy: builds FM8.vst3 (single-file module) ----------------------
+# --- VST3 wrapper: builds FM8.plus.vst3 (single-file module, loads stock FM8.vst3) -----------
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_vst3/shim_vst3.cpp")
   # The Steinberg headers reference themselves via a "pluginterfaces/" prefix, so the vendored
   # submodule must be reachable under that name. Ensure a junction to it exists (idempotent).
@@ -47,12 +48,20 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_vst3/shim_vst3.cpp")
     file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/third_party/vst3_pluginterfaces" PI_SRC_NATIVE)
     execute_process(COMMAND cmd /c mklink /J "${PI_LINK_NATIVE}" "${PI_SRC_NATIVE}")
   endif()
-  fm8_shim(shim_vst3 src/shim_vst3/shim_vst3.cpp "FM8" "vst3")
+  fm8_shim(shim_vst3 src/shim_vst3/shim_vst3.cpp "FM8.plus" "vst3")
   target_include_directories(shim_vst3 PRIVATE third_party)
 endif()
 
-# --- standalone sideload: builds version.dll -------------------------------
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_exe/shim_exe.cpp")
-  fm8_shim(shim_exe src/shim_exe/shim_exe.cpp "version" "dll")
-  target_sources(shim_exe PRIVATE src/shim_exe/version.def)
+# --- standalone launcher: builds FM8.plus.exe ------------------------------
+# Starts the real FM8.exe and injects FM8.plus.dll, which runs the standalone attach. No core link
+# needed (the injected DLL carries the features); this is a tiny GUI-subsystem executable.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/launcher/launcher.cpp")
+  set(LAUNCHER_SRC src/launcher/launcher.cpp)
+  # Embed the FM8+ icon if it has been generated (tools/make_icon.ps1); optional so a fresh clone
+  # still builds before the icon asset exists.
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/installer/FM8.plus.ico")
+    list(APPEND LAUNCHER_SRC src/launcher/launcher.rc)
+  endif()
+  add_executable(launcher WIN32 ${LAUNCHER_SRC})
+  set_target_properties(launcher PROPERTIES OUTPUT_NAME "FM8.plus")
 endif()

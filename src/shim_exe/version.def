@@ -1,5 +1,0 @@
-EXPORTS
-    GetFileVersionInfoSizeW = Fwd_GetFileVersionInfoSizeW
-    GetFileVersionInfoW = Fwd_GetFileVersionInfoW
-    VerQueryValueW = Fwd_VerQueryValueW
-    VerQueryValueA = Fwd_VerQueryValueA

@@ -5,6 +5,15 @@ the morph maps any MIDI CC (not just the mod wheel), and two more features were 
 Override and Increase Gain. See the README for the current feature set; the mechanisms below still
 describe how the morph and arp paths work.
 
+**Attachment model changed since this note.** The original plan (below) renamed each stock module to
+`FM8.plus.core` and dropped a same-named proxy in its place, and sideloaded `version.dll` next to
+`FM8.exe`. The shipped version never touches a stock file: FM8.plus installs as its OWN files
+(`FM8.plus.dll`, `FM8.plus.vst3`, `FM8.plus.exe`) beside FM8, the VST wrappers load the untouched
+stock module in place and present a distinct "FM8+" identity (feature hooks gated to FM8+ instances),
+and the standalone is a launcher that injects `FM8.plus.dll` into `FM8.exe` at startup. This is what
+makes a Native Access reinstall safe; see the README "How it works" and the `fm8plus-vst-reinstall-resilience`
+note. The hook/arp/morph internals below are unchanged.
+
 Features added to Native Instruments FM8 (build 2022-12-23) across the standalone `FM8.exe`, the
 64-bit VST2 `FM8.dll`, and `FM8.vst3`:
 

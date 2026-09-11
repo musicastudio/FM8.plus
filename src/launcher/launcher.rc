@@ -1,0 +1,2 @@
+// Embeds the FM8+ icon so the launcher and its shortcuts show it.
+1 ICON "../../installer/FM8.plus.ico"

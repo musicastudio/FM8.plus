@@ -7,10 +7,13 @@ $root  = Split-Path $PSScriptRoot -Parent
 $build = Join-Path $root 'build\Release'
 $iss   = Join-Path $PSScriptRoot 'FM8.plus.iss'
 
-foreach ($f in 'FM8.dll','FM8.vst3','version.dll') {
+foreach ($f in 'FM8.plus.dll','FM8.plus.vst3','FM8.plus.exe') {
   if (-not (Test-Path (Join-Path $build $f))) {
     throw "Missing $f in $build - build the Release config first (cmake --build build --config Release)."
   }
+}
+if (-not (Test-Path (Join-Path $PSScriptRoot 'FM8.plus.ico'))) {
+  throw "Missing installer\FM8.plus.ico - run tools\make_icon.ps1 first."
 }
 
 # ISCC lands in Program Files or, via winget, under LocalAppData.

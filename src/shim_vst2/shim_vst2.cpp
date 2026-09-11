@@ -1,25 +1,37 @@
-// FM8.plus VST2 proxy. Ships as FM8.dll beside the renamed original (FM8.plus.core). Forwards the
-// real plugin unchanged, then wraps its AEffect dispatcher and processReplacing to add the two
-// features. No FM8 export or uniqueID changes, so existing projects keep loading.
+// FM8.plus VST2 wrapper. Ships as its own plug-in FM8.plus.dll beside the UNTOUCHED stock FM8.dll
+// (same VST2 folder). It loads the real FM8.dll in place, wraps its AEffect dispatcher and
+// processReplacing to add the features, and presents itself as a DISTINCT plug-in "FM8+" with its
+// own uniqueID. Stock FM8 is never renamed, copied, or modified, so a Native Access reinstall cannot
+// break us; plain FM8 keeps its own AEffect (our pointers are only swapped on our instances).
+//
+// When this DLL is instead injected into FM8.exe by the FM8.plus launcher, DllMain detects the host
+// and runs the standalone attach; the VST path below stays dormant in that case.
 #include <windows.h>
 #include <cstdint>
 #include <cstring>
 #include <cstddef>
 #include <cstdlib>
+#include <cwctype>
 #include <string>
 #include <vector>
 #include "../vst2/vst2.h"
 #include "../core/fm8plus.h"
 #include "../core/settings.h"
 #include "../core/ui.h"
+#include "../core/standalone.h"
 
 using namespace fm8plus;
 
 namespace {
 HMODULE g_self = nullptr;
-HMODULE g_core = nullptr;                 // the renamed real FM8.dll
+HMODULE g_core = nullptr;                 // the stock FM8.dll, loaded in place (untouched)
 AudioMasterCallback g_hostMaster = nullptr;
 bool g_coreHooked = false;
+
+// FM8.plus presents itself as a distinct plug-in so it can coexist with stock FM8. Stock FM8 is
+// uniqueID 'Nif8' (0x4e696638); ours is 'Fm8+'. The display name is answered as "FM8+" below.
+constexpr int32_t kFm8PlusUniqueId = 0x466D382B;   // 'F','m','8','+'
+const char kFm8PlusName[] = "FM8+";
 
 const char kTrailerMagic[8] = {'F','M','8','P','L','U','S','2'};
 constexpr int kTrailerLen = 14;           // magic(8) + arpMode + tempoMode + gainDb + morphCc(2) + reserved
@@ -56,10 +68,12 @@ std::wstring selfDir() {
     return slash == std::wstring::npos ? L"." : s.substr(0, slash);
 }
 
-// Load the renamed original and install the shared arp hooks against its module base (once).
+// Load the UNTOUCHED stock FM8.dll from our own folder and install the shared arp hooks against its
+// module base (once). Windows dedupes by path, so if the host already loaded stock FM8.dll as plain
+// FM8, we get the same module; the core detours stay inert for instances we did not wrap.
 bool ensureCore() {
     if (g_core) return g_coreHooked;
-    std::wstring path = selfDir() + L"\\FM8.plus.core";
+    std::wstring path = selfDir() + L"\\FM8.dll";
     g_core = LoadLibraryW(path.c_str());
     if (!g_core) return false;
     settings::load(g_self);
@@ -228,6 +242,11 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
             Core::flushExternal(r->st);
             drainToHost(eff, *r);
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
+        case effGetEffectName:
+        case effGetProductString:
+            // Report our own name so the host lists us as "FM8+", distinct from stock "FM8".
+            if (ptr) { std::strncpy((char*)ptr, kFm8PlusName, 31); ((char*)ptr)[31] = 0; return 1; }
+            return 0;
         default:
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
     }
@@ -249,6 +268,7 @@ AEffect* wrap(AEffect* real) {
     real->dispatcher = &thunkDispatch;
     real->processReplacing = &thunkProcess;
     if (real->processDoubleReplacing) real->processDoubleReplacing = &thunkProcessD;
+    real->uniqueID = kFm8PlusUniqueId;   // distinct identity so we coexist with stock FM8
     return real;
 }
 } // namespace
@@ -300,7 +320,22 @@ extern "C" __declspec(dllexport) void* NICreatePlugInInstance(void* a, uint32_t 
     return real ? real(a, b, c, d) : nullptr;
 }
 
+// True when the running process is FM8.exe (case-insensitive), i.e. we were injected by the launcher.
+static bool hostIsFm8Exe() {
+    wchar_t p[MAX_PATH]; if (!GetModuleFileNameW(nullptr, p, MAX_PATH)) return false;
+    std::wstring s(p); auto slash = s.find_last_of(L"\\/");
+    std::wstring base = slash == std::wstring::npos ? s : s.substr(slash + 1);
+    for (auto& c : base) c = (wchar_t)towlower(c);
+    return base == L"fm8.exe";
+}
+
 BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) { g_self = h; DisableThreadLibraryCalls(h); }
+    if (reason == DLL_PROCESS_ATTACH) {
+        g_self = h; DisableThreadLibraryCalls(h);
+        // Injected into FM8.exe by the launcher: attach the standalone features and leave the VST
+        // path dormant. shiftLogoLeft must run before FM8 builds its GUI, so do it here (the process
+        // is still suspended at injection time); the heavier init is deferred onto its own thread.
+        if (hostIsFm8Exe()) standalone::attachExe(h);
+    }
     return TRUE;
 }

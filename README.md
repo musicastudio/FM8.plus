@@ -20,9 +20,9 @@ Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW proj
 
 ## Install
 
-Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files, and it patches only the final v1.4.6 release: each stock module is renamed to `FM8.plus.core`, the proxy is dropped in its place, and `version.dll` is sideloaded next to `FM8.exe`. Rescan plugins in your DAW afterwards. Uninstalling from Add/Remove Programs restores stock FM8.
+Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folder, `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames, copies, or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. Only the final 2022-12-23 v1.4.6 build gains the features; any other build is loaded and left as plain FM8. Rescan plugins in your DAW afterwards, and FM8+ appears alongside FM8.
 
-Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` reverses everything.
+Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` removes everything again.
 
 ## Background and How it was made
 
@@ -49,9 +49,9 @@ As of September 2026, frontier LLMs can read disassembled code at a level close 
 
 ## How it works
 
-One shared feature core is attached to each host by the least invasive loader that host allows. The VST2 and VST3 proxies keep the original filename; the real module is renamed in place to `FM8.plus.core` and loaded by the proxy, so existing projects keep loading (same uniqueID and class IDs) and gain the features. The standalone uses a `version.dll` sideload, since FM8.exe imports only four version APIs and version.dll is not a KnownDLL, so the app-directory copy wins and FM8.exe is never touched.
+FM8.plus is a distinct plug-in that loads the real FM8 in place, never touching it on disk. The VST2 `FM8.plus.dll` and VST3 `FM8.plus.vst3` install beside stock FM8 and load it from the same folder, then present themselves to the host as "FM8+" with their own plug-in IDs, so they coexist with plain FM8: existing projects keep loading stock FM8, and you reach for FM8+ where you want the features. Because they share FM8's own module in memory, the feature hooks are gated to FM8+ instances only, leaving plain FM8 completely stock. The standalone `FM8.plus.exe` launcher starts the untouched `FM8.exe` and injects the same code at startup, so plain `FM8.exe` also stays plain. This is why a Native Access repair or update never breaks FM8.plus: our files are only ever added alongside FM8, never in place of it.
 
-The core detours two internal FM8 functions that are byte-identical across all three binaries (the arpeggiator dispatch and the MIDI event handler), captures the arp's generated notes, and sends them out through each host's native path: VST2 `audioMasterProcessEvents`, a VST3 `data.outputEvents` bus that the proxy registers (stock FM8 exposes none), and standalone WinMM `midiOutShortMsg`. The selected morph CC is captured the same way and drives FM8's own internal Morph X/Y setter, tempo is rescaled in the host time FM8 reads, and extra gain is applied to the rendered output buffers. The "FM8" wordmark is a PICTURE control in FM8's form resources, so room for the "+" is made by patching that control's rectangle 11px left in memory before the GUI is built. Hook addresses are in [docs/hooks.md](docs/hooks.md) and [src/core/rvas.h](src/core/rvas.h); the design rationale is in [docs/design.md](docs/design.md).
+The core detours two internal FM8 functions that are byte-identical across all three binaries (the arpeggiator dispatch and the MIDI event handler), captures the arp's generated notes, and sends them out through each host's native path: VST2 `audioMasterProcessEvents`, a VST3 `data.outputEvents` bus that the wrapper adds for its own instances (stock FM8 exposes none), and standalone WinMM `midiOutShortMsg`. The selected morph CC is captured the same way and drives FM8's own internal Morph X/Y setter, tempo is rescaled in the host time FM8 reads, and extra gain is applied to the rendered output buffers. The "FM8" wordmark is a PICTURE control in FM8's form resources, so room for the "+" is made by patching that control's rectangle 11px left in memory before the GUI is built. Hook addresses are in [docs/hooks.md](docs/hooks.md) and [src/core/rvas.h](src/core/rvas.h); the design rationale is in [docs/design.md](docs/design.md).
 
 Every hook is guarded by the FM8 build's PE timestamp; on any mismatch the layer degrades to plain forwarding rather than risk a crash, so a Native Access repair or a different FM8 version is safe.
 
@@ -65,26 +65,26 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
-Outputs in `build\Release`: `FM8.dll` (VST2 proxy), `FM8.vst3` (VST3 proxy), and `version.dll` (standalone sideload). `installer\FM8.plus.iss` is an Inno Setup script that packages them into the setup installer, and `installer\build_installer.ps1` compiles it.
+Outputs in `build\Release`: `FM8.plus.dll` (VST2 wrapper), `FM8.plus.vst3` (VST3 wrapper), and `FM8.plus.exe` (standalone launcher). `installer\FM8.plus.iss` is an Inno Setup script that packages them into the setup installer, and `installer\build_installer.ps1` compiles it. The FM8+ icon is generated once from FM8's own icon plus `installer\icon_overlay.ico` by `tools\make_icon.ps1` and embedded into the launcher.
 
 ## Layout
 
 ```
 FM8.plus/
-  src/core/         shared feature core (hooks, arp routing, morph, settings, UI, rvas.h)
-  src/shim_vst2/    VST2 proxy  -> FM8.dll
-  src/shim_vst3/    VST3 proxy  -> FM8.vst3
-  src/shim_exe/     standalone  -> version.dll
+  src/core/         shared feature core (hooks, arp routing, morph, settings, UI, standalone attach, rvas.h)
+  src/shim_vst2/    VST2 wrapper -> FM8.plus.dll
+  src/shim_vst3/    VST3 wrapper -> FM8.plus.vst3
+  src/launcher/     standalone launcher -> FM8.plus.exe
   src/vst2/         minimal VST 2.4 ABI header
   docs/             design, reverse-engineering notes, hook reference, status
-  tools/            pyghidra build + query helpers and the headless VST2/VST3 test hosts
-  installer/        PowerShell + Inno Setup installers
+  tools/            pyghidra helpers, the headless VST2/VST3 test hosts, and make_icon.ps1
+  installer/        PowerShell + Inno Setup installers, the overlay and FM8+ icons
 ../FM8_DISASM/      binaries and Ghidra projects (not in git)
 ```
 
 ## Status
 
-All four features are verified end to end against the real FM8.dll with the headless host in `tools/vst2host.py` (arp MIDI out in every mode, morph on an arbitrary CC with the CC blocked from FM8, tempo scaling, and gain), and the GUI is verified in the running standalone. The VST3 event-output bus registration is verified headless, and the standalone reuses the same proven core. A full audio-path pass inside a DAW is the remaining check; see [docs/status.md](docs/status.md).
+All four features are verified end to end against the real FM8 with the headless host in `tools/vst2host.py`, running the FM8+ VST2 wrapper as it ships (arp MIDI out in every mode, morph on an arbitrary CC with the CC blocked from FM8, tempo scaling, and gain), and the VST2 wrapper reports its own distinct identity. The VST3 wrapper is verified headless too: it presents FM8+ and FM8 FX+ as distinct plug-ins and adds the "FM8+ Arp Out" event bus only to its own instances. The standalone launcher is verified to start FM8 and inject the features. A full audio-path pass inside a DAW is the remaining check; see [docs/status.md](docs/status.md).
 
 ## Licence
 

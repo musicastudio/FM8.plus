@@ -1,15 +1,20 @@
-// FM8.plus VST3 proxy. Ships as FM8.vst3 beside the renamed original (FM8.plus.core). Forwards the
-// real factory unchanged, then hooks four of the component's methods so that:
-//   - an event OUTPUT bus ("FM8+ Arp Out") is advertised (FM8 registers none), so the host allocates
-//     data.outputEvents;
-//   - process() drives the shared arp/morph core and drains queued arp notes into data.outputEvents,
-//     and reads the mod-wheel parameter (id 0x6d69646b, per FM8's IMidiMapping) to rotate the Morph.
+// FM8.plus VST3 wrapper. Ships as its own plug-in FM8.plus.vst3 beside the UNTOUCHED stock FM8.vst3
+// (Common Files\VST3). It loads the real FM8.vst3 in place and exposes a DISTINCT plug-in "FM8+"
+// (its own class UID) by wrapping FM8's factory. Only instances created through our factory get the
+// features: an event OUTPUT bus ("FM8+ Arp Out") FM8 does not have, arp-note draining into
+// data.outputEvents, morph on the selected CC, tempo override, and extra gain. Plain FM8 VST3
+// instances share the same module but are left completely stock (hooks are gated to our instances).
+//
+// Stock FM8.vst3 is never renamed, copied, or modified, so a Native Access reinstall cannot break us.
 #include <windows.h>
+#include <atomic>
 #include <cstring>
 #include "../core/fm8plus.h"
 #include "../core/settings.h"
 #include "MinHook.h"
 
+#include "pluginterfaces/base/ipluginbase.h"
+#include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -21,12 +26,63 @@ using namespace fm8plus;
 namespace S = Steinberg;
 namespace V = Steinberg::Vst;
 
-// The SDK declares interface IIDs but leaves their storage to the client; define the one we QI for.
+// The SDK declares interface IIDs but leaves their storage to the client; define the ones we use.
+DEF_CLASS_IID(Steinberg::FUnknown)
+DEF_CLASS_IID(Steinberg::IPluginFactory)
+DEF_CLASS_IID(Steinberg::IPluginFactory2)
+DEF_CLASS_IID(Steinberg::IPluginFactory3)
+DEF_CLASS_IID(Steinberg::Vst::IComponent)
+DEF_CLASS_IID(Steinberg::Vst::IAudioProcessor)
 DEF_CLASS_IID(Steinberg::Vst::IMidiMapping)
 
 namespace {
 HMODULE g_self = nullptr, g_core = nullptr;
 bool g_hooked = false;
+
+inline bool tuidEq(const S::TUID a, const S::TUID b) { return std::memcmp(a, b, 16) == 0; }
+
+// FM8.vst3 exposes two audio classes ("FM8" and "FM8 FX"), each with its own UID. We give each a
+// DISTINCT FM8+ UID (the real UID with its first byte flipped: deterministic, unique, and different
+// from stock so both can coexist) and map ours back to the real one at createInstance.
+struct CidMap { S::TUID ours; S::TUID real; };
+CidMap g_cidmap[8];
+int    g_ncid = 0;
+bool   g_cidDone = false;
+const char* kAudioClassCategory = "Audio Module Class";
+
+void buildCidMap(S::IPluginFactory* real) {
+    if (g_cidDone || !real) return;
+    g_cidDone = true;
+    S::int32 n = real->countClasses();
+    for (S::int32 i = 0; i < n && g_ncid < 8; ++i) {
+        S::PClassInfo ci; std::memset(&ci, 0, sizeof ci);
+        if (real->getClassInfo(i, &ci) != S::kResultOk) continue;
+        if (std::strcmp(ci.category, kAudioClassCategory) == 0) {
+            std::memcpy(g_cidmap[g_ncid].real, ci.cid, 16);
+            std::memcpy(g_cidmap[g_ncid].ours, ci.cid, 16);
+            auto* b0 = (unsigned char*)&g_cidmap[g_ncid].ours[0];
+            *b0 ^= 0x80u;   // flip the top bit: deterministic, distinct from stock
+            ++g_ncid;
+        }
+    }
+}
+const char* ourForReal(const char* real) {
+    for (int i = 0; i < g_ncid; ++i) if (tuidEq(g_cidmap[i].real, real)) return g_cidmap[i].ours;
+    return nullptr;
+}
+const char* realForOurs(const char* ours) {
+    for (int i = 0; i < g_ncid; ++i) if (tuidEq(g_cidmap[i].ours, ours)) return g_cidmap[i].real;
+    return nullptr;
+}
+// Append '+' to a class name ("FM8" -> "FM8+", "FM8 FX" -> "FM8 FX+").
+void appendPlus8(char* name, size_t cap) {
+    size_t L = 0; while (L < cap && name[L]) ++L;
+    if (L + 1 < cap) { name[L] = '+'; name[L + 1] = 0; }
+}
+void appendPlus16(S::char16* name, size_t cap) {
+    size_t L = 0; while (L < cap && name[L]) ++L;
+    if (L + 1 < cap) { name[L] = (S::char16)'+'; name[L + 1] = 0; }
+}
 
 std::wstring selfDir() {
     wchar_t p[MAX_PATH]; GetModuleFileNameW(g_self, p, MAX_PATH);
@@ -34,26 +90,35 @@ std::wstring selfDir() {
     return k == std::wstring::npos ? L"." : s.substr(0, k);
 }
 
-// Per-component state, keyed by the process() `this` pointer. Fixed array, audio-thread-safe scan.
+// Per-component state, keyed by an interface pointer of one of OUR instances. Fixed array; audio
+// thread does a lock-free scan. We key both the IComponent and IAudioProcessor subobject pointers,
+// since the host calls getBusCount on the former and process on the latter.
 struct Rec {
     std::atomic<void*> key{nullptr};
     InstanceState st;
-    V::IMidiMapping* midiMap = nullptr;   // for mapping the selected CC to a parameter id
+    V::IMidiMapping* midiMap = nullptr;
     int16_t cachedCc = -2;
     uint32_t cachedPid = 0;
 };
-constexpr int kMax = 64;
+constexpr int kMax = 128;   // two keys per logical instance, so ~64 instances
 Rec g_rec[kMax];
-Rec* recFor(void* k) {
+
+Rec* recFor(void* k) {   // lookup only, never allocates: null => not one of ours => stay stock
     for (auto& r : g_rec) if (r.key.load(std::memory_order_relaxed) == k) return &r;
-    for (auto& r : g_rec) { void* e = nullptr; if (r.key.compare_exchange_strong(e, k)) {
-        r.st.morphCc.store((int16_t)settings::morphCcDefault());
-        r.st.arpMode.store((uint8_t)settings::arpModeDefault());
-        r.st.morphRadius.store(settings::morphRadius());
-        r.st.morphStartDeg.store(settings::morphStartDeg());
-        return &r;
-    } }
     return nullptr;
+}
+void registerOurs(void* k) {
+    if (!k || recFor(k)) return;
+    for (auto& r : g_rec) {
+        void* e = nullptr;
+        if (r.key.compare_exchange_strong(e, k)) {
+            r.st.morphCc.store((int16_t)settings::morphCcDefault());
+            r.st.arpMode.store((uint8_t)settings::arpModeDefault());
+            r.st.morphRadius.store(settings::morphRadius());
+            r.st.morphStartDeg.store(settings::morphStartDeg());
+            return;
+        }
+    }
 }
 
 // Trampolines to the originals.
@@ -66,15 +131,16 @@ GetBusInfoFn  o_busInfo  = nullptr;
 ActivateBusFn o_activate = nullptr;
 ProcessFn     o_process  = nullptr;
 
-// Our single added event-output bus sits at index == the real event-out count (which is 0 for FM8).
+// Our single added event-output bus sits at index == the real event-out count (0 for FM8). Only our
+// instances advertise it; plain FM8 instances fall through to the original.
 S::int32 h_getBusCount(void* self, V::MediaType type, V::BusDirection dir) {
     S::int32 n = o_busCount(self, type, dir);
-    if (type == V::kEvent && dir == V::kOutput) n += 1;
+    if (recFor(self) && type == V::kEvent && dir == V::kOutput) n += 1;
     return n;
 }
 
 S::tresult h_getBusInfo(void* self, V::MediaType type, V::BusDirection dir, S::int32 index, V::BusInfo& bus) {
-    if (type == V::kEvent && dir == V::kOutput) {
+    if (recFor(self) && type == V::kEvent && dir == V::kOutput) {
         S::int32 real = o_busCount(self, type, dir);   // 0 for FM8
         if (index == real) {
             std::memset(&bus, 0, sizeof bus);
@@ -92,12 +158,12 @@ S::tresult h_getBusInfo(void* self, V::MediaType type, V::BusDirection dir, S::i
 }
 
 S::tresult h_activateBus(void* self, V::MediaType type, V::BusDirection dir, S::int32 index, S::TBool state) {
-    if (type == V::kEvent && dir == V::kOutput && index == o_busCount(self, type, dir))
+    if (recFor(self) && type == V::kEvent && dir == V::kOutput && index == o_busCount(self, type, dir))
         return S::kResultTrue;   // accept activation of our added bus
     return o_activate(self, type, dir, index, state);
 }
 
-// Read the value of one parameter (by id) from the block's input changes; returns 0..127 or -1.
+// Read one parameter (by id) from the block's input changes; returns 0..127 or -1.
 int readCcParam(V::IParameterChanges* changes, uint32_t pid) {
     if (!changes || !pid) return -1;
     S::int32 count = changes->getParameterCount();
@@ -113,23 +179,22 @@ int readCcParam(V::IParameterChanges* changes, uint32_t pid) {
     return -1;
 }
 
-// The parameter id FM8 maps the selected CC to (VST3 delivers CCs as parameter changes, not events).
 uint32_t paramIdForCc(Rec* r, void* self, int16_t cc) {
     if (cc == r->cachedCc) return r->cachedPid;
     if (!r->midiMap) {
-        auto* unk = (S::FUnknown*)self;   // IAudioProcessor* derives FUnknown; QI reaches IMidiMapping
+        auto* unk = (S::FUnknown*)self;
         unk->queryInterface(V::IMidiMapping::iid, (void**)&r->midiMap);
     }
     uint32_t pid = 0;
     if (r->midiMap && r->midiMap->getMidiControllerAssignment(0, 0, (V::CtrlNumber)cc, pid) != S::kResultTrue)
-        pid = (cc == 1) ? kVst3ModWheelParamId : 0;   // fall back to the known mod-wheel id
+        pid = (cc == 1) ? kVst3ModWheelParamId : 0;
     r->cachedCc = cc; r->cachedPid = pid;
     return pid;
 }
 
 S::tresult h_process(void* self, V::ProcessData& data) {
     Rec* r = recFor(self);
-    if (!r) return o_process(self, data);
+    if (!r) return o_process(self, data);   // not ours: stock FM8 processing
     InstanceState& st = r->st;
 
     const int16_t mc = st.morphCc.load(std::memory_order_relaxed);
@@ -139,7 +204,6 @@ S::tresult h_process(void* self, V::ProcessData& data) {
         if (v >= 0) st.morphPending.store((uint8_t)v, std::memory_order_relaxed);
     }
 
-    // Tempo Override: scale the host tempo/position FM8 reads (Custom is not host-driven, so skip it).
     const double tf = fm8plus::tempoFactor(st.tempoMode.load(std::memory_order_relaxed));
     if (tf != 1.0 && data.processContext) {
         data.processContext->tempo *= tf;
@@ -148,12 +212,11 @@ S::tresult h_process(void* self, V::ProcessData& data) {
 
     st.clearBlock();
     Core::current = &st;
-    S::tresult rv = o_process(self, data);   // core arp hooks fill st.outBuf and capture editBuf
+    S::tresult rv = o_process(self, data);
     Core::current = nullptr;
 
-    Core::applyPendingMorphInternal(st);     // uses the captured EditBuffer
+    Core::applyPendingMorphInternal(st);
 
-    // Increase Gain: multiply the rendered output (32-bit float buffers).
     const int8_t db = st.gainDb.load(std::memory_order_relaxed);
     if (db > 0 && data.symbolicSampleSize == V::kSample32 && data.outputs) {
         const float g = gainLinear(db);
@@ -193,12 +256,11 @@ S::tresult h_process(void* self, V::ProcessData& data) {
 
 bool ensureCore() {
     if (g_core) return g_hooked;
-    g_core = LoadLibraryW((selfDir() + L"\\FM8.plus.core").c_str());
+    g_core = LoadLibraryW((selfDir() + L"\\FM8.vst3").c_str());   // the UNTOUCHED stock module
     if (!g_core) return false;
     settings::load(g_self);
     if (!Core::install((void*)g_core, Bin::Vst3)) return false;
-    Core::shiftLogoLeft(g_core, 11);   // shift the logo before the editor form is built
-    // Install the four VST3 vtable-function hooks by RVA (MinHook already initialized by the core).
+    Core::shiftLogoLeft(g_core, 11);
     auto mk = [](const Site& s, void* det, void** orig) {
         void* t = Core::addressOf(s);
         return t && MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;
@@ -209,12 +271,106 @@ bool ensureCore() {
             && mk(kVst3Process,     (void*)&h_process,     (void**)&o_process);
     return g_hooked;
 }
+
+// --- factory wrapper: presents a distinct plug-in identity ("FM8+") over FM8's real factory ------
+
+class Factory : public S::IPluginFactory3 {
+    S::IPluginFactory*  f1_ = nullptr;
+    S::IPluginFactory2* f2_ = nullptr;
+    S::IPluginFactory3* f3_ = nullptr;
+    std::atomic<S::uint32> ref_{1};
+public:
+    explicit Factory(S::IPluginFactory* base) : f1_(base) {
+        f1_->addRef();
+        if (f1_->queryInterface(S::IPluginFactory2::iid, (void**)&f2_) != S::kResultOk) f2_ = nullptr;
+        if (f1_->queryInterface(S::IPluginFactory3::iid, (void**)&f3_) != S::kResultOk) f3_ = nullptr;
+        buildCidMap(f1_);
+    }
+    ~Factory() {
+        if (f3_) f3_->release();
+        if (f2_) f2_->release();
+        if (f1_) f1_->release();
+    }
+
+    // FUnknown
+    S::tresult PLUGIN_API queryInterface(const S::TUID riid, void** obj) override {
+        if (tuidEq(riid, S::FUnknown::iid) || tuidEq(riid, S::IPluginFactory::iid)
+            || (f2_ && tuidEq(riid, S::IPluginFactory2::iid))
+            || (f3_ && tuidEq(riid, S::IPluginFactory3::iid))) {
+            addRef(); *obj = this; return S::kResultOk;
+        }
+        *obj = nullptr; return S::kNoInterface;
+    }
+    S::uint32 PLUGIN_API addRef() override { return ++ref_; }
+    S::uint32 PLUGIN_API release() override {
+        S::uint32 r = --ref_;
+        if (r == 0) delete this;
+        return r;
+    }
+
+    // IPluginFactory
+    S::tresult PLUGIN_API getFactoryInfo(S::PFactoryInfo* info) override { return f1_->getFactoryInfo(info); }
+    S::int32   PLUGIN_API countClasses() override { return f1_->countClasses(); }
+    S::tresult PLUGIN_API getClassInfo(S::int32 i, S::PClassInfo* info) override {
+        S::tresult r = f1_->getClassInfo(i, info);
+        if (r == S::kResultOk && std::strcmp(info->category, kAudioClassCategory) == 0) {
+            if (const char* oc = ourForReal(info->cid)) std::memcpy(info->cid, oc, 16);
+            appendPlus8(info->name, sizeof info->name);
+        }
+        return r;
+    }
+    S::tresult PLUGIN_API createInstance(S::FIDString cid, S::FIDString _iid, void** obj) override {
+        const char* rc = realForOurs((const char*)cid);
+        S::FIDString eff = rc ? (S::FIDString)rc : cid;
+        S::tresult r = f1_->createInstance(eff, _iid, obj);
+        if (rc && r == S::kResultOk && obj && *obj) {
+            auto* unk = (S::FUnknown*)*obj;
+            void* comp = nullptr;
+            if (unk->queryInterface(V::IComponent::iid, &comp) == S::kResultOk && comp) {
+                registerOurs(comp); ((S::FUnknown*)comp)->release();
+            }
+            void* ap = nullptr;
+            if (unk->queryInterface(V::IAudioProcessor::iid, &ap) == S::kResultOk && ap) {
+                registerOurs(ap); ((S::FUnknown*)ap)->release();
+            }
+        }
+        return r;
+    }
+
+    // IPluginFactory2
+    S::tresult PLUGIN_API getClassInfo2(S::int32 i, S::PClassInfo2* info) override {
+        if (!f2_) return S::kNotImplemented;
+        S::tresult r = f2_->getClassInfo2(i, info);
+        if (r == S::kResultOk && std::strcmp(info->category, kAudioClassCategory) == 0) {
+            if (const char* oc = ourForReal(info->cid)) std::memcpy(info->cid, oc, 16);
+            appendPlus8(info->name, sizeof info->name);
+        }
+        return r;
+    }
+
+    // IPluginFactory3
+    S::tresult PLUGIN_API getClassInfoUnicode(S::int32 i, S::PClassInfoW* info) override {
+        if (!f3_) return S::kNotImplemented;
+        S::tresult r = f3_->getClassInfoUnicode(i, info);
+        if (r == S::kResultOk && std::strcmp(info->category, kAudioClassCategory) == 0) {
+            if (const char* oc = ourForReal(info->cid)) std::memcpy(info->cid, oc, 16);
+            appendPlus16(info->name, sizeof(info->name) / sizeof(info->name[0]));
+        }
+        return r;
+    }
+    S::tresult PLUGIN_API setHostContext(S::FUnknown* ctx) override {
+        return f3_ ? f3_->setHostContext(ctx) : S::kNotImplemented;
+    }
+};
+
 } // namespace
 
 extern "C" __declspec(dllexport) S::IPluginFactory* PLUGIN_API GetPluginFactory() {
-    ensureCore();   // hooks installed regardless; factory is forwarded unchanged
+    ensureCore();   // hooks installed regardless
     auto real = (S::IPluginFactory*(PLUGIN_API*)())GetProcAddress(g_core, "GetPluginFactory");
-    return real ? real() : nullptr;
+    S::IPluginFactory* rf = real ? real() : nullptr;
+    if (!rf) return nullptr;
+    return g_hooked ? new Factory(rf) : rf;   // if hooks failed, forward the real factory unchanged
 }
 extern "C" __declspec(dllexport) bool PLUGIN_API InitDll() {
     ensureCore();
