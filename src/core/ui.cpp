@@ -28,6 +28,12 @@ constexpr int kW = 30, kH = 36;               // small transparent window holdin
 const int kLR = 107, kLG = 125, kLB = 134;    // sampled FM8 logo blue-grey (the "+" colour)
 const int kSR = 214, kSG = 235, kSB = 248;    // shimmer highlight colour
 constexpr int kTimerGlue = 1, kTimerShine = 2;
+// Overlay origin in FM8's client area, shared by every host so the "+" lands on the same pixels
+// beside the logo in the standalone and the plug-in editors (measured with tools/vsteditor.py).
+constexpr int kPlusX = 101, kPlusY = 31;
+
+// Screen position of the overlay for a top-level FM8 window (the standalone's floating button).
+POINT plusOrigin(HWND fm8) { POINT p{kPlusX, kPlusY}; ClientToScreen(fm8, &p); return p; }
 
 // The "+" is drawn directly as a slanted cross, so FM8.plus carries no font dependency. The shape
 // is a plain 12-vertex polygon: two 3px bars spanning ~14.7px, sheared 10 degrees to the right to
@@ -225,8 +231,8 @@ LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             } else if (wp == kTimerGlue && d && d->target) {
                 // Standalone: keep the "+" glued to the right of FM8's logo; close when FM8 goes away.
                 if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
-                RECT r; GetWindowRect(d->target, &r);
-                SetWindowPos(hwnd, HWND_TOPMOST, r.left + 109, r.top + 82, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+                const POINT p = plusOrigin(d->target);
+                SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
             }
             return 0;
         case WM_NCDESTROY:
@@ -256,7 +262,7 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
     hwnd_ = CreateWindowExW(WS_EX_LAYERED, kClass, L"",
                             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-                            109, 22, kW, kH, parent, nullptr, self, nullptr);   // just after the logo
+                            kPlusX, kPlusY, kW, kH, parent, nullptr, self, nullptr);
     if (hwnd_) {
         SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
         // FM8's own editor child (NIVSTChildWindow, full-size) sits above a newly created sibling
@@ -303,10 +309,10 @@ void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeo
     // FM8 window by a timer. A child of FM8's own window would be dead here, since this thread has no
     // pump and FM8's GL surface would cover it.
     ensureClass(self);
-    RECT r; GetWindowRect(fm8, &r);
+    const POINT p = plusOrigin(fm8);
     auto* d = new OData{st, fm8};
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
-                            r.left + 109, r.top + 82, kW, kH, nullptr, nullptr, self, nullptr);  // after the logo
+                            p.x, p.y, kW, kH, nullptr, nullptr, self, nullptr);
     if (!hwnd_) { delete d; return; }
     st_ = st;
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);

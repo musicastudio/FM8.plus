@@ -53,6 +53,13 @@ shifted but no "+" in either format. The harness found three separate causes, al
 After the fixes both formats show `FM8plusOverlay > NIVSTChildWindow` at (109,22) right after the
 editor opens, and the screenshot shows the "+" beside the shifted logo with no intervention.
 
+The "+" position itself was then found to differ from the standalone (2026-09-11): the plug-in
+overlay was created at client (109,22) while the EXE's floated at window-rect (109,82), which is
+client (101,31) under the Windows 10 frame, so the plug-in "+" sat 8 px right and 9 px high of the
+EXE's. Both hosts now share one client-relative origin (`kPlusX`/`kPlusY` in `ui.cpp`; the
+standalone glues through `ClientToScreen` instead of the window rect). Harness screenshots put the
+"+" pixel box at (111,41)-(124,54) in VST2, VST3 and the EXE, against logo text rows 35-57.
+
 **GUI analysis and layout tooling** (`docs/gui.md` and its three sub-documents, `tools/fm8gui.py`,
 `tools/frm_grammar.py`, `tools/gen_forms.py`, 2026-09-10). FM8's GUI is 74 `FRM` form resources
 built from 13 NGL control classes; the byte grammar of every class, the picture (PNG/TGA), font
