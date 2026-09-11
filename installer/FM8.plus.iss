@@ -30,8 +30,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 
 [Files]
 ; The FM8+ icon is FM8's own program icon with our "+" overlay, so we must NOT redistribute it.
-; We ship only our overlay and the helper, and composite the icon on this machine at install time
-; from the user's own licensed FM8.exe (see MakeIcon below).
+; We ship only our overlay and the helper. The icon is composited on this machine at install time
+; from the user's own licensed FM8.exe (MakeIcon) and then injected into their installed copy of
+; FM8.plus.exe (EmbedIcon), so the distributed binary stays free of Native Instruments artwork.
 Source: "icon_overlay.ico";      Flags: dontcopy
 Source: "..\tools\make_icon.ps1"; Flags: dontcopy
 ; VST2 wrapper -> the folder that holds the chosen FM8.dll.
@@ -115,9 +116,27 @@ begin
   Exec('powershell.exe', args, '', SW_HIDE, ewWaitUntilTerminated, rc);
 end;
 
+// Inject the composited icon into the INSTALLED launcher so Explorer shows it on the .exe too, not
+// just on the shortcuts. Runs at ssPostInstall, once [Files] has copied FM8.plus.exe into place.
+// The binary we distribute stays icon-free; the artwork only ever exists on the user's machine.
+// Failure is harmless: the shortcuts already point at {app}\FM8.plus.ico.
+procedure EmbedIcon;
+var rc: Integer; args: string;
+begin
+  if not DoExe then exit;
+  if not FileExists(ExpandConstant('{app}\FM8.plus.ico')) then exit;
+  ExtractTemporaryFile('make_icon.ps1');
+  args := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\make_icon.ps1') + '"'
+        + ' -EmbedOnly'
+        + ' -Out "'       + ExpandConstant('{app}\FM8.plus.ico') + '"'
+        + ' -EmbedInto "' + ExtractFileDir(Val(2)) + '\FM8.plus.exe"';
+  Exec('powershell.exe', args, '', SW_HIDE, ewWaitUntilTerminated, rc);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then MakeIcon;
+  if CurStep = ssPostInstall then EmbedIcon;
 end;
 
 procedure InitializeWizard;

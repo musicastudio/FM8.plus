@@ -16,12 +16,14 @@ Binary keys: exe, vst2, vst3. Add -n N to cap rows (default 40), -f to print ful
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sqlite3
 import sys
 from pathlib import Path
 
-ROOT = Path(r"E:\Sync\James Hansen\Projects\Musica.Studio\FM8_DISASM")
+# The Ghidra projects live outside the repo (see README "Layout"). Override with FM8_DISASM.
+ROOT = Path(os.environ.get("FM8_DISASM", Path(__file__).resolve().parents[1].parent / "FM8_DISASM"))
 DBS = {"exe": "FM8_EXE_GHIDRA_ANALYSIS", "vst2": "FM8_VST2_GHIDRA_ANALYSIS", "vst3": "FM8_VST3_GHIDRA_ANALYSIS"}
 
 

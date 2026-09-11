@@ -36,15 +36,16 @@ if (Test-Path $Exe) {
   Copy-To $dll $exeDir "Standalone DLL"
   $target = Join-Path $exeDir "FM8.plus.exe"
 
-  # Build the FM8+ icon here, from this machine's own FM8.exe plus our "+" overlay. FM8's icon is
-  # Native Instruments' artwork, so it is never shipped with FM8.plus; only the overlay is.
+  # Build the FM8+ icon here, from this machine's own FM8.exe plus our "+" overlay, and inject it
+  # into the installed launcher. FM8's icon is Native Instruments' artwork, so it is never shipped
+  # with FM8.plus; only the overlay is, and the composited icon exists only on this machine.
   $icon = Join-Path $exeDir "FM8.plus.ico"
   try {
     & (Join-Path $PSScriptRoot "..\tools\make_icon.ps1") -Fm8Exe $Exe `
-        -Overlay (Join-Path $PSScriptRoot "icon_overlay.ico") -Out $icon | Out-Null
-    Write-Host "[Icon] composited $icon" -ForegroundColor Green
+        -Overlay (Join-Path $PSScriptRoot "icon_overlay.ico") -Out $icon -EmbedInto $target | Out-Null
+    Write-Host "[Icon] composited $icon and embedded it into the launcher" -ForegroundColor Green
   } catch {
-    Write-Host "[Icon] could not composite the FM8+ icon, shortcuts will use the launcher's own: $_" -ForegroundColor Yellow
+    Write-Host "[Icon] could not composite/embed the FM8+ icon, shortcuts will use the launcher's own: $_" -ForegroundColor Yellow
     $icon = $target
   }
   if (-not (Test-Path $icon)) { $icon = $target }

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import sqlite3
 import sys
 import time
@@ -22,8 +23,10 @@ if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-GHIDRA_INSTALL_DIR = r"E:\ghidra_12.1.2_PUBLIC"
-ROOT = Path(r"E:\Sync\James Hansen\Projects\Musica.Studio\FM8_DISASM")
+# Both are overridable by environment variable; the defaults match the README "Layout" (the Ghidra
+# projects and FM8 binaries live in a sibling FM8_DISASM folder, outside this repo).
+GHIDRA_INSTALL_DIR = os.environ.get("GHIDRA_INSTALL_DIR", r"C:\ghidra_12.1.2_PUBLIC")
+ROOT = Path(os.environ.get("FM8_DISASM", Path(__file__).resolve().parents[1].parent / "FM8_DISASM"))
 
 VERSIONS = [
     dict(key="exe", proj_name="FM8_EXE", program="FM8.exe",

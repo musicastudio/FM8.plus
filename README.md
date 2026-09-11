@@ -65,7 +65,7 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
-Outputs in `build\Release`: `FM8.plus.dll` (VST2 wrapper), `FM8.plus.vst3` (VST3 wrapper), and `FM8.plus.exe` (standalone launcher). `installer\FM8.plus.iss` is an Inno Setup script that packages them into the setup installer, and `installer\build_installer.ps1` compiles it. The FM8+ shortcut icon is FM8's own program icon with a "+" added, so it is never shipped here: the installer runs `tools\make_icon.ps1` on your machine to composite it from your own FM8 install and `installer\icon_overlay.ico`, which is the only icon artwork in this repo.
+Outputs in `build\Release`: `FM8.plus.dll` (VST2 wrapper), `FM8.plus.vst3` (VST3 wrapper), and `FM8.plus.exe` (standalone launcher). `installer\FM8.plus.iss` is an Inno Setup script that packages them into the setup installer, and `installer\build_installer.ps1` compiles it. The FM8+ icon is FM8's own program icon with a "+" added, so it is never shipped here: at install time `tools\make_icon.ps1` composites it on your machine from your own FM8 install and `installer\icon_overlay.ico` (the only icon artwork in this repo), then injects it into your installed `FM8.plus.exe` as its icon resource. The binaries we distribute carry no Native Instruments artwork.
 
 ## Layout
 
@@ -78,7 +78,7 @@ FM8.plus/
   src/vst2/         minimal VST 2.4 ABI header
   docs/             design, reverse-engineering notes, hook reference, status
   tools/            pyghidra helpers, the headless VST2/VST3 test hosts, and make_icon.ps1
-  installer/        PowerShell + Inno Setup installers, the overlay and FM8+ icons
+  installer/        PowerShell + Inno Setup installers and the "+" overlay icon
 ../FM8_DISASM/      binaries and Ghidra projects (not in git)
 ```
 
@@ -90,4 +90,4 @@ All four features are verified end to end against the real FM8 with the headless
 
 FM8.plus is released under the GNU General Public License v3.0; see [LICENSE](LICENSE).
 
-It is an independent interoperability add-on for software you already own. It ships no Native Instruments code or artwork, loads your installed FM8 at runtime, and reverses none of its content into the repository; build and use your own copy, and do not redistribute FM8 itself. The FM8+ shortcut icon is composited on your own machine at install time from your own FM8 installation, so no Native Instruments icon is distributed with FM8.plus. The "+" glyph is drawn directly as a slanted cross in our own code, so FM8.plus bundles no third-party font or artwork of any kind.
+It is an independent interoperability add-on for software you already own. Other than a documentation screenshot of FM8 in use, it ships no Native Instruments code or artwork, loads your installed FM8 at runtime, and reverses none of its content into the repository; build and use your own copy, and do not redistribute FM8 itself. The FM8+ shortcut icon is composited on your own machine at install time from your own FM8 installation, so no Native Instruments icon is distributed with FM8.plus. The "+" glyph is drawn directly as a slanted cross in our own code, so FM8.plus bundles no third-party font or artwork of any kind.
