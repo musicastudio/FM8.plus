@@ -31,7 +31,7 @@ Having the Arpeggiator provide MIDI output is one of the most requested features
 Next, an idea I've wanted for a while was using the modwheel (or another midi CC) to rotate the morph control, as the morph tool allows for some incredible texture variations and transitions. This idea was even asked by me on the Native Instruments forums in 2013, where I shared this diagram:
 
 <kbd>
-<img width="465" height="517" alt="FM8_Native_Instruments ModWheel Idea" src="https://github.com/user-attachments/assets/8932e0ba-739a-4813-bd0c-96d18f929c9c" border="2" />
+<img width="465" height="517" alt="FM8_Native_Instruments ModWheel Idea" src="docs/modwheel-idea.png" border="2" />
 </kbd>
 <br /><br />
 
