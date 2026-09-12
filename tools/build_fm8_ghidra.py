@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """Import, auto-analyze, and batch-decompile the FM8 binaries with pyghidra.
 
-Adapted from a prior build script. One JVM per process; run
-with --only to process a single binary so several can run in parallel.
-
     python tools/build_fm8_ghidra.py --dry-run
     python tools/build_fm8_ghidra.py --only exe
 """
