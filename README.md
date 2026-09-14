@@ -7,6 +7,8 @@
 
 An enhancement layer for Native Instruments FM8 v1.4.6 (last release 2022-12-23, Windows x64). It adds new features to the standalone `FM8.exe`, the 64-bit VST2 `FM8.dll`, and `FM8.vst3`
 
+**Discord:** https://discord.gg/MA9UkqrEXr
+
 Release thread on Native Instruments forum: [https://community.native-instruments.com/discussion/51774/fm8-enhancement-project](https://community.native-instruments.com/discussion/51774/fm8-enhancement-project)
 
 ## Features
