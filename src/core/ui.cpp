@@ -32,8 +32,12 @@ constexpr int kTimerGlue = 1, kTimerShine = 2;
 // beside the logo in the standalone and the plug-in editors (measured with tools/vsteditor.py).
 constexpr int kPlusX = 101, kPlusY = 31;
 
+// GUI Scale stretches FM8's whole GUI about the client origin, so every logical coordinate above
+// just multiplies: at 2x the wordmark ends at twice the pixels and so must the "+".
+inline int sc(int v) { return (int)lroundf(v * Core::guiScale()); }
+
 // Screen position of the overlay for a top-level FM8 window (the standalone's floating button).
-POINT plusOrigin(HWND fm8) { POINT p{kPlusX, kPlusY}; ClientToScreen(fm8, &p); return p; }
+POINT plusOrigin(HWND fm8) { POINT p{sc(kPlusX), sc(kPlusY)}; ClientToScreen(fm8, &p); return p; }
 
 // The "+" is drawn directly as a slanted cross, so FM8.plus carries no font dependency. The shape
 // is a plain 12-vertex polygon: two 3px bars spanning ~14.7px, sheared 10 degrees to the right to
@@ -46,8 +50,9 @@ constexpr float kPlusDy    = -1.54f;
 
 // Build the cross outline centred in a w x h window.
 void plusPoints(Gdiplus::PointF out[12], int w, int h) {
-    const float a = kPlusHalf, t = kPlusThick;
-    const float cx = w * 0.5f + kPlusDx, cy = h * 0.5f + kPlusDy;
+    const float k = w / (float)kW;                 // GUI Scale: the window grew, so does the cross
+    const float a = kPlusHalf * k, t = kPlusThick * k;
+    const float cx = w * 0.5f + kPlusDx * k, cy = h * 0.5f + kPlusDy * k;
     const float px[12] = {  a,  t,  t, -t, -t, -a, -a, -t, -t,  t,  t,  a };
     const float py[12] = { -t, -t, -a, -a, -t, -t,  t,  t,  a,  a,  t,  t };
     for (int i = 0; i < 12; ++i)
@@ -71,11 +76,20 @@ enum {
     ID_ARP_INT = 2000, ID_ARP_CLONE, ID_ARP_MIDI,
     ID_TEMPO_OFF = 3000,                                // ID_TEMPO_OFF + mode (0..5)
     ID_GAIN_OFF = 4000,                                 // ID_GAIN_OFF + db (0..10)
+    ID_SCALE_0 = 5000,                                  // ID_SCALE_0 + index into kScales
 };
+
+// GUI Scale steps. 1x is stock FM8 down to the pixel.
+constexpr float kScales[] = {1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f};
+const wchar_t* const kScaleLabels[] = {L"1x (off)", L"1.5x", L"2x", L"2.5x", L"3x", L"3.5x", L"4x"};
+constexpr int kScaleCount = (int)(sizeof kScales / sizeof kScales[0]);
 
 // Per-window data behind GWLP_USERDATA: the instance state, the FM8 window the standalone overlay
 // tracks (null for a plugin child), and the hover/shimmer state.
-struct OData { InstanceState* st; HWND target; bool hovering; float shine; };
+struct OData {
+    InstanceState* st; HWND target; bool hovering; float shine;
+    Overlay::HostResizeFn resize; void* resizeCtx;
+};
 
 // Render the "+" into the layered window with per-pixel alpha (transparent background, so FM8's own
 // toolbar shows through and only the plus is visible), then push it with UpdateLayeredWindow. When
@@ -146,7 +160,66 @@ const wchar_t* ccName(int cc) {
     }
 }
 
-void showMenu(HWND hwnd, InstanceState* st) {
+// Multiply one window's client area by `ratio`, keeping its top-left. A top-level window needs the
+// frame added back; a child's client area is its whole window.
+void rescaleClient(HWND w, float ratio) {
+    RECT c; GetClientRect(w, &c);
+    int nw = (int)lroundf(c.right * ratio), nh = (int)lroundf(c.bottom * ratio);
+    if (nw <= 0 || nh <= 0) return;
+    const LONG_PTR style = GetWindowLongPtrW(w, GWL_STYLE);
+    if (!(style & WS_CHILD)) {
+        RECT r{0, 0, nw, nh};
+        AdjustWindowRectEx(&r, (DWORD)style, GetMenu(w) != nullptr, (DWORD)GetWindowLongPtrW(w, GWL_EXSTYLE));
+        nw = r.right - r.left; nh = r.bottom - r.top;
+    }
+    SetWindowPos(w, nullptr, 0, 0, nw, nh, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+struct RescaleCtx { HWND skip; float ratio; };
+BOOL CALLBACK rescaleSibling(HWND h, LPARAM lp) {
+    auto* c = (RescaleCtx*)lp;
+    if (h != c->skip) rescaleClient(h, c->ratio);   // FM8's editor child; ours is skipped
+    return TRUE;
+}
+
+// Put the "+" back beside the wordmark at the new scale (same logical spot, new pixel size).
+void placeOverlay(HWND hwnd, OData* d) {
+    if (d->target) {
+        const POINT p = plusOrigin(d->target);
+        SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, sc(kW), sc(kH), SWP_NOACTIVATE);
+    } else {
+        SetWindowPos(hwnd, nullptr, sc(kPlusX), sc(kPlusY), sc(kW), sc(kH), SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    renderPlus(hwnd, d);
+}
+
+// GUI Scale change. FM8 itself does the work from here (it sizes every window it creates by the
+// scale, maps the mouse back and stretches the blit); all we have to do is resize the windows that
+// already exist, since nothing re-creates them.
+void applyScale(HWND hwnd, OData* d, float want) {
+    const float old = Core::guiScale();
+    Core::setGuiScale(want);
+    settings::setGuiScale(Core::guiScale());   // persist what the core accepted
+    const float ratio = Core::guiScale() / old;    // re-read: the core clamps to 1..4
+    if (ratio == 1.0f) return;
+
+    if (d->target) {
+        rescaleClient(d->target, ratio);           // standalone: FM8's own window
+    } else if (HWND parent = GetParent(hwnd)) {
+        // Hosted: FM8's editor child is our sibling under the host's window. Resize it, then ask the
+        // host for the new editor size. A host that ignores the request picks the size up the next
+        // time the editor is opened, since the shim answers the editor rect at the current scale.
+        RescaleCtx rc{hwnd, ratio};
+        EnumChildWindows(parent, rescaleSibling, (LPARAM)&rc);
+        RECT c; GetClientRect(parent, &c);
+        if (d->resize)
+            d->resize(d->resizeCtx, (int)lroundf(c.right * ratio), (int)lroundf(c.bottom * ratio));
+    }
+    placeOverlay(hwnd, d);
+}
+
+void showMenu(HWND hwnd, OData* d) {
+    InstanceState* st = d->st;
     HMENU m = CreatePopupMenu();
 
     // (1) Morph Rotate Control: Off, then CC 0..127 (named where known). The current CC is checked.
@@ -181,11 +254,19 @@ void showMenu(HWND hwnd, InstanceState* st) {
     const int8_t db = st->gainDb.load();
     HMENU gain = CreatePopupMenu();
     AppendMenuW(gain, MF_STRING | (db == 0 ? MF_CHECKED : 0), ID_GAIN_OFF, L"Off");
-    for (int d = 1; d <= 10; ++d) {
-        wchar_t label[16]; swprintf(label, 16, L"+%d dB", d);
-        AppendMenuW(gain, MF_STRING | (db == d ? MF_CHECKED : 0), ID_GAIN_OFF + d, label);
+    for (int n = 1; n <= 10; ++n) {
+        wchar_t label[16]; swprintf(label, 16, L"+%d dB", n);
+        AppendMenuW(gain, MF_STRING | (db == n ? MF_CHECKED : 0), ID_GAIN_OFF + n, label);
     }
     AppendMenuW(m, MF_POPUP, (UINT_PTR)gain, L"Increase Gain");
+
+    // (5) GUI Scale.
+    const float gs = Core::guiScale();
+    HMENU scale = CreatePopupMenu();
+    for (int i = 0; i < kScaleCount; ++i)
+        AppendMenuW(scale, MF_STRING | (std::fabs(gs - kScales[i]) < 0.01f ? MF_CHECKED : 0),
+                    ID_SCALE_0 + i, kScaleLabels[i]);
+    AppendMenuW(m, MF_POPUP, (UINT_PTR)scale, L"GUI Scale");
 
     SetForegroundWindow(hwnd);   // required so the popup dismisses correctly for a top-level tool window
     POINT pt; GetCursorPos(&pt);
@@ -201,6 +282,7 @@ void showMenu(HWND hwnd, InstanceState* st) {
     else if (cmd == ID_ARP_MIDI)  { st->arpMode.store((uint8_t)ArpMode::MidiOnly);    st->pendingFlush.store(true); settings::setArpModeDefault(2); }
     else if (cmd >= ID_TEMPO_OFF && cmd <= ID_TEMPO_OFF + 5) st->tempoMode.store((uint8_t)(cmd - ID_TEMPO_OFF));
     else if (cmd >= ID_GAIN_OFF && cmd <= ID_GAIN_OFF + 10)  st->gainDb.store((int8_t)(cmd - ID_GAIN_OFF));
+    else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + kScaleCount) applyScale(hwnd, d, kScales[cmd - ID_SCALE_0]);
 
     DestroyMenu(m);
     InvalidateRect(hwnd, nullptr, FALSE);
@@ -208,10 +290,9 @@ void showMenu(HWND hwnd, InstanceState* st) {
 
 LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     auto* d = (OData*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-    InstanceState* st = d ? d->st : nullptr;
     switch (msg) {
         case WM_LBUTTONUP:
-            if (st) showMenu(hwnd, st);       // the whole small window is the "+" hotspot
+            if (d) showMenu(hwnd, d);         // the whole small window is the "+" hotspot
             return 0;
         case WM_MOUSEMOVE:
             if (d && !d->hovering) {
@@ -231,8 +312,11 @@ LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             } else if (wp == kTimerGlue && d && d->target) {
                 // Standalone: keep the "+" glued to the right of FM8's logo; close when FM8 goes away.
                 if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
+                RECT wr; GetWindowRect(hwnd, &wr);
                 const POINT p = plusOrigin(d->target);
-                SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+                const int w = sc(kW), h = sc(kH);
+                SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, w, h, SWP_NOACTIVATE);
+                if (wr.right - wr.left != w || wr.bottom - wr.top != h) renderPlus(hwnd, d);
             }
             return 0;
         case WM_NCDESTROY:
@@ -259,10 +343,10 @@ void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
     if (hwnd_ || !parent) return;
     st_ = st;
     ensureClass(self);
-    auto* d = new OData{st, nullptr};   // freed in WM_NCDESTROY
+    auto* d = new OData{st, nullptr, false, 0.0f, resize_, resizeCtx_};   // freed in WM_NCDESTROY
     hwnd_ = CreateWindowExW(WS_EX_LAYERED, kClass, L"",
                             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-                            kPlusX, kPlusY, kW, kH, parent, nullptr, self, nullptr);
+                            sc(kPlusX), sc(kPlusY), sc(kW), sc(kH), parent, nullptr, self, nullptr);
     if (hwnd_) {
         SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
         // FM8's own editor child (NIVSTChildWindow, full-size) sits above a newly created sibling
@@ -310,9 +394,9 @@ void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeo
     // pump and FM8's GL surface would cover it.
     ensureClass(self);
     const POINT p = plusOrigin(fm8);
-    auto* d = new OData{st, fm8};
+    auto* d = new OData{st, fm8, false, 0.0f, nullptr, nullptr};
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
-                            p.x, p.y, kW, kH, nullptr, nullptr, self, nullptr);
+                            p.x, p.y, sc(kW), sc(kH), nullptr, nullptr, self, nullptr);
     if (!hwnd_) { delete d; return; }
     st_ = st;
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);

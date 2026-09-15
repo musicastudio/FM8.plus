@@ -109,6 +109,18 @@ void flushExternal(InstanceState& st);
 // Resolve a hook Site to an absolute address in the installed module (for shim-added hooks).
 void* addressOf(const Site& s);
 
+// GUI scale: 1.0 = stock FM8, up to 4.0 = everything four times the size. Drives NI::UIA's own
+// HiDPI path (see kUiaDpiScale in rvas.h), so FM8 itself sizes the window, maps the mouse, scales its
+// dirty rects and stretches the blit; we only supply the number. Safe to call before a window exists.
+void  setGuiScale(float s);
+float guiScale();
+
+// Hosted only: the scale hooks are process-wide, but a DAW can have plain FM8 instances sharing the
+// same module, and those must stay stock. Each shim registers the editor window the host gave it
+// before FM8 builds its own window inside it; only that window tree is scaled. Registering anything
+// turns the gate on, so the standalone (which never does) keeps scaling its whole process.
+void addScaledWindow(void* hwnd);
+
 // Shift FM8's top-left "FM8" wordmark left by `px` pixels: the logo is a PICTURE control whose rect
 // (21,35,116,58) lives in the FRM form resources; we patch its x1/x2 in `module`'s mapped .rsrc so FM8
 // draws it shifted (the form reads the resource when the GUI is built). Must run BEFORE that build:

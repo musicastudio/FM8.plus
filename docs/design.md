@@ -1,8 +1,8 @@
 # FM8.plus design
 
 This is the original design note for the first two features. The shipped version extends it:
-the morph maps any MIDI CC (not just the mod wheel), and two more features were added, Tempo
-Override and Increase Gain. See the README for the current feature set; the mechanisms below still
+the morph maps any MIDI CC (not just the mod wheel), and three more features were added, Tempo
+Override, Increase Gain and GUI Scale. See the README for the current feature set; the mechanisms below still
 describe how the morph and arp paths work.
 
 **Attachment model changed since this note.** The original plan (below) renamed each stock module to
@@ -23,6 +23,7 @@ Features added to Native Instruments FM8 (build 2022-12-23) across the standalon
    and send the arp notes to the plugin MIDI output), MIDI only (send only, FM8 silent).
 3. Tempo Override: scale the host tempo the arp follows (0.25x to 4x, or Custom).
 4. Increase Gain: extra output gain, up to +10 dB.
+5. GUI Scale: 1x to 4x on the whole FM8 GUI, in the standalone and both plug-in formats.
 
 The binaries never receive another update, so every internal function sits at a fixed RVA
 forever. That is what makes an in-process hook layer, rather than a rebuild, the right tool.
@@ -134,6 +135,28 @@ instances, meaning every existing project and every fresh instance, start stock 
 Internal), so a project can never load unexpectedly silent. The probe confirmed stock FM8 tolerates
 the trailer. Standalone state and global knobs (morph radius, start angle) live in the INI. The
 audio thread reads std::atomic mirrors only.
+
+## GUI Scale data path
+
+Nothing is redrawn and no layout is touched. NI::UIA, the Win32 layer under NGL, already converts
+between a logical coordinate space and physical pixels by a per-window DPI scale: it multiplies the
+size of every window it creates, divides incoming mouse coordinates, multiplies the rectangles it
+hands to `InvalidateRect`, and stretches the software DIB onto the window on `WM_PAINT`. FM8 ships
+that code switched off. It never calls `SetProcessDpiAwareness`, so `GetDpiForWindow` always answers
+96, and one gate byte in the NI::UIA app object keeps every call site on the 1.0 branch regardless.
+
+So the feature is three detours and a number (`docs/hooks.md`, "GUI scale"): the app-object getter
+sets the gate byte, the scale getter returns the chosen factor, and the surface-scale getter is held
+at 1 so the DIB stays logical and the `StretchDIBits` at the end of the paint does the enlarging. FM8
+then sizes its own window, hit-tests the mouse and repaints correctly with no further help. What is
+left for FM8.plus is the part FM8 cannot know about: the "+" overlay moves and grows with the scale,
+and a hosted editor has to tell the host its new size, over `effEditGetRect` / `IPlugView::getSize`
+when it opens and `audioMasterSizeWindow` / `IPlugFrame::resizeView` when the scale changes while it
+is open. The standalone resizes FM8's own top-level window itself.
+
+The detours are process-wide, so each plug-in shim registers the editor window the host gave it and
+the scale getter answers 1.0 outside that window tree. A plain FM8 instance sharing the module in the
+same DAW stays exactly stock.
 
 ## Arp MIDI out data path
 

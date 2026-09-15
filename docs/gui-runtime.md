@@ -501,6 +501,12 @@ host/automation. `FM8EditBuffer* = *(fm8obj+0x55d0)` (`FUN_1401029b0`), `fm8obj 
   the surface (`FUN_140795e60`) and repaints everything (`FUN_140759360(mgr, gfx, region,
   3)`); `0xf4243` repaints only the dirty region collected by `FUN_140757bc0`. `wglMakeCurrent`
   exists only in `FUN_140909880`, not on this path; no Direct2D/D3D.
+* HiDPI: the flush takes `surface / surfaceScale * dpiScale` as its destination size, so the two
+  match and the blit is 1:1 in the shipped build. `dpiScale` (`gfx+0x44`) is `GetDpiForWindow/96`
+  (`FUN_140780500`), `surfaceScale` (`gfx+0x40`, window slot 30 `FUN_140781630`) is its `ceil`. Both
+  are gated by one byte, `*(char*)(FUN_140779cc0() + 0x49)`, which FM8 never sets; the same gate
+  guards the window sizing, mouse mapping and invalidation in `NI::UIA::Window`. FM8.plus's GUI Scale
+  drives exactly this layer (docs/hooks.md, "GUI scale").
 * Form draw = Form slot 37 `FUN_140759060(form, GC, Region*, ...)`: slot 54 background, then
   every control in list order (bottom to top) with `+0x95` set whose rect intersects the
   region: clip = region ∩ rect, `ctrl->VT[27](ctrl, GC, &clip)`. Render mode 2 uses the

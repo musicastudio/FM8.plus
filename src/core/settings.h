@@ -15,6 +15,8 @@ int   morphCcDefault();            // -1 = off, else the CC that rotates the mor
 void  setMorphCcDefault(int cc);
 int   arpModeDefault();            // 0 Internal, 1 Clone, 2 MIDI only (standalone + fresh instances)
 void  setArpModeDefault(int m);
+float guiScale();                  // 1.0 = off; 1.5 .. 4.0 scale the whole FM8 GUI
+void  setGuiScale(float s);
 float morphRadius();
 float morphStartDeg();
 std::wstring midiOutDevice();     // standalone only; empty = first device

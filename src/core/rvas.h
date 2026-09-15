@@ -96,6 +96,16 @@ constexpr Site kExePortOpen        = {0x195730, 0, 0}; // bool f(WinMidiPortOutp
 constexpr Site kExeStreamSend      = {0x197030, 0, 0}; // f(WinMidiStreamOutputDevice*, MidiEventArray*)
 constexpr Site kExeDriverEnumerate = {0x19ba70, 0, 0}; // f(WinMidiDriver*)
 
+// ---- GUI scale: NI::UIA's own HiDPI path (docs/gui-runtime.md 4) -----------
+// FM8 already sizes its window, maps mouse coordinates, scales its dirty rects and stretches the
+// final DIB blit by a per-window "DPI scale". Nothing ever turns it on: FM8 never calls
+// SetProcessDpiAwareness, so GetDpiForWindow always answers 96 and one byte in the NI::UIA app
+// object gates the whole path off. Detouring these three makes the scale ours.
+constexpr Site kUiaAppObject = {0x779cc0, 0x731140, 0x741530}; // void* f(void)      app object; byte +0x49 gates HiDPI
+constexpr Site kUiaDpiScale  = {0x780500, 0x737b00, 0x747ef0}; // float f(HWND)      GetDpiForWindow / 96
+constexpr Site kUiaSurfScale = {0x781630, 0x738aa0, 0x748e90}; // float f(Window*)   ceil(dpi scale): DIB supersample factor
+constexpr uint32_t kUiaHiDpiFlag = 0x49;   // byte offset of the gate in the app object
+
 // ---- UI menu (FormMain, all three) -----------------------------------------
 constexpr Site kMenuBuilder        = {0x12e310, 0x11dd00, 0x12a890}; // f(FormMain*)
 constexpr Site kMenuCommandSink    = {0x123960, 0x113240, 0x11fdd0}; // f(FormMain+0x248*, int ctrlId, int notify, EventData*)

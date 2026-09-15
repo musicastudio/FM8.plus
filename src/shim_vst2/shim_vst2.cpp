@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cwctype>
+#include <cmath>
 #include <string>
 #include <vector>
 #include "../vst2/vst2.h"
@@ -47,6 +48,7 @@ struct Record {
     std::string chunkBuf;                 // persists our effGetChunk return (dispatch thread only)
     std::vector<char> drainBuf;           // preallocated VstEvents scratch (audio thread, no alloc)
     VstTimeInfo timeInfo{};               // scaled copy returned to FM8 for Tempo Override
+    ERect editRect{};                     // scaled editor rect returned for GUI Scale
     bool customApplied = false;           // whether we have turned FM8's arp BPM-Sync off for Custom
     ui::Overlay overlay;
 };
@@ -78,6 +80,7 @@ bool ensureCore() {
     if (!g_core) return false;
     settings::load(g_self);
     g_coreHooked = Core::install((void*)g_core, Bin::Vst2);
+    Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
     // Make room for the "+" before the editor form is built: serve the rebuilt header forms, or
     // fall back to patching the wordmark rect in the mapped resource.
     if (g_coreHooked && !Core::serveForms(g_core)) Core::shiftLogoLeft(g_core, 11);
@@ -165,6 +168,11 @@ void __cdecl thunkProcessD(AEffect* eff, double** in, double** out, int32_t fram
     drainToHost(eff, *r);
 }
 
+// GUI Scale, hosted: only the host can resize the editor window it owns.
+void hostResize(void* ctx, int w, int h) {
+    if (g_hostMaster) g_hostMaster((AEffect*)ctx, audioMasterSizeWindow, w, h, nullptr, 0.0f);
+}
+
 intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t val, void* ptr, float opt) {
     Record* r = recFor(eff);
     if (!r) return 0;
@@ -227,8 +235,26 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
             }
             return r->origDispatcher(eff, op, idx, fm8Len, ptr, opt);
         }
+        case effEditGetRect: {
+            // GUI Scale: FM8 answers the stock 1x rect (its own window layer applies the scale only
+            // when it creates a window), so hand the host the scaled one it must make room for.
+            intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);
+            auto** pp = (ERect**)ptr;
+            const float s = Core::guiScale();
+            if (rv && pp && *pp && s != 1.0f) {
+                const ERect e = **pp;
+                r->editRect.top = e.top;
+                r->editRect.left = e.left;
+                r->editRect.bottom = (int16_t)lroundf(e.top + (e.bottom - e.top) * s);
+                r->editRect.right = (int16_t)lroundf(e.left + (e.right - e.left) * s);
+                *pp = &r->editRect;
+            }
+            return rv;
+        }
         case effEditOpen: {
+            Core::addScaledWindow(ptr);   // before FM8 sizes its own child inside the host's window
             intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);   // FM8 creates its child first,
+            r->overlay.setHostResize(&hostResize, eff);                      // GUI Scale asks the host to resize
             r->overlay.attach((HWND)ptr, &r->st, settings::self());          // so ours is newest = top of Z order
             return rv;
         }

@@ -21,10 +21,19 @@ public:
     void attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeoutMs);
     // Optional: list MIDI out devices for the standalone port picker (names via midiOutGetDevCaps).
     void setStandalone(bool v) { standalone_ = v; }
+
+    // GUI Scale: a hosted plug-in cannot resize its own editor, it has to ask the host. The shim
+    // registers the host's way of doing that (VST2 audioMasterSizeWindow, VST3 IPlugFrame::resizeView)
+    // and the menu calls it with the new editor size in pixels. The standalone leaves this unset and
+    // the overlay resizes FM8's own top-level window itself.
+    using HostResizeFn = void (*)(void* ctx, int w, int h);
+    void setHostResize(HostResizeFn fn, void* ctx) { resize_ = fn; resizeCtx_ = ctx; }
 private:
     HWND hwnd_ = nullptr;
     InstanceState* st_ = nullptr;
     bool standalone_ = false;
+    HostResizeFn resize_ = nullptr;
+    void* resizeCtx_ = nullptr;
 };
 
 } // namespace ui

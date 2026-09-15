@@ -93,6 +93,14 @@ VST3 static vtable pointers (.rdata): FM8VST3PlugIn primary `0x180a36800`; IComp
 | PopupMenu::setItemSubmenu | Attaches child menu (item+0x78, submenu+0xd8=owner) | `0x180717380` | `0x14075fe50` | `0x1807277d0` | `bool f(PopupMenu* this, int idx, PopupMenu* submenu)` | high |
 | PopupMenu::setItemCheckState | Writes item+0x70 (1=checked, 2=unchecked box) | `0x180717260` | `0x14075fd30` | `0x1807276b0` | `bool f(PopupMenu* this, int idx, int state)` | high |
 
+### GUI scale (NI::UIA window layer; present in all three)
+
+| Target | Role | VST2 | EXE | VST3 | Signature | Conf |
+|---|---|---|---|---|---|---|
+| UIA app object | Returns the object whose byte +0x49 gates the whole HiDPI path | `0x180731140` | `0x140779cc0` | `0x180741530` | `void* f(void)` | high |
+| Window DPI scale | `GetDpiForWindow(hwnd)/96`, via Shcore | `0x180737b00` | `0x140780500` | `0x180747ef0` | `float f(HWND)` | high |
+| Window surface scale | `ceil(dpi scale)`: the integer factor the DIB is rendered at | `0x180738aa0` | `0x140781630` | `0x180748e90` | `float f(Window*)` | high |
+
 ## 2. Per-target notes
 
 ### Arp emit and the event path
@@ -173,6 +181,31 @@ Inject items: detour `0x18011dd00`, call original, then on `filePopup = *(FormMa
 
 **MenuItem** (~0x80): +0x60 commandId (read by sink), +0x6c isSeparator, +0x70 checkState (0 plain, 1 checked, 2 unchecked box), +0x78 submenu. **PopupMenu** (0x1d8): +0x00 vftable (0x180cbf798), +0xd8 owner form, +0x158/+0x160/+0x168 item vector. Evidence: item ctor `0x18070b560`, builder `0x18011dd00`.
 
+### GUI scale
+
+NI::UIA carries a complete HiDPI layer that FM8 never switches on. `Window::create` (`0x140780ad0`)
+multiplies the requested size by the window's DPI scale before `CreateWindowExW`; `Window::setSize`
+(`0x1407844f0`) does the same before `SetWindowPos`; `WM_GETMINMAXINFO` (`0x140785850` case 0x24)
+scales the track sizes; the window procedure (`0x1407863a0`) divides incoming mouse coordinates by it
+for both `WM_MOUSEMOVE` and every button message; `Window::getSize` (`0x140781cb0`) and
+`Window::invalidateRect` (`0x140782ab0`) convert the other way; and the `WM_PAINT` flush
+(`0x14077e1b0`) stretches the DIB from `surface / surfaceScale * dpiScale`, falling back to a 1:1
+`SetDIBitsToDevice` when those cancel. Every one of those sites reads the same gate byte first:
+`*(char*)(appObject + 0x49)`, where `appObject = *(void**)(AppModule + 0x10) - 8`.
+
+FM8 leaves the gate at zero and never calls `SetProcessDpiAwareness`, so the scale is always 1.0 and
+the whole layer is dead code in the shipped build. FM8.plus detours the three functions above: the app
+object getter sets the gate byte on the way out (every reader calls it immediately before reading the
+byte, so there is no startup ordering to get right), the DPI scale returns the chosen GUI Scale, and
+the surface scale is held at 1 so the DIB stays at logical size and the `StretchDIBits` in the flush
+does all the work. FM8 has no high-resolution artwork to supersample from, so the stock `ceil()`
+factor would only enlarge the surface without enlarging what is drawn into it.
+
+The detours are process-wide, so `Core::addScaledWindow` records the editor window each FM8+ shim is
+given and the scale getter answers 1.0 for anything outside that window tree, leaving plain FM8
+instances that share the module completely stock. The standalone registers nothing and scales its
+whole process, dialogs included.
+
 ## 3. Open questions and blocked features
 
 1. **VST3 CC1 apply-site (blocks VST3 mod-wheel-to-morph).** VST3 host remaps CC1/ch0 to param id 0x6d69646b, so `0x1800f3720` never sees a raw CC1. The parameter apply-path for 0x6d69646b in FM8.vst3 was not traced. Needed before CC1-to-morph works under a VST3 host.
@@ -225,4 +258,13 @@ python tools/q.py exe fn 0x14019ba70       # device enumerate (midiOutGetNumDevs
 # UI menu (all three)
 python tools/q.py vst2 fn 0x18011dd00      # menu builder
 python tools/q.py vst2 fn 0x180113240      # command sink (controlId 0x18)
+
+# GUI scale (all three)
+python tools/q.py exe fn 0x140779cc0       # app object getter (gate byte at +0x49)
+python tools/q.py exe fn 0x140780500       # GetDpiForWindow / 96
+python tools/q.py exe fn 0x140781630       # ceil(scale): the DIB supersample factor
+python tools/q.py exe fn 0x1407856a0       # WM_PAINT: writes gfx+0x40 and gfx+0x44
+python tools/q.py exe fn 0x14077e1b0       # flush: SetDIBitsToDevice 1:1 vs StretchDIBits
+python tools/q.py exe fn 0x1407863a0       # window proc: mouse coordinates divided by the scale
+python tools/q.py exe fn 0x1407844f0       # Window::setSize: logical size x scale -> SetWindowPos
 ```

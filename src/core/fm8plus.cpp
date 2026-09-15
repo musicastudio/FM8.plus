@@ -122,7 +122,82 @@ void __fastcall detourMidiHandler(void* fm8midi, void* ev, int flag) {
         st->morphPending.store(d2, std::memory_order_relaxed);
     o_midiHnd(fm8midi, ev, flag);
 }
+
+// ---- GUI scale -------------------------------------------------------------
+// FM8 carries a complete HiDPI layer it never switches on: NI::UIA sizes every window it creates by
+// a per-window scale, divides incoming mouse coordinates by it, multiplies the dirty rects it sends
+// to InvalidateRect, and stretches the final DIB blit to match. The scale is GetDpiForWindow/96, so
+// it is always 1 (FM8 never calls SetProcessDpiAwareness), and one byte in the NI::UIA app object
+// gates the lot off anyway. These three detours supply our own number instead.
+std::atomic<float> g_guiScale{1.0f};
+bool g_guiHooked = false;
+
+using AppObjFn   = void* (*)();
+using DpiScaleFn = float (*)(void*);
+AppObjFn   o_appObj    = nullptr;
+DpiScaleFn o_dpiScale  = nullptr;
+DpiScaleFn o_surfScale = nullptr;
+
+// Every site that reads the HiDPI gate calls this getter immediately before it, so setting the byte
+// here turns the path on wherever it is used, as soon as the object exists. No startup ordering.
+void* detourAppObject() {
+    void* o = o_appObj();
+    if (o && g_guiScale.load(std::memory_order_relaxed) != 1.0f)
+        *((uint8_t*)o + kUiaHiDpiFlag) = 1;
+    return o;
+}
+
+// Editor windows belonging to FM8+ instances (see addScaledWindow). Dead entries are recycled, so
+// no teardown bookkeeping is needed. UI thread only.
+HWND g_scaled[32] = {};
+bool g_gateWindows = false;
+
+bool ownsWindow(HWND h) {
+    if (!g_gateWindows) return true;                  // standalone: the whole process is ours
+    for (; h; h = GetParent(h))
+        for (HWND w : g_scaled) if (w == h) return true;
+    return false;
+}
+
+// The scale itself. Deliberately ignores the window's real DPI: at 1x FM8 must look exactly as it
+// does today, including on a HiDPI monitor where its artwork has always been rendered 1:1.
+float scaleFor(HWND h) {
+    const float s = g_guiScale.load(std::memory_order_relaxed);
+    return (s == 1.0f || ownsWindow(h)) ? s : 1.0f;
+}
+float detourDpiScale(void* hwnd) { return scaleFor((HWND)hwnd); }
+
+// Stock this returns ceil(scale): NI::UIA renders the DIB at an integer supersample and lets the
+// blit fit it to the exact window. FM8 has no high-resolution artwork to supersample from, so hold
+// it at 1, keeping the surface at logical size and leaving all the scaling to the StretchDIBits.
+float detourSurfScale(void*) { return 1.0f; }
+
+// ponytail: best effort. A failure here costs the scale menu, not the arp and morph features.
+void installGuiScale() {
+    auto mk = [](const Site& site, void* det, void** orig) {
+        void* t = addr(site);
+        return MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;
+    };
+    g_guiHooked = mk(kUiaAppObject, (void*)&detourAppObject,  (void**)&o_appObj)
+               && mk(kUiaDpiScale,  (void*)&detourDpiScale,   (void**)&o_dpiScale)
+               && mk(kUiaSurfScale, (void*)&detourSurfScale,  (void**)&o_surfScale);
+}
 } // namespace
+
+void setGuiScale(float s) {
+    if (!(s >= 1.0f)) s = 1.0f;          // also catches NaN
+    if (s > 4.0f) s = 4.0f;
+    g_guiScale.store(g_guiHooked ? s : 1.0f, std::memory_order_relaxed);
+}
+float guiScale() { return g_guiScale.load(std::memory_order_relaxed); }
+
+void addScaledWindow(void* hwnd) {
+    auto h = (HWND)hwnd;
+    if (!h) return;
+    g_gateWindows = true;
+    for (HWND w : g_scaled) if (w == h) return;
+    for (HWND& w : g_scaled) if (!w || !IsWindow(w)) { w = h; return; }
+}
 
 bool validateBuild(void* base) {
     auto* dos = (IMAGE_DOS_HEADER*)base;
@@ -146,6 +221,7 @@ bool install(void* base, Bin which) {
     if (MH_CreateHook(pMidi,   (void*)&detourMidiHandler, (void**)&o_midiHnd) != MH_OK) return false;
     if (MH_EnableHook(pArpRun) != MH_OK) return false;
     if (MH_EnableHook(pMidi)   != MH_OK) return false;
+    installGuiScale();
 
     g_installed = true;
     return true;

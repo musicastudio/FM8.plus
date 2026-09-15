@@ -17,10 +17,11 @@ Release thread on Native Instruments forum: [https://community.native-instrument
 2. **Arpeggiator MIDI out.** Three modes for the built-in arpeggiator: **Internal** (stock, nothing leaves), **Clone to MIDI** (FM8 plays the arp and the arp notes are sent to the plugin MIDI output), and **MIDI only** (the arp notes are sent out and FM8's own voices stay silent, so one FM8 can drive another instrument).
 3. **Tempo Override.** Unshackle the arp from the DAW tempo: Off, 0.25x, 0.5x, 2x, 4x of host tempo, or Custom (frees FM8's own arp Tempo control). VST2 scales the host time FM8 reads; VST3 scales the process context.
 4. **Increase Gain.** Push the output beyond the normal level: Off, +1 dB up to +10 dB, applied post-fader on the plugin output.
+5. **GUI Scale.** Make the whole FM8 interface bigger: 1x (off), 1.5x, 2x, 2.5x, 3x, 3.5x or 4x. Everything scales together, the window, the mouse and the `+`, in the standalone and in both plug-in formats. The setting is remembered and applies to every FM8+ window.
 
 **To access these features, click the `+` next to FM8 to open the menu.**
 
-Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
+Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults and the GUI scale live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
 
 ## Install
 
@@ -43,7 +44,7 @@ More ideas came from the internet, with [this reddit wishlist by Manifold_dnb](h
 
 **Can modern AI tooling allow us to make these "dreams" a reality?**
 
-Using Claude Fable 5.1, The three modules (the standalone `FM8.exe`, the VST2 `FM8.dll`, and `FM8.vst3`) were disassembled with [Ghidra](https://ghidra-sre.org/), and the decompiled C was read function by function to locate the internal machinery each feature had to reach, namely the arpeggiator dispatch, the MIDI event handler, the internal Morph X/Y setter, and the form resource that holds the FM8 logo.
+Using Claude Fable 5.1, The three modules (the standalone `FM8.exe`, the VST2 `FM8.dll`, and `FM8.vst3`) were disassembled with [Ghidra](https://ghidra-sre.org/), and the decompiled C was read function by function to locate the internal machinery each feature had to reach, namely the arpeggiator dispatch, the MIDI event handler, the internal Morph X/Y setter, the form resource that holds the FM8 logo, and the dormant HiDPI layer that GUI Scale switches back on.
 
 Claude worked through Ghidra's decompiler output, proposed and adversarially checked where each hook belonged, and confirmed the target functions are byte-identical across all three binaries so one set of detours works in every host. From there it wrote the hook code, the per-host proxies, and the headless test hosts that verify each feature against the real FM8, and the whole thing was built and checked with the model in the loop end to end. The reverse-engineering notes and the exact hook addresses are in [docs/hooks.md](docs/hooks.md) and [docs/design.md](docs/design.md).
 
@@ -54,6 +55,8 @@ As of September 2026, frontier LLMs can read disassembled code at a level close 
 ## How it works
 
 FM8.plus is a distinct plug-in that loads the real FM8 in place, never touching it on disk. The VST2 `FM8.plus.dll` and VST3 `FM8.plus.vst3` install beside stock FM8 and load it from the same folder, then present themselves to the host as "FM8+" with their own plug-in IDs, so they coexist with plain FM8: existing projects keep loading stock FM8, and you reach for FM8+ where you want the features. Because they share FM8's own module in memory, the feature hooks are gated to FM8+ instances only, leaving plain FM8 completely stock. The standalone `FM8.plus.exe` launcher starts the untouched `FM8.exe` and injects the same code at startup, so plain `FM8.exe` also stays plain. This is why a Native Access repair or update never breaks FM8.plus: our files are only ever added alongside FM8, never in place of it.
+
+GUI Scale needed no drawing code at all. NI::UIA, the Win32 layer under FM8's toolkit, already converts between a logical coordinate space and physical pixels by a per-window DPI scale: it sizes the windows it creates by it, divides incoming mouse coordinates by it, scales the rectangles it sends to `InvalidateRect`, and stretches the software-rendered bitmap onto the window. FM8 ships that code switched off, since it never declares itself DPI-aware and a gate byte keeps every call site on the 1.0 branch. FM8.plus flips the gate and supplies its own number, so FM8 does the scaling itself; the wrapper only moves the "+" and tells the host the editor's new size. A plain FM8 instance sharing the module in the same DAW is left at 1x.
 
 The core detours two internal FM8 functions that are byte-identical across all three binaries (the arpeggiator dispatch and the MIDI event handler), captures the arp's generated notes, and sends them out through each host's native path: VST2 `audioMasterProcessEvents`, a VST3 `data.outputEvents` bus that the wrapper adds for its own instances (stock FM8 exposes none), and standalone WinMM `midiOutShortMsg`. The selected morph CC is captured the same way and drives FM8's own internal Morph X/Y setter, tempo is rescaled in the host time FM8 reads, and extra gain is applied to the rendered output buffers. The "FM8" wordmark is a PICTURE control in FM8's form resources, so room for the "+" is made by patching that control's rectangle 11px left in memory before the GUI is built. Hook addresses are in [docs/hooks.md](docs/hooks.md) and [src/core/rvas.h](src/core/rvas.h); the design rationale is in [docs/design.md](docs/design.md).
 
@@ -88,7 +91,7 @@ FM8.plus/
 
 ## Status
 
-All four features are verified end to end against the real FM8 with the headless host in `tools/vst2host.py`, running the FM8+ VST2 wrapper as it ships (arp MIDI out in every mode, morph on an arbitrary CC with the CC blocked from FM8, tempo scaling, and gain), and the VST2 wrapper reports its own distinct identity. The VST3 wrapper is verified headless too: it presents FM8+ and FM8 FX+ as distinct plug-ins and adds the "FM8+ Arp Out" event bus only to its own instances. The standalone launcher is verified to start FM8 and inject the features. A full audio-path pass inside a DAW is the remaining check; see [docs/status.md](docs/status.md).
+All five features are verified end to end against the real FM8 with the headless host in `tools/vst2host.py`, running the FM8+ VST2 wrapper as it ships (arp MIDI out in every mode, morph on an arbitrary CC with the CC blocked from FM8, tempo scaling, and gain), and the VST2 wrapper reports its own distinct identity. The VST3 wrapper is verified headless too: it presents FM8+ and FM8 FX+ as distinct plug-ins and adds the "FM8+ Arp Out" event bus only to its own instances. The standalone launcher is verified to start FM8 and inject the features. GUI Scale is verified in a real window in all three modes: the editor and the standalone render at 1.5x, 2x and 4x, clicks land on the control under the pointer, and changing the scale from the menu resizes a live editor. A full audio-path pass inside a DAW is the remaining check; see [docs/status.md](docs/status.md).
 
 ## Licence
 

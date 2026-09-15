@@ -80,6 +80,20 @@ Confirmed on a real run: FM8.exe starts, our DLL is loaded into it, and the atta
 the same overlay proven in the earlier `version.dll` build (logo shift + the drawn **FM8+** "+"
 and the four-submenu menu). Plain `FM8.exe`, launched normally, is untouched.
 
+**GUI Scale, in a real window** (`tools/vsteditor.py`, 2026-09-15). The feature drives NI::UIA's own
+HiDPI layer, which FM8 ships switched off (see `docs/hooks.md`, "GUI scale"). Verified against the
+installed FM8 with the shims as they ship:
+
+| Check | Result |
+|-------|--------|
+| VST2 editor at 1.5x / 2x / 4x | pass (`effEditGetRect` 1422x843 / 1896x1124 / 3792x2248, FM8's child window and the whole GUI match) |
+| VST3 editor at 2x | pass (`IPlugView::getSize` 1896x1124, same render) |
+| Standalone at 2x | pass (window 1912x1183 from startup, scaled before FM8 creates it; keyboard strip and all pages render) |
+| Mouse lands on the control under the pointer at 2x | pass (clicks at `logical x 2` switch the Navigator page they name; at 1:1 those points are in the keyboard strip) |
+| Scale changed from the menu while the editor is open | pass (FM8's child 948x562 -> 2370x1405, overlay 30x36 -> 75x90, host told the new rect, full repaint, INI updated) |
+| The "+" tracks the scale | pass (client (101,31) 30x36 -> (202,62) 60x72 at 2x, cross geometry scales with it) |
+| VST2 feature regression at 1x | pass (arp, morph, tempo and gain numbers unchanged) |
+
 **Installer**: `installer\FM8.plus.iss` (Inno Setup) and `install.ps1` / `uninstall.ps1` install
 FM8.plus as its own files beside stock FM8 (`FM8.plus.dll` in the VST2 folder, `FM8.plus.vst3` in the
 VST3 folder, `FM8.plus.exe` + `FM8.plus.dll` beside `FM8.exe`) plus desktop and Start Menu shortcuts.
@@ -102,6 +116,10 @@ ships. Nothing Native Instruments produced is redistributed in the repo, the bin
   port and the actual audio still need a listening test with a MIDI monitor.
 - **VST2 host coverage.** Plugin-to-host MIDI is not routed by every host; where a host drops it,
   Clone/MIDI-only produce nothing downstream (the mode is labelled honestly).
+- **GUI Scale live resize in a DAW.** Changing the scale while the editor is open asks the host to
+  resize it (`audioMasterSizeWindow` / `IPlugFrame::resizeView`); a host that declines leaves its own
+  window at the old size until the editor is reopened, which always picks the new scale up. Which
+  hosts decline is untested.
 
 ## Known limitations / follow-ups
 

@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <atomic>
 #include <cstring>
+#include <cmath>
 #include "../core/fm8plus.h"
 #include "../core/settings.h"
 #include "../core/ui.h"
@@ -22,6 +23,7 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "pluginterfaces/gui/iplugview.h"
 
 using namespace fm8plus;
 namespace S = Steinberg;
@@ -271,9 +273,13 @@ S::tresult h_process(void* self, V::ProcessData& data) {
 using CreateViewFn = void*     (PLUGIN_API*)(void* self, S::FIDString name);
 using AttachedFn   = S::tresult (PLUGIN_API*)(void* self, void* parent, S::FIDString type);
 using RemovedFn    = S::tresult (PLUGIN_API*)(void* self);
+using GetSizeFn    = S::tresult (PLUGIN_API*)(void* self, S::ViewRect* size);
+using SetFrameFn   = S::tresult (PLUGIN_API*)(void* self, void* frame);
 CreateViewFn o_createView = nullptr;
 AttachedFn   o_attached   = nullptr;
 RemovedFn    o_removed    = nullptr;
+GetSizeFn    o_getSize    = nullptr;
+SetFrameFn   o_setFrame   = nullptr;
 
 inline void* vslot(void* obj, int i) { return (*(void***)obj)[i]; }
 bool hookSlot(void* obj, int slot, void* det, void** orig) {   // idempotent per target address
@@ -282,10 +288,51 @@ bool hookSlot(void* obj, int slot, void* det, void** orig) {   // idempotent per
     return MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;
 }
 
+// GUI Scale. FM8 answers the stock 1x rect (it applies the scale only when it creates a window),
+// so the host is told the scaled size it has to make room for.
+S::tresult PLUGIN_API h_getSize(void* self, S::ViewRect* size) {
+    S::tresult rv = o_getSize(self, size);
+    // MinHook patches the shared vtable entry, so gate on the registry: a plain FM8 view is not
+    // scaled and must keep reporting the stock rect.
+    const float s = recFor(self) ? Core::guiScale() : 1.0f;
+    if (rv == S::kResultOk && size && s != 1.0f) {
+        size->right = size->left + (S::int32)lroundf((size->right - size->left) * s);
+        size->bottom = size->top + (S::int32)lroundf((size->bottom - size->top) * s);
+    }
+    return rv;
+}
+
+// The host hands the view its IPlugFrame here; slot 3 of that is resizeView, the only way a VST3
+// plug-in can change its own editor size. Kept per view so a GUI Scale change reaches the host.
+struct ViewFrame { void* view; void* frame; };
+ViewFrame g_frames[64];
+S::tresult PLUGIN_API h_setFrame(void* self, void* frame) {
+    ViewFrame* slot = nullptr;
+    for (auto& f : g_frames) {
+        if (f.view == self) { slot = &f; break; }
+        if (!slot && !f.view) slot = &f;
+    }
+    if (slot) { slot->view = frame ? self : nullptr; slot->frame = frame; }   // null frame releases the slot
+    return o_setFrame(self, frame);
+}
+void hostResize(void* ctx, int w, int h) {
+    using ResizeViewFn = S::tresult (PLUGIN_API*)(void* self, void* view, S::ViewRect* r);
+    for (auto& f : g_frames) {
+        if (f.view != ctx || !f.frame) continue;
+        S::ViewRect r{0, 0, w, h};
+        ((ResizeViewFn)(*(void***)f.frame)[3])(f.frame, ctx, &r);
+        return;
+    }
+}
+
 S::tresult PLUGIN_API h_attached(void* self, void* parent, S::FIDString type) {
+    if (recFor(self)) Core::addScaledWindow(parent);   // before FM8 sizes its own child inside it
     S::tresult rv = o_attached(self, parent, type);   // FM8 creates its child first, so ours lands on top
     Rec* r = recFor(self);
-    if (r && rv == S::kResultOk) r->primary->overlay.attach((HWND)parent, &r->primary->st, g_self);
+    if (r && rv == S::kResultOk) {
+        r->primary->overlay.setHostResize(&hostResize, self);   // GUI Scale: ask the host to resize
+        r->primary->overlay.attach((HWND)parent, &r->primary->st, g_self);
+    }
     return rv;
 }
 S::tresult PLUGIN_API h_removed(void* self) {
@@ -302,6 +349,8 @@ void* PLUGIN_API h_createView(void* self, S::FIDString name) {
         registerOurs(view, r->primary);
         hookSlot(view, 4, (void*)&h_attached, (void**)&o_attached);
         hookSlot(view, 5, (void*)&h_removed,  (void**)&o_removed);
+        hookSlot(view, 9, (void*)&h_getSize,  (void**)&o_getSize);    // IPlugView::getSize
+        hookSlot(view, 12, (void*)&h_setFrame, (void**)&o_setFrame);  // IPlugView::setFrame
     }
     return view;
 }
@@ -312,6 +361,7 @@ bool ensureCore() {
     if (!g_core) return false;
     settings::load(g_self);
     if (!Core::install((void*)g_core, Bin::Vst3)) return false;
+    Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
     if (!Core::serveForms(g_core)) Core::shiftLogoLeft(g_core, 11);
     auto mk = [](const Site& s, void* det, void** orig) {
         void* t = Core::addressOf(s);

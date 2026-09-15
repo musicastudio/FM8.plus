@@ -9,6 +9,7 @@ HMODULE g_self = nullptr;
 std::wstring g_iniPath;
 int   g_morphCc = -1;
 int   g_arpMode = 0;
+float g_scale = 1.0f;
 float g_radius = 0.5f;
 float g_startDeg = -90.0f;
 std::wstring g_midiOut;
@@ -33,6 +34,8 @@ void load(HMODULE self) {
     g_arpMode = (int)GetPrivateProfileIntW(s, L"arp_mode", 0, p);
     if (g_arpMode < 0 || g_arpMode > 2) g_arpMode = 0;
     wchar_t buf[64];
+    GetPrivateProfileStringW(s, L"gui_scale", L"1", buf, 64, p);        g_scale = (float)_wtof(buf);
+    if (!(g_scale >= 1.0f) || g_scale > 4.0f) g_scale = 1.0f;
     GetPrivateProfileStringW(s, L"morph_radius", L"0.5", buf, 64, p);   g_radius = (float)_wtof(buf);
     GetPrivateProfileStringW(s, L"morph_start_deg", L"-90", buf, 64, p); g_startDeg = (float)_wtof(buf);
     wchar_t dev[256];
@@ -45,6 +48,7 @@ void save() {
     wchar_t cc[8]; swprintf(cc, 8, L"%d", g_morphCc); WritePrivateProfileStringW(s, L"morph_cc", cc, p);
     wchar_t mb[8]; swprintf(mb, 8, L"%d", g_arpMode); WritePrivateProfileStringW(s, L"arp_mode", mb, p);
     wchar_t buf[64];
+    swprintf(buf, 64, L"%.2f", g_scale);    WritePrivateProfileStringW(s, L"gui_scale", buf, p);
     swprintf(buf, 64, L"%.4f", g_radius);   WritePrivateProfileStringW(s, L"morph_radius", buf, p);
     swprintf(buf, 64, L"%.1f", g_startDeg); WritePrivateProfileStringW(s, L"morph_start_deg", buf, p);
     WritePrivateProfileStringW(s, L"midi_out_device", g_midiOut.c_str(), p);
@@ -55,6 +59,8 @@ int   morphCcDefault() { return g_morphCc; }
 void  setMorphCcDefault(int cc) { g_morphCc = (cc < -1 || cc > 127) ? -1 : cc; save(); }
 int   arpModeDefault() { return g_arpMode; }
 void  setArpModeDefault(int m) { g_arpMode = (m < 0 || m > 2) ? 0 : m; save(); }
+float guiScale() { return g_scale; }
+void  setGuiScale(float v) { g_scale = (!(v >= 1.0f) || v > 4.0f) ? 1.0f : v; save(); }
 float morphRadius() { return g_radius; }
 float morphStartDeg() { return g_startDeg; }
 std::wstring midiOutDevice() { return g_midiOut; }
