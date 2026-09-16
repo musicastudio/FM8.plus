@@ -1,7 +1,7 @@
 // FM8.plus VST3 wrapper. Ships as its own plug-in FM8.plus.vst3 beside the UNTOUCHED stock FM8.vst3
-// (Common Files\VST3). It loads the real FM8.vst3 in place and exposes a DISTINCT plug-in "FM8+"
+// (Common Files\VST3). It loads the real FM8.vst3 in place and exposes a DISTINCT plug-in "FM8.plus"
 // (its own class UID) by wrapping FM8's factory. Only instances created through our factory get the
-// features: an event OUTPUT bus ("FM8+ Arp Out") FM8 does not have, arp-note draining into
+// features: an event OUTPUT bus ("FM8.plus Arp Out") FM8 does not have, arp-note draining into
 // data.outputEvents, morph on the selected CC, tempo override, and extra gain. Plain FM8 VST3
 // instances share the same module but are left completely stock (hooks are gated to our instances).
 //
@@ -79,14 +79,22 @@ const char* realForOurs(const char* ours) {
     for (int i = 0; i < g_ncid; ++i) if (tuidEq(g_cidmap[i].ours, ours)) return g_cidmap[i].real;
     return nullptr;
 }
-// Append '+' to a class name ("FM8" -> "FM8+", "FM8 FX" -> "FM8 FX+").
-void appendPlus8(char* name, size_t cap) {
+// Our suffix on a class name ("FM8" -> "FM8.plus", "FM8 FX" -> "FM8 FX.plus") and the credit we
+// answer instead of FM8's own: FM8 is Native Instruments' synth, FM8.plus is the layer around it.
+const char kPlusSuffix[] = ".plus";
+const char kFm8PlusVendor[] = "Native Instruments GmbH / musica.studio";
+
+template <typename C>
+void appendSuffix(C* name, size_t cap) {
     size_t L = 0; while (L < cap && name[L]) ++L;
-    if (L + 1 < cap) { name[L] = '+'; name[L + 1] = 0; }
+    for (const char* p = kPlusSuffix; *p && L + 1 < cap; ++p) name[L++] = (C)*p;
+    if (L < cap) name[L] = 0;
 }
-void appendPlus16(S::char16* name, size_t cap) {
-    size_t L = 0; while (L < cap && name[L]) ++L;
-    if (L + 1 < cap) { name[L] = (S::char16)'+'; name[L + 1] = 0; }
+template <typename C>
+void setVendor(C* dst, size_t cap) {
+    size_t i = 0;
+    for (const char* p = kFm8PlusVendor; *p && i + 1 < cap; ++p) dst[i++] = (C)*p;
+    if (i < cap) dst[i] = 0;
 }
 
 std::wstring selfDir() {
@@ -162,7 +170,7 @@ S::tresult h_getBusInfo(void* self, V::MediaType type, V::BusDirection dir, S::i
             bus.channelCount = 16;
             bus.busType = V::kMain;
             bus.flags = V::BusInfo::kDefaultActive;
-            const wchar_t* nm = L"FM8+ Arp Out";
+            const wchar_t* nm = L"FM8.plus Arp Out";
             for (int i = 0; i < 12; ++i) bus.name[i] = (S::char16)nm[i];
             return S::kResultTrue;
         }
@@ -420,7 +428,7 @@ bool ensureCore() {
     return g_hooked;
 }
 
-// --- factory wrapper: presents a distinct plug-in identity ("FM8+") over FM8's real factory ------
+// --- factory wrapper: presents a distinct plug-in identity ("FM8.plus") over FM8's real factory ------
 
 class Factory : public S::IPluginFactory3 {
     S::IPluginFactory*  f1_ = nullptr;
@@ -457,13 +465,17 @@ public:
     }
 
     // IPluginFactory
-    S::tresult PLUGIN_API getFactoryInfo(S::PFactoryInfo* info) override { return f1_->getFactoryInfo(info); }
+    S::tresult PLUGIN_API getFactoryInfo(S::PFactoryInfo* info) override {
+        S::tresult r = f1_->getFactoryInfo(info);
+        if (r == S::kResultOk && info) setVendor(info->vendor, sizeof info->vendor);
+        return r;
+    }
     S::int32   PLUGIN_API countClasses() override { return f1_->countClasses(); }
     S::tresult PLUGIN_API getClassInfo(S::int32 i, S::PClassInfo* info) override {
         S::tresult r = f1_->getClassInfo(i, info);
         if (r == S::kResultOk && std::strcmp(info->category, kAudioClassCategory) == 0) {
             if (const char* oc = ourForReal(info->cid)) std::memcpy(info->cid, oc, 16);
-            appendPlus8(info->name, sizeof info->name);
+            appendSuffix(info->name, sizeof info->name);
         }
         return r;
     }
@@ -500,7 +512,8 @@ public:
         S::tresult r = f2_->getClassInfo2(i, info);
         if (r == S::kResultOk && std::strcmp(info->category, kAudioClassCategory) == 0) {
             if (const char* oc = ourForReal(info->cid)) std::memcpy(info->cid, oc, 16);
-            appendPlus8(info->name, sizeof info->name);
+            appendSuffix(info->name, sizeof info->name);
+            setVendor(info->vendor, sizeof info->vendor);
         }
         return r;
     }
@@ -511,7 +524,8 @@ public:
         S::tresult r = f3_->getClassInfoUnicode(i, info);
         if (r == S::kResultOk && std::strcmp(info->category, kAudioClassCategory) == 0) {
             if (const char* oc = ourForReal(info->cid)) std::memcpy(info->cid, oc, 16);
-            appendPlus16(info->name, sizeof(info->name) / sizeof(info->name[0]));
+            appendSuffix(info->name, sizeof(info->name) / sizeof(info->name[0]));
+            setVendor(info->vendor, sizeof(info->vendor) / sizeof(info->vendor[0]));
         }
         return r;
     }

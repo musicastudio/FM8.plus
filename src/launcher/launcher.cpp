@@ -33,7 +33,7 @@ std::wstring findFm8Exe() {
     return L"C:\\Program Files\\Native Instruments\\FM8\\FM8.exe";
 }
 
-void fail(const std::wstring& msg) { MessageBoxW(nullptr, msg.c_str(), L"FM8+", MB_ICONERROR | MB_OK); }
+void fail(const std::wstring& msg) { MessageBoxW(nullptr, msg.c_str(), L"FM8.plus", MB_ICONERROR | MB_OK); }
 
 // Load FM8.plus.dll inside the target: write its path, run LoadLibraryW there, wait, free the page.
 bool inject(HANDLE proc, const std::wstring& dll) {

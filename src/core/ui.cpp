@@ -30,9 +30,10 @@ enum {
 // Where "About FM8.plus" sends the browser.
 const wchar_t* const kProjectUrl = L"https://github.com/musicastudio/FM8.plus";
 
-// GUI Scale steps. 1x is stock FM8 down to the pixel.
-constexpr float kScales[] = {1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f};
-const wchar_t* const kScaleLabels[] = {L"1x (off)", L"1.5x", L"2x", L"2.5x", L"3x", L"3.5x", L"4x"};
+// GUI Scale steps. 1x is stock FM8 down to the pixel; the rest are whole numbers so the blit
+// replicates each pixel exactly instead of interpolating (see Core::setGuiScale).
+constexpr float kScales[] = {1.0f, 2.0f, 3.0f, 4.0f};
+const wchar_t* const kScaleLabels[] = {L"1x (off)", L"2x", L"3x", L"4x"};
 constexpr int kScaleCount = (int)(sizeof kScales / sizeof kScales[0]);
 
 // Per-window data behind the subclass: the instance state, the window FM8 draws the form into
@@ -116,6 +117,10 @@ void applyScale(OData* d, float want) {
 void showMenu(HWND hwnd, OData* d) {
     InstanceState* st = d->st;
     HMENU m = CreatePopupMenu();
+
+    // (0) A greyed title, so the menu says whose it is when it opens over FM8's own GUI.
+    AppendMenuW(m, MF_STRING | MF_GRAYED | MF_DISABLED, 0, L"FM8.plus");
+    AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
 
     // (1) Morph Rotate Control: Off, then CC 0..127 (named where known). The current CC is checked.
     const int16_t curCc = st->morphCc.load();

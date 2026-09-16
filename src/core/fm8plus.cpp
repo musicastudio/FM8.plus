@@ -187,6 +187,17 @@ float detourDpiScale(void* hwnd) { return scaleFor((HWND)hwnd); }
 // it at 1, keeping the surface at logical size and leaving all the scaling to the StretchDIBits.
 float detourSurfScale(void*) { return 1.0f; }
 
+// That StretchDIBits is preceded by FM8's only SetStretchBltMode call, which asks for HALFTONE:
+// GDI then interpolates, and FM8's artwork comes out soft and smeared when it is enlarged. The scale
+// steps are whole numbers, so COLORONCOLOR replicates each pixel exactly and the GUI stays crisp.
+// Swapping the mode in FM8's own GDI32 import is enough; the one call site is that blit.
+using SetStretchBltModeFn = int (WINAPI*)(HDC, int);
+SetStretchBltModeFn o_setStretchMode = nullptr;
+int WINAPI detourSetStretchBltMode(HDC dc, int mode) {
+    if (mode == HALFTONE) mode = COLORONCOLOR;
+    return o_setStretchMode(dc, mode);
+}
+
 // ponytail: best effort. A failure here costs the scale menu, not the arp and morph features.
 void installGuiScale() {
     auto mk = [](const Site& site, void* det, void** orig) {
@@ -196,12 +207,15 @@ void installGuiScale() {
     g_guiHooked = mk(kUiaAppObject, (void*)&detourAppObject,  (void**)&o_appObj)
                && mk(kUiaDpiScale,  (void*)&detourDpiScale,   (void**)&o_dpiScale)
                && mk(kUiaSurfScale, (void*)&detourSurfScale,  (void**)&o_surfScale);
+    o_setStretchMode = (SetStretchBltModeFn)Rsrc::patchImport(
+        (HMODULE)g_base, "GDI32.dll", "SetStretchBltMode", (void*)&detourSetStretchBltMode);
 }
 } // namespace
 
 void setGuiScale(float s) {
     if (!(s >= 1.0f)) s = 1.0f;          // also catches NaN
     if (s > 4.0f) s = 4.0f;
+    s = (float)lroundf(s);               // whole numbers only: a fractional scale cannot blit pixel-exact
     g_guiScale.store(g_guiHooked ? s : 1.0f, std::memory_order_relaxed);
 }
 float guiScale() { return g_guiScale.load(std::memory_order_relaxed); }

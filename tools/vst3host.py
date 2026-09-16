@@ -50,6 +50,17 @@ class PClassInfo(C.Structure):
     _fields_ = [("cid", C.c_ubyte * 16), ("cardinality", C.c_int32), ("category", C.c_char * 32), ("name", C.c_char * 64)]
 
 
+class PClassInfo2(C.Structure):
+    _fields_ = [("cid", C.c_ubyte * 16), ("cardinality", C.c_int32), ("category", C.c_char * 32),
+                ("name", C.c_char * 64), ("classFlags", C.c_uint32), ("subCategories", C.c_char * 128),
+                ("vendor", C.c_char * 64), ("version", C.c_char * 64), ("sdkVersion", C.c_char * 64)]
+
+
+class PFactoryInfo(C.Structure):
+    _fields_ = [("vendor", C.c_char * 64), ("url", C.c_char * 256), ("email", C.c_char * 128),
+                ("flags", C.c_int32)]
+
+
 class BusInfo(C.Structure):
     _fields_ = [("mediaType", C.c_int32), ("direction", C.c_int32), ("channelCount", C.c_int32),
                 ("name", C.c_wchar * 128), ("busType", C.c_int32), ("flags", C.c_uint32)]
@@ -105,13 +116,19 @@ def main():
     lib.GetPluginFactory.restype = VP
     factory = lib.GetPluginFactory()
     host = make_host()
+    fi = PFactoryInfo()
+    if vt(factory, 3, TRESULT, VP)(factory, C.addressof(fi)) == 0:
+        print(f"factory vendor: {fi.vendor.decode()!r} url={fi.url.decode()!r} email={fi.email.decode()!r}")
     n = vt(factory, 4, C.c_int32)(factory)
     print(f"factory classes: {n}")
     comp_cid = None
     for i in range(n):
         ci = PClassInfo()
         vt(factory, 5, TRESULT, C.c_int32, VP)(factory, i, C.addressof(ci))
-        print(f"  [{i}] {ci.category.decode():<24} {ci.name.decode():<32} cid={bytes(ci.cid).hex()}")
+        c2 = PClassInfo2()
+        v = c2.vendor.decode() if vt(factory, 7, TRESULT, C.c_int32, VP)(factory, i, C.addressof(c2)) == 0 else ""
+        print(f"  [{i}] {ci.category.decode():<24} {ci.name.decode():<32} cid={bytes(ci.cid).hex()}"
+              f"{'  vendor=' + repr(v) if v else ''}")
         if ci.category == b"Audio Module Class" and comp_cid is None:
             comp_cid = bytes(ci.cid)
 

@@ -1,6 +1,6 @@
 // FM8.plus VST2 wrapper. Ships as its own plug-in FM8.plus.dll beside the UNTOUCHED stock FM8.dll
 // (same VST2 folder). It loads the real FM8.dll in place, wraps its AEffect dispatcher and
-// processReplacing to add the features, and presents itself as a DISTINCT plug-in "FM8+" with its
+// processReplacing to add the features, and presents itself as a DISTINCT plug-in "FM8.plus" with its
 // own uniqueID. Stock FM8 is never renamed, copied, or modified, so a Native Access reinstall cannot
 // break us; plain FM8 keeps its own AEffect (our pointers are only swapped on our instances).
 //
@@ -30,9 +30,11 @@ AudioMasterCallback g_hostMaster = nullptr;
 bool g_coreHooked = false;
 
 // FM8.plus presents itself as a distinct plug-in so it can coexist with stock FM8. Stock FM8 is
-// uniqueID 'Nif8' (0x4e696638); ours is 'Fm8+'. The display name is answered as "FM8+" below.
+// uniqueID 'Nif8' (0x4e696638); ours is 'Fm8+'. The display name is answered as "FM8.plus" below.
 constexpr int32_t kFm8PlusUniqueId = 0x466D382B;   // 'F','m','8','+'
-const char kFm8PlusName[] = "FM8+";
+const char kFm8PlusName[] = "FM8.plus";
+// FM8 is Native Instruments' synth; FM8.plus is the layer around it, so the credit names both.
+const char kFm8PlusVendor[] = "Native Instruments GmbH / musica.studio";
 
 const char kTrailerMagic[8] = {'F','M','8','P','L','U','S','2'};
 constexpr int kTrailerLen = 14;           // magic(8) + arpMode + tempoMode + gainDb + morphCc(2) + reserved
@@ -273,8 +275,11 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
         case effGetEffectName:
         case effGetProductString:
-            // Report our own name so the host lists us as "FM8+", distinct from stock "FM8".
+            // Report our own name so the host lists us as "FM8.plus", distinct from stock "FM8".
             if (ptr) { std::strncpy((char*)ptr, kFm8PlusName, 31); ((char*)ptr)[31] = 0; return 1; }
+            return 0;
+        case effGetVendorString:
+            if (ptr) { std::strncpy((char*)ptr, kFm8PlusVendor, 63); ((char*)ptr)[63] = 0; return 1; }
             return 0;
         default:
             return r->origDispatcher(eff, op, idx, val, ptr, opt);

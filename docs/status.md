@@ -8,7 +8,7 @@ What is verified, and what still needs a real DAW. Honest accounting, no overcla
 adversarially verified, and cross-ported. Each hooked function resolves at its recorded address with
 a byte-identical size across exe / vst2 / vst3 (see `tools/q.py` and the check in the build history).
 
-**VST2, end to end against the installed FM8** (the FM8+ wrapper loading stock FM8.dll from its own
+**VST2, end to end against the installed FM8** (the FM8.plus wrapper loading stock FM8.dll from its own
 folder, headless host `tools/vst2host.py plus`):
 
 | Check | Result |
@@ -27,16 +27,17 @@ buffer before FM8 read it during processReplacing; FM8 stores the pointer), fixe
 `tools/vst2host.py`. It was never in the shim.
 
 **VST3, headless** (`tools/vst3host.py`): the wrapper loads stock FM8.vst3 in place and wraps its
-factory to present FM8's two audio classes under distinct FM8+ identities, so it coexists with stock
+factory to present FM8's two audio classes under distinct FM8.plus identities, so it coexists with stock
 FM8. Instances created through our factory get the added event-output bus (stock FM8 exposes none);
 plain FM8 instances are left alone.
 
 ```
 factory classes: 2
-  [0] Audio Module Class  FM8+     cid=ce54...6669...   (stock FM8 is 4e54...6669...)
+  [0] Audio Module Class  FM8.plus     cid=ce54...6669...  vendor='Native Instruments GmbH / musica.studio'
+                                        (stock FM8 is 4e54...6669..., vendor 'Native Instruments GmbH')
   [1] Audio Module Class  FM8 FX+  cid=ce54...8669...
 event out: 1 bus(es)
-    [0] 'FM8+ Arp Out' channels=16 busType=0 flags=0x1
+    [0] 'FM8.plus Arp Out' channels=16 busType=0 flags=0x1
 ```
 
 **The "FM8+" button, all three hosts, in a real window** (`tools/vsteditor.py` for the plug-ins, a
@@ -84,7 +85,7 @@ parameter links, software rendering) are documented from the decompilation.
 `FM8.plus.dll` (its `DllMain` detects the FM8.exe host and runs the standalone attach), and resumes.
 Confirmed on a real run: FM8.exe starts, our DLL is loaded into it, and the attach thread runs (the
 `%APPDATA%\FM8.plus` settings dir is created). The attach reuses the same core proven under VST2 and
-the same overlay proven in the earlier `version.dll` build (logo shift + the drawn **FM8+** "+"
+the same button proven in the earlier `version.dll` build (the **FM8+** wordmark
 and the four-submenu menu). Plain `FM8.exe`, launched normally, is untouched.
 
 **GUI Scale, in a real window** (`tools/vsteditor.py`, 2026-09-15). The feature drives NI::UIA's own
@@ -93,12 +94,13 @@ installed FM8 with the shims as they ship:
 
 | Check | Result |
 |-------|--------|
-| VST2 editor at 1.5x / 2x / 4x | pass (`effEditGetRect` 1422x843 / 1896x1124 / 3792x2248, FM8's child window and the whole GUI match) |
+| VST2 editor at 2x / 3x / 4x | pass (`effEditGetRect` 1896x1124 / 2844x1686 / 3792x2248, FM8's child window and the whole GUI match) |
 | VST3 editor at 2x | pass (`IPlugView::getSize` 1896x1124, same render) |
 | Standalone at 2x | pass (window 1912x1183 from startup, scaled before FM8 creates it; keyboard strip and all pages render) |
 | Mouse lands on the control under the pointer at 2x | pass (clicks at `logical x 2` switch the Navigator page they name; at 1:1 those points are in the keyboard strip) |
 | Scale changed from the menu while the editor is open | pass (FM8's child 948x562 -> 2370x1405, host told the new rect, full repaint, INI updated) |
 | The "+" tracks the scale | pass (it is part of the wordmark bitmap, so FM8's own blit scales it; the click rect follows) |
+| Enlarging is pixel-exact, not interpolated | pass (3x standalone: every source pixel is a hard 3x3 block; FM8's `SetStretchBltMode(HALFTONE)` import is answered with `COLORONCOLOR`) |
 | VST2 feature regression at 1x | pass (arp, morph, tempo and gain numbers unchanged) |
 
 **Installer**: `installer\FM8.plus.iss` (Inno Setup) and `install.ps1` / `uninstall.ps1` install
@@ -106,7 +108,7 @@ FM8.plus as its own files beside stock FM8 (`FM8.plus.dll` in the VST2 folder, `
 VST3 folder, `FM8.plus.exe` + `FM8.plus.dll` beside `FM8.exe`) plus desktop and Start Menu shortcuts.
 No stock file is renamed, copied, or modified, so uninstall just removes the added files. The Inno
 installer compiles clean and the PE-timestamp build gate is verified against the installed binaries.
-The FM8+ shortcut icon is FM8's own icon with our "+" over it, so it is composited at install time by
+The FM8.plus shortcut icon is FM8's own icon with our "+" over it, so it is composited at install time by
 `tools\make_icon.ps1` from the user's own FM8.exe; only `installer\icon_overlay.ico` (our artwork)
 ships. Nothing Native Instruments produced is redistributed in the repo, the binaries, or the setup.
 
@@ -130,11 +132,11 @@ ships. Nothing Native Instruments produced is redistributed in the repo, the bin
 
 ## Known limitations / follow-ups
 
-- **Coexistence with plain FM8 in one process.** FM8+ loads the stock FM8 module in place and shares
-  it, so the feature hooks are gated to FM8+ instances (by `Core::current` in VST2, by an instance
+- **Coexistence with plain FM8 in one process.** FM8.plus loads the stock FM8 module in place and
+  shares it, so the feature hooks are gated to our instances (by `Core::current` in VST2, by an instance
   registry in VST3) and plain FM8 stays stock. The one shared side effect is the logo shift: it
   serves the header forms and the wordmark bitmap to the shared module, so a plain FM8 editor opened
-  in the *same* process as an FM8+ instance also shows the "FM8+" wordmark. Its clicks are untouched
+  in the *same* process as an FM8.plus instance also shows the "FM8+" wordmark. Its clicks are untouched
   (no subclass on that window), so the logo still opens FM8's About panel there. Cosmetic, stock file
   untouched, and absent when only one of the two is loaded.
 

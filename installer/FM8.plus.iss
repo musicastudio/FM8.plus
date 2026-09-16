@@ -9,7 +9,7 @@
 ; plus a desktop and Start Menu shortcut to the launcher. No stock file is renamed, copied, or
 ; modified, so a Native Access reinstall cannot break FM8.plus and uninstalling just removes our
 ; files. The wrappers load the real FM8 in place and present themselves as the distinct plug-in
-; "FM8+"; the launcher starts FM8.exe with the standalone features injected.
+; "FM8.plus"; the launcher starts FM8.exe with the standalone features injected.
 
 #ifndef BuildDir
   #define BuildDir "..\build\Release"
@@ -44,7 +44,7 @@ Source: "{#BuildDir}\FM8.plus.exe";  DestDir: "{code:DirExe}"; Flags: ignorevers
 Source: "{#BuildDir}\FM8.plus.dll";  DestDir: "{code:DirExe}"; Flags: ignoreversion; Check: DoExe
 
 [Icons]
-; Start Menu entry next to FM8's own, and a desktop shortcut. Both launch FM8+ and use the icon
+; Start Menu entry next to FM8's own, and a desktop shortcut. Both launch FM8.plus and use the icon
 ; composited on this machine (falling back to the launcher's own if compositing did not run).
 Name: "{commonprograms}\Native Instruments\FM8\FM8 Plus"; Filename: "{code:PathExe}"; WorkingDir: "{code:DirExe}"; IconFilename: "{code:IconPath}"; Comment: "FM8 with the FM8.plus features"; Check: DoExe
 Name: "{autodesktop}\FM8 Plus"; Filename: "{code:PathExe}"; WorkingDir: "{code:DirExe}"; IconFilename: "{code:IconPath}"; Comment: "FM8 with the FM8.plus features"; Check: DoExe

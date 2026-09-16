@@ -67,4 +67,4 @@ if (Test-Path $Exe) {
   }
 } else { Write-Host "[Standalone] FM8.exe not found at $Exe, skipping" -ForegroundColor Yellow }
 
-Write-Host "`nDone. Rescan plugins in your DAW; FM8+ appears alongside FM8. Launch the standalone from the FM8 Plus shortcut." -ForegroundColor White
+Write-Host "`nDone. Rescan plugins in your DAW; FM8.plus appears alongside FM8. Launch the standalone from the FM8 Plus shortcut." -ForegroundColor White

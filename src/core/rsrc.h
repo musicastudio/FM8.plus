@@ -11,6 +11,11 @@
 
 namespace fm8plus::Rsrc {
 
+// Swap one import thunk in `mod`'s OWN import table, by DLL and function name. Returns the original
+// pointer, or null if `mod` does not import that function. This is the mechanism behind everything
+// here: only FM8's calls are redirected, and nothing on disk changes.
+void* patchImport(HMODULE mod, const char* dll, const char* func, void* replacement);
+
 // Hook the import table of `fm8` (FM8.exe / FM8.dll / FM8.vst3, already loaded). Idempotent.
 bool install(HMODULE fm8);
 

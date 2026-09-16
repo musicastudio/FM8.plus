@@ -36,15 +36,16 @@ DWORD   WINAPI h_size(HMODULE mod, HRSRC r) { Entry* e = ours(r); return e ? (DW
 HGLOBAL WINAPI h_load(HMODULE mod, HRSRC r) { return ours(r) ? (HGLOBAL)r : o_load(mod, r); }
 LPVOID  WINAPI h_lock(HGLOBAL g)            { Entry* e = ours(g); return e ? (LPVOID)e->data : o_lock(g); }
 
-// Swap one KERNEL32 import thunk of `mod` by name; returns the original pointer (null if absent).
-void* patchImport(HMODULE mod, const char* func, void* replacement) {
+} // namespace
+
+void* patchImport(HMODULE mod, const char* dll, const char* func, void* replacement) {
     auto* base = (uint8_t*)mod;
     auto* dos = (IMAGE_DOS_HEADER*)base;
     auto* nt = (IMAGE_NT_HEADERS*)(base + dos->e_lfanew);
     const IMAGE_DATA_DIRECTORY& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
     if (!dir.VirtualAddress) return nullptr;
     for (auto* imp = (IMAGE_IMPORT_DESCRIPTOR*)(base + dir.VirtualAddress); imp->Name; ++imp) {
-        if (_stricmp((const char*)(base + imp->Name), "KERNEL32.dll") != 0) continue;
+        if (_stricmp((const char*)(base + imp->Name), dll) != 0) continue;
         auto* names = (IMAGE_THUNK_DATA*)(base + imp->OriginalFirstThunk);
         auto* thunks = (IMAGE_THUNK_DATA*)(base + imp->FirstThunk);
         for (; names->u1.AddressOfData; ++names, ++thunks) {
@@ -60,14 +61,14 @@ void* patchImport(HMODULE mod, const char* func, void* replacement) {
     }
     return nullptr;
 }
-} // namespace
 
 bool install(HMODULE fm8) {
     if (g_fm8) return g_fm8 == fm8;
-    o_find = (FindResourceA_t)patchImport(fm8, "FindResourceA", (void*)&h_find);
-    o_size = (SizeofResource_t)patchImport(fm8, "SizeofResource", (void*)&h_size);
-    o_load = (LoadResource_t)patchImport(fm8, "LoadResource", (void*)&h_load);
-    o_lock = (LockResource_t)patchImport(fm8, "LockResource", (void*)&h_lock);
+    const char* k32 = "KERNEL32.dll";
+    o_find = (FindResourceA_t)patchImport(fm8, k32, "FindResourceA", (void*)&h_find);
+    o_size = (SizeofResource_t)patchImport(fm8, k32, "SizeofResource", (void*)&h_size);
+    o_load = (LoadResource_t)patchImport(fm8, k32, "LoadResource", (void*)&h_load);
+    o_lock = (LockResource_t)patchImport(fm8, k32, "LockResource", (void*)&h_lock);
     if (!o_find || !o_size || !o_load || !o_lock) return false;   // ponytail: partial patch is left as is; FM8 imports all four
     g_fm8 = fm8;
     return true;

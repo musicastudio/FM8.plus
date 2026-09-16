@@ -218,7 +218,9 @@ the surface scale is held at 1 so the DIB stays at logical size and the `Stretch
 does all the work. FM8 has no high-resolution artwork to supersample from, so the stock `ceil()`
 factor would only enlarge the surface without enlarging what is drawn into it.
 
-The detours are process-wide, so `Core::addScaledWindow` records the editor window each FM8+ shim is
+The blit itself is preceded by FM8's only `SetStretchBltMode` call, `SetStretchBltMode(hdc, HALFTONE)`, one call site per binary (`0x14077e1b0` / `0x180735240` / `0x180745630`, the WM_PAINT flush). HALFTONE interpolates, so an enlarged GUI comes out soft; FM8.plus swaps that entry in FM8's own GDI32 import table for one that passes `COLORONCOLOR`, which replicates pixels. At 1x the flush takes the `SetDIBitsToDevice` branch and never calls it, so a stock instance sharing the module is untouched.
+
+The detours are process-wide, so `Core::addScaledWindow` records the editor window each FM8.plus shim is
 given and the scale getter answers 1.0 for anything outside that window tree, leaving plain FM8
 instances that share the module completely stock. The standalone registers nothing and scales its
 whole process, dialogs included.

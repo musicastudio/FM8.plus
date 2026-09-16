@@ -9,7 +9,7 @@ describe how the morph and arp paths work.
 `FM8.plus.core` and dropped a same-named proxy in its place, and sideloaded `version.dll` next to
 `FM8.exe`. The shipped version never touches a stock file: FM8.plus installs as its OWN files
 (`FM8.plus.dll`, `FM8.plus.vst3`, `FM8.plus.exe`) beside FM8, the VST wrappers load the untouched
-stock module in place and present a distinct "FM8+" identity (feature hooks gated to FM8+ instances),
+stock module in place and present a distinct "FM8.plus" identity (feature hooks gated to our instances),
 and the standalone is a launcher that injects `FM8.plus.dll` into `FM8.exe` at startup. This is what
 makes a Native Access reinstall safe; see the README "How it works" and the `fm8plus-vst-reinstall-resilience`
 note. The hook/arp/morph internals below are unchanged.
@@ -110,7 +110,7 @@ Rename the single-file module to `FM8.plus.core`, drop the proxy as `FM8.vst3`. 
 `GetPluginFactory`/`InitDll`/`ExitDll`; class ids, parameters, and the state stream are unchanged,
 so projects load. On the first `createInstance` we patch the returned component's vtable, shared
 across instances so patched once: `getBusCount(kEvent, kOutput)` returns 1, `getBusInfo` describes
-an "FM8+ Arp Out" event bus, `activateBus` records the active flag per component pointer, and
+an "FM8.plus Arp Out" event bus, `activateBus` records the active flag per component pointer, and
 `process` stashes `data` in a thread-local, reads `inputParameterChanges` for param id
 `0x6d69646b` (mod wheel), runs the real process, then drains the ring into `data.outputEvents`. We
 also hook `getState`/`setState` for the trailer and `IPlugView::attached` for the editor HWND.
@@ -118,15 +118,14 @@ Hosts that cache bus layouts need one rescan after install, documented in the in
 
 ## Toggle UI and persistence
 
-**UI.** A small Win32 child control, an "FM8+" button that opens a `TrackPopupMenu` with checkable
-items, parented to the FM8 editor window and created lazily on first editor open, so plugin
-scanners never spawn anything. Items: a checkbox "Mod wheel rotates Morph"; a radio group
-"Arpeggiator MIDI out" with "Internal", "Clone to MIDI", "MIDI only (FM8 silent)"; the standalone
-adds a "MIDI out port" submenu from `midiOutGetDevCaps`. The control is per instance since it is
-tied to one editor. Live feedback is FM8 itself: the morph handle visibly circles the square under
-CC1, and in MIDI-only mode the arp page keeps animating while the routed track makes the sound.
-This avoids reverse-engineering NI's NGL menu API; a native NGL submenu is an optional later
-upgrade.
+**UI.** FM8's own "FM8" wordmark, widened and with a "+" drawn into it, opens a `TrackPopupMenu` of
+checkable items (docs/gui.md 7). The button is a resource FM8 draws, so it needs no window of ours
+over the editor and cannot be covered by anything the host has open; only the click is ours, taken by
+a subclass on the window FM8 draws into and therefore bound to one editor, one instance. Live feedback
+is FM8 itself: the morph handle visibly circles the square under CC1, and in MIDI-only mode the arp
+page keeps animating while the routed track makes the sound. Swallowing the press costs FM8's About
+panel, which the menu gives back by calling FM8's own dialog function. This avoids reverse-engineering
+NI's NGL menu API; a native NGL submenu is an optional later upgrade.
 
 **Persistence.** Per instance inside DAW projects via a 12-byte trailer (`FM8PLUS1`, modwheel u8,
 arpmode u8, reserved u16) appended in the VST2 `effGetChunk` wrapper and the VST3 `getState` hook,
@@ -153,7 +152,9 @@ then sizes its own window, hit-tests the mouse and repaints correctly with no fu
 part FM8 cannot know about: a hosted editor has to tell the host its new size, over
 `effEditGetRect` / `IPlugView::getSize` when it opens and `audioMasterSizeWindow` /
 `IPlugFrame::resizeView` when the scale changes while it is open. The standalone resizes FM8's own
-top-level window itself.
+top-level window itself. The steps are whole numbers because FM8's blit is the only thing enlarging
+the artwork: its one `SetStretchBltMode` asks for `HALFTONE`, which interpolates and softens
+everything, so FM8.plus swaps that import for `COLORONCOLOR` and each pixel is replicated exactly.
 
 The detours are process-wide, so each plug-in shim registers the editor window the host gave it and
 the scale getter answers 1.0 outside that window tree. A plain FM8 instance sharing the module in the

@@ -3,7 +3,7 @@
 
 The forms and artwork are Native Instruments' data, so they are never checked in: this script
 rebuilds them on the developer's machine from their own FM8.exe and the shims serve them through
-FM8's import table (Core::serveForms). Two resources make the "FM8+" button:
+FM8's import table (Core::serveForms). Two kinds of resource make the "FM8+" button:
 
   FRM 5 / FRM 15  the header bars, with the wordmark control moved left and widened to hold the "+"
   PICTURE 193     the wordmark bitmap itself, widened by the same amount with the "+" drawn on
