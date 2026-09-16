@@ -19,7 +19,7 @@ Release thread on Native Instruments forum: [https://community.native-instrument
 4. **Increase Gain.** Push the output beyond the normal level: Off, +1 dB up to +10 dB, applied post-fader on the plugin output.
 5. **GUI Scale.** Make the whole FM8 interface bigger: 1x (off), 2x, 3x or 4x. Whole numbers only, and the enlarging blit replicates pixels instead of interpolating, so the artwork comes out sharp and pixel-exact rather than blurred. Everything scales together, the window, the mouse and the whole interface, in the standalone and in both plug-in formats. The setting is remembered and applies to every FM8.plus window.
 
-**To access these features, click the `FM8+` logo in the top-left corner to open the menu.** The logo is FM8's own wordmark with the `+` drawn into it, so nothing your DAW has open can cover it. FM8's About panel, which the logo normally opens, is the second-to-last item in the menu.
+**To access these features, click the `FM8+` logo in the top-left corner to open the menu.**
 
 Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults and the GUI scale live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
 
