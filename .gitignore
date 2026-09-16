@@ -12,3 +12,4 @@ dist/
 /third_party/pluginterfaces
 installer/Output/
 installer/FM8.plus.ico
+build32/

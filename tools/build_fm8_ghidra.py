@@ -35,6 +35,16 @@ VERSIONS = [
     dict(key="vst2", proj_name="FM8_VST2", program="FM8.dll",
          binary=ROOT / "FM8_VST_64" / "FM8.dll",
          proj=ROOT / "FM8_VST2_GHIDRA_PROJ", analysis=ROOT / "FM8_VST2_GHIDRA_ANALYSIS"),
+    # 1.4.1 (R1599, 2015-10-20), the last release with a 32-bit plugin. No VST3 existed yet.
+    dict(key="exe141", proj_name="FM8_141_EXE", program="FM8.exe",
+         binary=ROOT / "FM8_141_EXE" / "FM8.exe",
+         proj=ROOT / "FM8_141_EXE_GHIDRA_PROJ", analysis=ROOT / "FM8_141_EXE_GHIDRA_ANALYSIS"),
+    dict(key="vst64_141", proj_name="FM8_141_VST_64", program="FM8.dll",
+         binary=ROOT / "FM8_141_VST_64" / "FM8.dll",
+         proj=ROOT / "FM8_141_VST_64_GHIDRA_PROJ", analysis=ROOT / "FM8_141_VST_64_GHIDRA_ANALYSIS"),
+    dict(key="vst32_141", proj_name="FM8_141_VST_32", program="FM8.dll",
+         binary=ROOT / "FM8_141_VST_32" / "FM8.dll",
+         proj=ROOT / "FM8_141_VST_32_GHIDRA_PROJ", analysis=ROOT / "FM8_141_VST_32_GHIDRA_ANALYSIS"),
 ]
 
 
@@ -198,7 +208,7 @@ def process(v):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", default="", help="comma list of keys: exe,vst3,vst2")
+    ap.add_argument("--only", default="", help="comma list of keys: exe,vst3,vst2,exe141,vst64_141,vst32_141")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     keys = {k.strip() for k in args.only.split(",") if k.strip()}

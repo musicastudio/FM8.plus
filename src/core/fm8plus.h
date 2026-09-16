@@ -87,11 +87,11 @@ void setSingleton(InstanceState* s);
 void setArpBlockCallback(void (*cb)(InstanceState&));
 
 // Validate the module at `base` is the expected FM8 build; returns false if the timestamp differs.
-bool validateBuild(void* base);
+bool validateBuild(void* base, Host h);
 
 // Resolve addresses from `base` and install the arp detours (idempotent). Returns false on any
 // MinHook error or build mismatch; on false the caller should pass through to stock FM8.
-bool install(void* base, Bin which);
+bool install(void* base, Host host);
 
 void uninstall();
 
@@ -131,6 +131,18 @@ float guiScale();
 // before FM8 builds its own window inside it; only that window tree is scaled. Registering anything
 // turns the gate on, so the standalone (which never does) keeps scaling its whole process.
 void addScaledWindow(void* hwnd);
+
+// Physical -> logical for a mouse message's lParam, for the window subclass to apply before FM8
+// sees it. True when it rewrote lp. Only the 1.4.1 path needs it; 1.4.6's own UIA does this itself.
+bool scaleMouseParam(void* hwnd, unsigned msg, intptr_t& lp);
+
+// Arm the next window FM8 creates on this thread as a scaled editor (1.4.1 has no UIA layer to
+// ask, so the shim says when the editor is coming).
+void expectEditorWindow();
+
+// False on a build whose MidiEvent/EditBuffer layout is not confirmed (1.4.1 x86 today): the arp
+// and morph features are absent there and the menu must not offer them.
+bool midiFeaturesAvailable();
 
 // Build the "FM8+" wordmark out of `module`'s own resources and serve it back through its import
 // table (see rsrc.h): the two header forms with the wordmark control widened, and the wordmark

@@ -1,9 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 project(FM8plus CXX)
 
-# FM8 is x64-only; refuse anything else so a wrong-arch build cannot silently ship.
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  message(FATAL_ERROR "FM8.plus must be built for x64")
+# Two targets: x64 for FM8 1.4.6 and the x64 half of 1.4.1, x86 for 1.4.1's 32-bit VST2, which is
+# the last 32-bit plugin NI shipped. Nothing else is a real FM8, so refuse it rather than ship a
+# binary that cannot load.
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(FM8PLUS_X64 ON)
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set(FM8PLUS_X64 OFF)
+  message(STATUS "FM8.plus: 32-bit build, VST2 shim only (FM8 1.4.1 x86)")
+else()
+  message(FATAL_ERROR "FM8.plus must be built for x64 or x86")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -37,7 +44,7 @@ endfunction()
 fm8_shim(shim_vst2 src/shim_vst2/shim_vst2.cpp "FM8.plus" "dll")
 
 # --- VST3 wrapper: builds FM8.plus.vst3 (single-file module, loads stock FM8.vst3) -----------
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_vst3/shim_vst3.cpp")
+if(FM8PLUS_X64 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_vst3/shim_vst3.cpp")
   # The Steinberg headers reference themselves via a "pluginterfaces/" prefix, so the vendored
   # submodule must be reachable under that name. Ensure a junction to it exists (idempotent).
   set(PI_LINK "${CMAKE_CURRENT_SOURCE_DIR}/third_party/pluginterfaces")
@@ -53,9 +60,17 @@ endif()
 # --- standalone launcher: builds FM8.plus.exe ------------------------------
 # Starts the real FM8.exe and injects FM8.plus.dll, which runs the standalone attach. No core link
 # needed (the injected DLL carries the features); this is a tiny GUI-subsystem executable.
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/launcher/launcher.cpp")
+if(FM8PLUS_X64 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/launcher/launcher.cpp")
   # No icon is embedded: the FM8+ icon is FM8's own icon with our overlay, so it is composited on
   # the user's machine from their own FM8 install at install time (never redistributed by us).
   add_executable(launcher WIN32 src/launcher/launcher.cpp)
   set_target_properties(launcher PROPERTIES OUTPUT_NAME "FM8.plus")
+endif()
+
+# --- native VST2 probe (test only) ------------------------------------------
+# tools/vsteditor.py is ctypes, so it can only drive a plug-in of its own bitness. This is the
+# 32-bit half of the test story: same few steps, natively, for FM8 1.4.1 x86.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/vst2probe.cpp")
+  add_executable(vst2probe tools/vst2probe.cpp)
+  set_target_properties(vst2probe PROPERTIES OUTPUT_NAME "vst2probe")
 endif()

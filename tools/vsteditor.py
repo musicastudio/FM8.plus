@@ -31,7 +31,7 @@ DEFAULT_VST3 = r"C:\Program Files\Common Files\VST3\FM8.plus.vst3"
 
 # The widened "FM8+" wordmark in editor client pixels at 1x, its colour, and how much of it
 # the "+" occupies (must match src/core/rsrc.cpp and src/core/ui.cpp).
-LOGO_RECT = (10, 35, 127, 58)
+LOGO_RECT = (10, 35, 127, 58)   # logical; multiplied by the active GUI Scale below
 LOGO_COLOUR = (107, 125, 134)
 PLUS_W = 22
 MENU_CLASS = "#32768"   # the Win32 popup-menu window class
@@ -200,6 +200,23 @@ def dump_tree(root):
     return found
 
 
+def gui_scale():
+    """The GUI Scale FM8.plus will apply, straight from the INI it reads at attach."""
+    import configparser
+    ini = os.path.join(os.environ.get("APPDATA", ""), "FM8.plus", "FM8.plus.ini")
+    try:
+        c = configparser.ConfigParser()
+        c.read(ini)
+        return float(c["FM8.plus"]["gui_scale"])
+    except Exception:
+        return 1.0
+
+
+def scaled_logo_rect():
+    s = gui_scale()
+    return tuple(int(round(v * s)) for v in LOGO_RECT), max(1, int(round(PLUS_W * s)))
+
+
 def logo_pixels(root, path):
     """Crop the wordmark out of the editor's client area, save it, and count the logo-coloured pixels
     in the strip the "+" occupies. Stock FM8 has nothing there."""
@@ -207,7 +224,7 @@ def logo_pixels(root, path):
     if whole is None:
         print("wordmark crop -> FAILED (no window capture)")
         return 0
-    im = whole.crop(LOGO_RECT)
+    im = whole.crop(scaled_logo_rect()[0])
     im.resize((im.width * 4, im.height * 4)).save(path)
     print(f"wordmark crop -> {path}")
     px = im.load()
@@ -239,8 +256,9 @@ def click_logo(root, out_dir=None, tag="", idle=None, about=False):
     FM8 puts up. Returns (menu opened, About panel found)."""
     import threading
     child = GetWindow(root, GW_CHILD) or root
-    x = LOGO_RECT[2] - PLUS_W // 2
-    y = (LOGO_RECT[1] + LOGO_RECT[3]) // 2
+    rect, plus_w = scaled_logo_rect()
+    x = rect[2] - plus_w // 2
+    y = (rect[1] + rect[3]) // 2
     before = set(top_of_process())
     got = {"menu": False, "dialog": None}
 
@@ -375,7 +393,7 @@ def diagnose(root, out_dir, tag, idle=None):
     screenshot(root, os.path.join(out_dir, f"{tag}_editor.png"))
     n = logo_pixels(root, os.path.join(out_dir, f"{tag}_logo.png"))
     print(f"RESULT: wordmark {'carries the + ' if n > 40 else 'has NO + '}"
-          f"({n} logo-coloured pixels in the {PLUS_W}px plus strip)")
+          f"({n} logo-coloured pixels in the {scaled_logo_rect()[1]}px plus strip, scale {gui_scale():g}x)")
     opened, _ = click_logo(root, idle=idle)
     print(f"RESULT: click on the FM8+ logo {'opened the FM8.plus menu' if opened else 'opened NO menu'}")
     # "About FM8" must reach FM8's own dialog function, so a new top-level window has to appear.

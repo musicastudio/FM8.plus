@@ -5,7 +5,7 @@
 [![License: GPLv3](https://img.shields.io/github/license/musicastudio/FM8.plus)](https://github.com/musicastudio/FM8.plus/blob/main/LICENSE)
 [![Version](https://img.shields.io/github/v/release/musicastudio/FM8.plus?color=7a39fb)](https://github.com/musicastudio/FM8.plus/releases/latest)
 
-An enhancement layer for Native Instruments FM8 v1.4.6 (last release 2022-12-23, Windows x64). It adds new features to the standalone `FM8.exe`, the 64-bit VST2 `FM8.dll`, and `FM8.vst3`
+An enhancement layer for Native Instruments FM8 on Windows, supporting v1.4.6 (2022-12-23) and v1.4.1 (2015-10-20). It adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`
 
 **Discord:** https://discord.gg/MA9UkqrEXr
 
@@ -25,7 +25,7 @@ Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW proj
 
 ## Install
 
-Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folder, `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames, copies, or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. Only the final 2022-12-23 v1.4.6 build gains the features; any other build is loaded and left as plain FM8. Rescan plugins in your DAW afterwards, and FM8.plus appears alongside FM8.
+Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folders (64-bit and 32-bit), `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames, copies, or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. The v1.4.6 and v1.4.1 builds gain the features; any other build is loaded and left as plain FM8. v1.4.1 is the last release with a 32-bit plug-in, and it has no VST3. Rescan plugins in your DAW afterwards, and FM8.plus appears alongside FM8.
 
 Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` removes everything again.
 
@@ -64,7 +64,7 @@ Every hook is guarded by the FM8 build's PE timestamp; on any mismatch the layer
 
 ## Build
 
-Needs Visual Studio 2022 (x64), CMake, and the two vendored submodules.
+Needs Visual Studio 2022, CMake, and the two vendored submodules. The 32-bit VST2 wrapper for FM8 1.4.1 x86 builds from the same source with `-A Win32` into `build32`.
 
 ```bash
 git submodule update --init --recursive

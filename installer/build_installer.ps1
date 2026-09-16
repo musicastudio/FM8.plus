@@ -5,12 +5,17 @@ $ErrorActionPreference = 'Stop'
 
 $root  = Split-Path $PSScriptRoot -Parent
 $build = Join-Path $root 'build\Release'
+$build32 = Join-Path $root 'build32\Release'
 $iss   = Join-Path $PSScriptRoot 'FM8.plus.iss'
 
 foreach ($f in 'FM8.plus.dll','FM8.plus.vst3','FM8.plus.exe') {
   if (-not (Test-Path (Join-Path $build $f))) {
     throw "Missing $f in $build - build the Release config first (cmake --build build --config Release)."
   }
+}
+# The 32-bit wrapper for FM8 1.4.1 x86: cmake -B build32 -A Win32; cmake --build build32 --config Release
+if (-not (Test-Path (Join-Path $build32 'FM8.plus.dll'))) {
+  throw "Missing FM8.plus.dll in $build32 - build the 32-bit config first (cmake -B build32 -A Win32; cmake --build build32 --config Release)."
 }
 foreach ($f in 'icon_overlay.ico') {
   if (-not (Test-Path (Join-Path $PSScriptRoot $f))) { throw "Missing installer\$f." }
@@ -24,7 +29,7 @@ $iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "ISCC.exe not found. Install Inno Setup 6 (winget install -e --id JRSoftware.InnoSetup)." }
 
-& $iscc "/DBuildDir=$build" $iss
+& $iscc "/DBuildDir=$build" "/DBuildDir32=$build32" $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE." }
 
 Write-Host "Built: $(Join-Path $PSScriptRoot 'Output\FM8.plus-Setup.exe')"

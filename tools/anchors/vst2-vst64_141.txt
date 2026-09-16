@@ -1,0 +1,23 @@
+# Verified 1.4.6 VST2 -> 1.4.1 VST2 x64 pairs. Each read side by side in the decompiler.
+0x1800e7250 0x180094370   # kArpRunDispatch     identical drain loop, stride 0x28
+0x180137050 0x1800dc2a0   # kArpEngineWrapper   Arp+0x20 -> Engine (1.4.1 lacks the MXCSR guard)
+0x1801370a0 0x1800dc2b0   # kEngineStepGen      same shape; engine fields sit ~0x5000 higher
+0x180136bc0 0x1800dbee0   # kEngineEmitNoteOn   same 4-arg shape, +0x9838/+0x9870/+0x9438
+0x180135510 0x1800db290   # kMidiArrayPush      called as f(Engine+0x9840, Template*)
+0x1800e6660 0x1800936f0   # kMidiEventHandler   callee of the drain loop
+0x180138c30 0x1800de160   # kArpNoteFilter      Clock+0x14 gate, status & 0xef, split compare
+0x180134850 0x1800da520   # kArpParamSetter     same idx 0xd/0x19/0x1a cases, +0x8/+0x40/+0x48
+0x1800dee10 0x18008c180   # kSetParameterByTag  same 0x6b clamp, +0x68+tag*4, +0x3955 flags
+0x1800e9b30 0x18008c320   # kRawValueStore      1.4.1 folds the thread flag in as a 4th arg
+0x1800df7d0 0x18008c7c0   # kEngineSetDispatch  same 5-arg shape
+0x1800e3dd0 0x180090940   # kParamDescBuilder   same index 0x15..0x19 -> tag 0x84..0x88 maths
+0x1802ea500 0x180102890   # kVst2SendVstEvents  60b either side
+0x1802e79f0 0x180056e70   # kVst2MidiEventBuild byteSize 0x18 / type 1; adapter field +0xaa8 -> +0x430
+0x1800bd090 0x180053a80   # kVstPluginMain      export VSTPluginMain
+0x1800bcf20 0x1800539a0   # kNICreatePlugin     export NICreatePlugInInstance
+0x1802e8660 0x1801009f0   # kAudioEffectXCtor   identical 235b body, AEffect at this+0x30
+0x1802e8f60 0x1801012c0   # kAEffectDispatcher  written into AEffect+0x08 by the ctor
+0x18011dd00 0x1800c3810   # kMenuBuilder        same control ordinals 0x11,0x10,0xf,0x16,3,0x1b
+0x18070b4d0 0x180445b40   # kPopupAddItem       L"New Sound" call site
+0x18070b9d0 0x1804460c0   # kPopupAddSeparator  between Open and Save
+0x180717260 0x180452180   # kPopupSetCheckState same +0x158/+0x160 vector, item+0x70 write

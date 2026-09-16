@@ -60,7 +60,7 @@ DWORD WINAPI initThread(LPVOID) {
     g_inst.morphRadius.store(settings::morphRadius());
     g_inst.morphStartDeg.store(settings::morphStartDeg());
     void* base = GetModuleHandleW(nullptr);          // FM8.exe image base
-    if (!Core::install(base, Bin::Exe)) return 0;    // build mismatch -> plain FM8, features off
+    if (!Core::install(base, Host::Exe)) return 0;    // build mismatch -> plain FM8, features off
     // GUI Scale, before FM8 builds its window: this thread runs while FM8.exe is still suspended,
     // so the window is created at the saved scale. ponytail: if it ever lost that race the window
     // would open at 1x until the next scale change, which resizes it anyway.

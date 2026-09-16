@@ -1,0 +1,6 @@
+# Verified 1.4.6 EXE -> 1.4.1 EXE pairs for the standalone-only MIDI out. Each API name occurs
+# in exactly one function on both sides, so these are unambiguous.
+0x140196f60 0x1402f9540   # kExePortSend        midiOutShortMsg
+0x140195730 0x1402f93b0   # kExePortOpen        midiOutOpen
+0x140197030 0x1402f95e0   # kExeStreamSend      midiStreamOut, f(this, MidiEventArray*)
+0x14019ba70 0x1402f9e70   # kExeDriverEnumerate midiOutGetNumDevs / midiOutGetDevCaps

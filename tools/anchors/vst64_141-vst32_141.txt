@@ -1,0 +1,14 @@
+# Verified 1.4.1 x64 -> 1.4.1 x86 pairs. The x86 build is __thiscall throughout and its
+# MidiEventArray element stride is 0x20, not 0x28, so these were read, not scored.
+0x180094370 0x100639c0   # kArpRunDispatch     same drain loop; count at +4, data at +8, stride 0x20
+0x1800dc2a0 0x100aa5a0   # kArpEngineWrapper   thunk into the step generator
+0x1800dc2b0 0x100aa5b0   # kEngineStepGen      callee of the wrapper
+0x1800de160 0x100abee0   # kArpNoteFilter      0xb0 CC case with 0x78 / 0x7b
+0x18007b990 0x1004ee40   # kNoteEventRouter    filter first, then the handler
+0x1800936f0 0x10062d60   # kMidiEventHandler   callee of the drain loop
+0x18008c180 0x1005d2b0   # kSetParameterByTag  tag 0x6b clamp, tags 0x84/0x85, flags +0x3902/+0x3903
+0x18008bcb0 0x1005ce50   # kCcEmitter          same 4-arg __thiscall shape
+0x1800c3810 0x10093cf0   # kMenuBuilder        same L"New Sound" / L"Open Sound" items
+0x180445b40 0x103530f0   # kPopupAddItem       called by the menu builder
+0x180053a80 0x1002b120   # kVstPluginMain      export VSTPluginMain, uid 0x4e696638
+0x1800539a0 0x1002b040   # kNICreatePlugin     export NICreatePlugInInstance

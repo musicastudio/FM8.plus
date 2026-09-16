@@ -132,7 +132,8 @@ void showMenu(HWND hwnd, OData* d) {
         if (nm) swprintf(label, 48, L"CC %d (%s)", cc, nm); else swprintf(label, 48, L"CC %d", cc);
         AppendMenuW(morph, MF_STRING | (curCc == cc ? MF_CHECKED : 0), ID_MORPH_CC0 + cc, label);
     }
-    AppendMenuW(m, MF_POPUP, (UINT_PTR)morph, L"Morph Rotate Control");
+    const UINT midiFlags = Core::midiFeaturesAvailable() ? 0 : (MF_GRAYED | MF_DISABLED);
+    AppendMenuW(m, MF_POPUP | midiFlags, (UINT_PTR)morph, L"Morph Rotate Control");
 
     // (2) Arpeggiator MIDI out.
     HMENU arp = CreatePopupMenu();
@@ -140,7 +141,7 @@ void showMenu(HWND hwnd, OData* d) {
     AppendMenuW(arp, MF_STRING | (mode == ArpMode::Internal    ? MF_CHECKED : 0), ID_ARP_INT,   L"Internal");
     AppendMenuW(arp, MF_STRING | (mode == ArpMode::CloneToMidi ? MF_CHECKED : 0), ID_ARP_CLONE, L"Clone to MIDI");
     AppendMenuW(arp, MF_STRING | (mode == ArpMode::MidiOnly    ? MF_CHECKED : 0), ID_ARP_MIDI,  L"MIDI only (FM8 silent)");
-    AppendMenuW(m, MF_POPUP, (UINT_PTR)arp, L"Arpeggiator MIDI out");
+    AppendMenuW(m, MF_POPUP | midiFlags, (UINT_PTR)arp, L"Arpeggiator MIDI out");
 
     // (3) Tempo Override.
     const uint8_t tm = st->tempoMode.load();
@@ -200,6 +201,11 @@ void showMenu(HWND hwnd, OData* d) {
 // straight through, so FM8 behaves exactly as it does without us.
 LRESULT CALLBACK sub(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR id, DWORD_PTR ref) {
     auto* d = (OData*)ref;
+    // Our own hit tests work in physical pixels (logoRect scales with the GUI), so they use lp as it
+    // arrives. FM8 is the one that needs logical coordinates, and only on 1.4.1, whose NI::UIA has
+    // no layer to divide them itself: `down` carries that conversion and nothing else does.
+    intptr_t down = (intptr_t)lp;
+    Core::scaleMouseParam(hwnd, msg, down);
     switch (msg) {
         case WM_LBUTTONDOWN:
         case WM_LBUTTONDBLCLK:
@@ -218,7 +224,7 @@ LRESULT CALLBACK sub(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR id, DWO
             delete d;
             break;
     }
-    return DefSubclassProc(hwnd, msg, wp, lp);
+    return DefSubclassProc(hwnd, msg, wp, (LPARAM)down);
 }
 
 // SetWindowSubclass only takes effect on the window's own thread. The standalone finds FM8's window

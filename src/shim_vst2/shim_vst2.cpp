@@ -81,7 +81,7 @@ bool ensureCore() {
     g_core = LoadLibraryW(path.c_str());
     if (!g_core) return false;
     settings::load(g_self);
-    g_coreHooked = Core::install((void*)g_core, Bin::Vst2);
+    g_coreHooked = Core::install((void*)g_core, Host::Vst2);
     Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
     // Make room for the "+" before the editor form is built: serve the rebuilt header forms, or
     // fall back to patching the wordmark rect in the mapped resource.
@@ -254,6 +254,7 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
         }
         case effEditOpen: {
             Core::addScaledWindow(ptr);   // before FM8 sizes its own child inside the host's window
+            Core::expectEditorWindow();   // 1.4.1: scale the child from birth, it has no UIA to ask
             intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);   // FM8 creates its child first,
             r->logoMenu.setHostResize(&hostResize, eff);                      // GUI Scale asks the host to resize
             r->logoMenu.attach((HWND)ptr, &r->st);                            // then we subclass that child

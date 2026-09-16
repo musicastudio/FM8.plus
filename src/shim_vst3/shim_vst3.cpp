@@ -414,7 +414,7 @@ bool ensureCore() {
     g_core = LoadLibraryW((selfDir() + L"\\FM8.vst3").c_str());   // the UNTOUCHED stock module
     if (!g_core) return false;
     settings::load(g_self);
-    if (!Core::install((void*)g_core, Bin::Vst3)) return false;
+    if (!Core::install((void*)g_core, Host::Vst3)) return false;
     Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
     Core::serveLogo(g_core);   // the "FM8+" wordmark FM8 draws itself
     auto mk = [](const Site& s, void* det, void** orig) {
