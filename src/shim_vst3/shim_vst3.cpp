@@ -416,7 +416,7 @@ bool ensureCore() {
     settings::load(g_self);
     if (!Core::install((void*)g_core, Bin::Vst3)) return false;
     Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
-    Core::serveForms(g_core);   // the "FM8+" wordmark FM8 draws itself
+    Core::serveLogo(g_core);   // the "FM8+" wordmark FM8 draws itself
     auto mk = [](const Site& s, void* det, void** orig) {
         void* t = Core::addressOf(s);
         return t && MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;

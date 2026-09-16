@@ -23,11 +23,8 @@ add_library(fm8plus_core STATIC
   src/core/ui.cpp
   src/core/rsrc.cpp
   src/core/standalone.cpp)
-target_include_directories(fm8plus_core PUBLIC
-  src/core
-  third_party/minhook/include
-  "${CMAKE_BINARY_DIR}")   # build/gui/forms/*.h from tools/gen_forms.py (optional, __has_include)
-target_link_libraries(fm8plus_core PUBLIC minhook Shlwapi Winmm Comctl32 Shell32)
+target_include_directories(fm8plus_core PUBLIC src/core third_party/minhook/include)
+target_link_libraries(fm8plus_core PUBLIC minhook Shlwapi Winmm Comctl32 Shell32 Gdiplus)
 
 # helper: make a shim that emits <name>.<ext> with no lib prefix
 function(fm8_shim tgt src outname ext)

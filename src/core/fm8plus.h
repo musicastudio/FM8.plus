@@ -132,15 +132,15 @@ float guiScale();
 // turns the gate on, so the standalone (which never does) keeps scaling its whole process.
 void addScaledWindow(void* hwnd);
 
-// Serve FM8.plus's rebuilt GUI resources (build/gui/forms/*.h, generated from the local FM8 by
-// tools/gen_forms.py) through the module's import table (see rsrc.h): the two header forms with the
-// wordmark control moved left and widened, and the wordmark bitmap with the "+" drawn on it. FM8
-// then draws, scales and clips the "+" as part of its own logo. Must run BEFORE FM8 builds its GUI:
-// for the standalone that means DllMain (before WinMain); for the plugins, at load. Returns false
-// when the headers were not generated or the hook failed, leaving FM8's GUI completely stock.
-bool serveForms(void* module);
+// Build the "FM8+" wordmark out of `module`'s own resources and serve it back through its import
+// table (see rsrc.h): the two header forms with the wordmark control widened, and the wordmark
+// bitmap with the "+" drawn into the new space. FM8 then draws, scales and clips the "+" as part of
+// its own logo, and nothing of Native Instruments' is shipped to get there. Must run BEFORE FM8
+// builds its GUI: for the standalone that means DllMain (before WinMain); for the plugins, at load.
+// False leaves FM8's GUI completely stock.
+bool serveLogo(void* module);
 
-// True once serveForms has succeeded, i.e. the wordmark is the wider "FM8+" one. ui.cpp hit-tests
+// True once serveLogo has succeeded, i.e. the wordmark is the wider "FM8+" one. ui.cpp hit-tests
 // clicks against the matching rect; without it the stock "FM8" logo itself opens the menu.
 bool logoWidened();
 

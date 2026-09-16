@@ -78,7 +78,7 @@ void attachExe(HMODULE self) {
     g_self = self;
     // Must happen before FM8 builds its GUI. We are injected while FM8.exe is suspended, so this runs
     // first; guarded, so a wrong build is left untouched.
-    Core::serveForms(GetModuleHandleW(nullptr));   // the "FM8+" wordmark; plain FM8 look if it fails
+    Core::serveLogo(GetModuleHandleW(nullptr));   // the "FM8+" wordmark; plain FM8 look if it fails
     CloseHandle(CreateThread(nullptr, 0, initThread, nullptr, 0, nullptr));
 }
 

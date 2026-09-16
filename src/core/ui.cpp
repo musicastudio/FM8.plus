@@ -9,9 +9,9 @@
 namespace fm8plus::ui {
 namespace {
 
-// The wordmark rect in FM8's own form coordinates. Stock FM8 is 95x23 at (21,35); serveForms moves
+// The wordmark rect in FM8's own form coordinates. Stock FM8 is 95x23 at (21,35); serveLogo moves
 // it kShift px left and grows it kPlusW px to the right to hold the "+". These three numbers must
-// match tools/gen_forms.py, which edits the form and paints the bitmap.
+// match src/core/rsrc.cpp, which builds the widened form and bitmap FM8 draws from.
 constexpr int kLogoX1 = 21, kLogoY1 = 35, kLogoX2 = 116, kLogoY2 = 58;
 constexpr int kShift = 11, kPlusW = 22;
 

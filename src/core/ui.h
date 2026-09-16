@@ -1,4 +1,4 @@
-// FM8.plus in-editor toggle UI. FM8 itself draws the button: Core::serveForms widens the header
+// FM8.plus in-editor toggle UI. FM8 itself draws the button: Core::serveLogo widens the header
 // form's wordmark control and hands FM8 a wordmark bitmap with a "+" on it, so the "FM8+" logo is
 // part of FM8's own GUI (it scales, clips and repaints with everything else, and no window of ours
 // sits above the host's). All that is left here is the click: we subclass the window FM8 draws the

@@ -30,7 +30,7 @@ DEFAULT_VST2 = r"I:\vstplugins64\FM8.plus.dll"
 DEFAULT_VST3 = r"C:\Program Files\Common Files\VST3\FM8.plus.vst3"
 
 # The widened "FM8+" wordmark in editor client pixels at 1x, its colour, and how much of it
-# the "+" occupies (must match src/core/ui.cpp and tools/gen_forms.py).
+# the "+" occupies (must match src/core/rsrc.cpp and src/core/ui.cpp).
 LOGO_RECT = (10, 35, 127, 58)
 LOGO_COLOUR = (107, 125, 134)
 PLUS_W = 22
@@ -65,6 +65,7 @@ CreateWindowExW = _sig("CreateWindowExW", VP, C.c_uint, C.c_wchar_p, C.c_wchar_p
                        C.c_int, C.c_int, VP, VP, VP, VP)
 DefWindowProcW = _sig("DefWindowProcW", C.c_ssize_t, VP, C.c_uint, C.c_size_t, C.c_ssize_t)
 GetWindowRect = _sig("GetWindowRect", C.c_int, VP, C.POINTER(W.RECT))
+GetClientRect = _sig("GetClientRect", C.c_int, VP, C.POINTER(W.RECT))
 GetClassNameW = _sig("GetClassNameW", C.c_int, VP, C.c_wchar_p, C.c_int)
 GetWindowTextW = _sig("GetWindowTextW", C.c_int, VP, C.c_wchar_p, C.c_int)
 GetWindowLongPtrW = _sig("GetWindowLongPtrW", C.c_ssize_t, VP, C.c_int)
@@ -200,12 +201,13 @@ def dump_tree(root):
 
 
 def logo_pixels(root, path):
-    """Grab the wordmark out of the editor's client area, save the crop, and count the logo-coloured
-    pixels in the strip the "+" occupies. Stock FM8 has nothing there."""
-    from PIL import ImageGrab
-    ox, oy = client_origin(root)
-    x1, y1, x2, y2 = LOGO_RECT
-    im = ImageGrab.grab(bbox=(ox + x1, oy + y1, ox + x2, oy + y2)).convert("RGB")
+    """Crop the wordmark out of the editor's client area, save it, and count the logo-coloured pixels
+    in the strip the "+" occupies. Stock FM8 has nothing there."""
+    whole = grab_client(root)
+    if whole is None:
+        print("wordmark crop -> FAILED (no window capture)")
+        return 0
+    im = whole.crop(LOGO_RECT)
     im.resize((im.width * 4, im.height * 4)).save(path)
     print(f"wordmark crop -> {path}")
     px = im.load()
@@ -280,11 +282,58 @@ def click_logo(root, out_dir=None, tag="", idle=None, about=False):
     return got["menu"], got["dialog"]
 
 
-def screenshot(root, path):
-    from PIL import ImageGrab
+class BITMAPINFOHEADER(C.Structure):
+    _fields_ = [("biSize", C.c_uint32), ("biWidth", C.c_int32), ("biHeight", C.c_int32),
+                ("biPlanes", C.c_uint16), ("biBitCount", C.c_uint16), ("biCompression", C.c_uint32),
+                ("biSizeImage", C.c_uint32), ("biXPelsPerMeter", C.c_int32), ("biYPelsPerMeter", C.c_int32),
+                ("biClrUsed", C.c_uint32), ("biClrImportant", C.c_uint32)]
+
+
+gdi32 = C.WinDLL("gdi32", use_last_error=True)
+for _n, _rt, _at in (("CreateCompatibleDC", VP, (VP,)), ("DeleteDC", C.c_int, (VP,)),
+                     ("SelectObject", VP, (VP, VP)), ("DeleteObject", C.c_int, (VP,)),
+                     ("CreateDIBSection", VP, (VP, VP, C.c_uint, C.POINTER(VP), VP, C.c_uint))):
+    _f = getattr(gdi32, _n); _f.restype, _f.argtypes = _rt, _at
+GetDC = _sig("GetDC", VP, VP)
+ReleaseDC = _sig("ReleaseDC", C.c_int, VP, VP)
+PrintWindow = _sig("PrintWindow", C.c_int, VP, VP, C.c_uint)
+PW_CLIENTONLY, PW_RENDERFULLCONTENT = 1, 2
+
+
+def grab_client(h):
+    """Capture a window's client area with PrintWindow, which renders the window through WM_PRINT
+    instead of reading the screen, so it works with the display asleep or the window covered. Screen
+    grabs fail outright in those cases, which is what this probe kept hitting."""
+    from PIL import Image
     r = W.RECT()
-    GetWindowRect(root, C.byref(r))
-    ImageGrab.grab(bbox=(r.left, r.top, r.right, r.bottom), include_layered_windows=True).save(path)
+    GetClientRect(h, C.byref(r))
+    w, ht = r.right, r.bottom
+    if w <= 0 or ht <= 0:
+        return None
+    bi = BITMAPINFOHEADER(C.sizeof(BITMAPINFOHEADER), w, -ht, 1, 32, 0, 0, 0, 0, 0, 0)
+    screen = GetDC(None)
+    mem = gdi32.CreateCompatibleDC(screen)
+    bits = VP()
+    dib = gdi32.CreateDIBSection(screen, C.byref(bi), 0, C.byref(bits), None, 0)
+    img = None
+    if dib:
+        old = gdi32.SelectObject(mem, dib)
+        if PrintWindow(h, mem, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
+            buf = C.string_at(bits, w * ht * 4)
+            img = Image.frombuffer("RGBA", (w, ht), buf, "raw", "BGRA", 0, 1).convert("RGB")
+        gdi32.SelectObject(mem, old)
+        gdi32.DeleteObject(dib)
+    gdi32.DeleteDC(mem)
+    ReleaseDC(None, screen)
+    return img
+
+
+def screenshot(root, path):
+    img = grab_client(root)
+    if img is None:
+        print(f"screenshot -> FAILED (PrintWindow returned nothing for {root:#x})")
+        return
+    img.save(path)
     print(f"screenshot -> {path}")
 
 

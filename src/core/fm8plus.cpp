@@ -4,12 +4,6 @@
 #include <cmath>
 #include "MinHook.h"
 #include "rsrc.h"
-#if __has_include("gui/forms/frm5.h") && __has_include("gui/forms/frm15.h") && __has_include("gui/forms/pic193.h")
-#include "gui/forms/frm5.h"     // generated into the build tree by tools/gen_forms.py (NI data, never in the repo)
-#include "gui/forms/frm15.h"
-#include "gui/forms/pic193.h"
-#define FM8PLUS_HAVE_FORMS 1
-#endif
 
 namespace fm8plus {
 namespace Core {
@@ -19,7 +13,7 @@ thread_local InstanceState* current = nullptr;
 namespace {
 InstanceState* g_singleton = nullptr;
 void (*g_arpBlockCb)(InstanceState&) = nullptr;
-bool g_logoWidened = false;   // set by serveForms: the wordmark carries the "+" and the wider rect
+bool g_logoWidened = false;   // set by serveLogo: the wordmark carries the "+" and the wider rect
 }
 void setSingleton(InstanceState* s) { g_singleton = s; }
 void setArpBlockCallback(void (*cb)(InstanceState&)) { g_arpBlockCb = cb; }
@@ -298,18 +292,10 @@ bool showAbout(InstanceState& st) {
     }
 }
 
-bool serveForms(void* module) {
-#ifdef FM8PLUS_HAVE_FORMS
-    if (!Rsrc::install((HMODULE)module)) return false;
-    Rsrc::serve("FRM", 5, kFrm5, sizeof kFrm5);        // FormMain header, wordmark control widened
-    Rsrc::serve("FRM", 15, kFrm15, sizeof kFrm15);     // FormMainCompact, same control
-    Rsrc::serve("PICTURE", 193, kPic193, sizeof kPic193);   // the wordmark bitmap with the "+" on it
+bool serveLogo(void* module) {
+    if (!Rsrc::install((HMODULE)module) || !Rsrc::serveLogo()) return false;
     g_logoWidened = true;
     return true;
-#else
-    (void)module;
-    return false;
-#endif
 }
 
 bool logoWidened() { return g_logoWidened; }

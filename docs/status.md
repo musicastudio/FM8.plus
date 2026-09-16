@@ -47,19 +47,21 @@ The button was a layered child window over the editor until 2026-09-16, and that
 separate fixes to get visible at all (`UpdateLayeredWindow`'s `pptDst` is parent-relative for a child
 window; FM8's full-size `NIVSTChildWindow` sits above a newly created sibling either way; the VST3
 shim had no editor hook), and it still put a window of ours in the host's Z order, where other
-plug-ins and windows could land on top of it. It is now FM8's own artwork instead: `Core::serveForms`
-hands FM8 a widened FRM 5/15 and a widened PICTURE 193 with the "+" painted on, and `ui.cpp`
-subclasses the window FM8 draws into and takes the click (docs/gui.md 7). Nothing of ours is in any
-Z order, and FM8 scales and repaints the "+" with the rest of its GUI.
+plug-ins and windows could land on top of it. It is now FM8's own artwork instead: `Core::serveLogo` reads
+FRM 5/15 and PICTURE 193 out of FM8's own module, widens them, draws the "+" into the new space and
+serves them back, and `ui.cpp` subclasses the window FM8 draws into and takes the click (docs/gui.md
+7). Nothing of ours is in any Z order, FM8 scales and repaints the "+" with the rest of its GUI, and
+because every byte is derived on the user's machine the shipped binaries carry no NI data at all
+(the old build embedded generated headers, so release builds had to be made with those moved aside).
 
 Verified against the installed FM8 with the shims as they ship:
 
 | Check | VST2 | VST3 | Standalone |
 |---|---|---|---|
-| FM8 draws the widened wordmark (logo-coloured pixels counted in the 22px plus strip) | pass, 76 | pass, 76 | pass, 76 |
+| FM8 draws the widened wordmark, built at runtime from its own resources (logo-coloured pixels counted in the 22px plus strip) | pass, 75 | pass, 75 | pass, 75 |
 | Posted click on the "+" opens the FM8.plus menu | pass | pass | pass |
 | The same at 2x GUI Scale (294 pixels, click still lands) | n/a | n/a | pass |
-| "About FM8" brings up FM8's own About panel | pass | untested live | pass (482x338 `#32770`) |
+| "About FM8" brings up FM8's own About panel | pass (482x338 `#32770`) | untested live | pass (482x338 `#32770`) |
 | Window tree under the host's editor HWND | `NIVSTChildWindow` only | `NIVSTChildWindow` only | the top-level window itself, no children |
 
 `SetWindowSubclass` returns 0 when it is called from a thread other than the window's owner, which is
@@ -69,7 +71,7 @@ About path is the same core code as VST2's with the address from the same decomp
 run is missing, since the VST3 test host has no `process()` call to capture the pointer with.
 
 **GUI analysis and layout tooling** (`docs/gui.md` and its three sub-documents, `tools/fm8gui.py`,
-`tools/frm_grammar.py`, `tools/gen_forms.py`, 2026-09-10). FM8's GUI is 74 `FRM` form resources
+`tools/frm_grammar.py`, `tools/logo_preview.py`, 2026-09-10). FM8's GUI is 74 `FRM` form resources
 built from 13 NGL control classes; the byte grammar of every class, the picture (PNG/TGA), font
 (picture-font strips, TrueType) and manifest formats, and the runtime (form classes, events,
 parameter links, software rendering) are documented from the decompilation.

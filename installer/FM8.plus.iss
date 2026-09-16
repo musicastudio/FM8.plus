@@ -17,7 +17,7 @@
 
 [Setup]
 AppName=FM8.plus
-AppVersion=1.0.3
+AppVersion=1.0.4
 AppPublisher=Musica Studio
 DefaultDirName={autopf}\FM8.plus
 DisableDirPage=yes

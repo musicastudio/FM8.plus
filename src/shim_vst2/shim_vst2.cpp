@@ -85,7 +85,7 @@ bool ensureCore() {
     Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
     // Make room for the "+" before the editor form is built: serve the rebuilt header forms, or
     // fall back to patching the wordmark rect in the mapped resource.
-    if (g_coreHooked) Core::serveForms(g_core);   // the "FM8+" wordmark FM8 draws itself
+    if (g_coreHooked) Core::serveLogo(g_core);   // the "FM8+" wordmark FM8 draws itself
     return g_coreHooked;
 }
 
