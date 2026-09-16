@@ -38,6 +38,7 @@ DEF_CLASS_IID(Steinberg::Vst::IComponent)
 DEF_CLASS_IID(Steinberg::Vst::IAudioProcessor)
 DEF_CLASS_IID(Steinberg::Vst::IMidiMapping)
 DEF_CLASS_IID(Steinberg::Vst::IEditController)
+DEF_CLASS_IID(Steinberg::Vst::IParameterChanges)
 
 namespace {
 HMODULE g_self = nullptr, g_core = nullptr;
@@ -191,6 +192,43 @@ int readCcParam(V::IParameterChanges* changes, uint32_t pid) {
     return -1;
 }
 
+// The host maps a CC to a parameter (IMidiMapping) and delivers it in inputParameterChanges, not as
+// an event, so the core's event-level swallow never sees it. This wrapper hides that one parameter's
+// queue from FM8 for the block, leaving the CC to drive only the morph.
+struct FilteredChanges : V::IParameterChanges {
+    V::IParameterChanges* inner = nullptr;
+    uint32_t hide = 0;
+
+    S::tresult PLUGIN_API queryInterface(const S::TUID id, void** obj) override {
+        if (std::memcmp(id, V::IParameterChanges::iid, 16) == 0 || std::memcmp(id, S::FUnknown::iid, 16) == 0) {
+            *obj = this; return S::kResultOk;
+        }
+        *obj = nullptr; return S::kNoInterface;
+    }
+    S::uint32 PLUGIN_API addRef() override { return 1; }   // block-scoped, lives on the caller's stack
+    S::uint32 PLUGIN_API release() override { return 1; }
+
+    S::int32 PLUGIN_API getParameterCount() override {
+        S::int32 n = 0;
+        for (S::int32 i = 0, c = inner->getParameterCount(); i < c; ++i) {
+            V::IParamValueQueue* q = inner->getParameterData(i);
+            if (q && q->getParameterId() != hide) ++n;
+        }
+        return n;
+    }
+    V::IParamValueQueue* PLUGIN_API getParameterData(S::int32 index) override {
+        for (S::int32 i = 0, c = inner->getParameterCount(); i < c; ++i) {
+            V::IParamValueQueue* q = inner->getParameterData(i);
+            if (!q || q->getParameterId() == hide) continue;
+            if (index-- == 0) return q;
+        }
+        return nullptr;
+    }
+    V::IParamValueQueue* PLUGIN_API addParameterData(const V::ParamID& id, S::int32& index) override {
+        return inner->addParameterData(id, index);
+    }
+};
+
 uint32_t paramIdForCc(Rec* r, void* self, int16_t cc) {
     if (cc == r->cachedCc) return r->cachedPid;
     if (!r->midiMap) {
@@ -209,11 +247,18 @@ S::tresult h_process(void* self, V::ProcessData& data) {
     if (!r) return o_process(self, data);   // not ours: stock FM8 processing
     InstanceState& st = r->primary->st;
 
+    FilteredChanges filtered;
+    V::IParameterChanges* origChanges = data.inputParameterChanges;
     const int16_t mc = st.morphCc.load(std::memory_order_relaxed);
     if (mc >= 0) {
         uint32_t pid = paramIdForCc(r, self, mc);
         int v = readCcParam(data.inputParameterChanges, pid);
         if (v >= 0) st.morphPending.store((uint8_t)v, std::memory_order_relaxed);
+        if (pid && origChanges) {          // hide it for this block: morph only, no mod wheel
+            filtered.inner = origChanges;
+            filtered.hide = pid;
+            data.inputParameterChanges = &filtered;
+        }
     }
 
     const double tf = fm8plus::tempoFactor(st.tempoMode.load(std::memory_order_relaxed));
@@ -226,6 +271,7 @@ S::tresult h_process(void* self, V::ProcessData& data) {
     Core::current = &st;
     S::tresult rv = o_process(self, data);
     Core::current = nullptr;
+    data.inputParameterChanges = origChanges;   // the host owns ProcessData, hand it back unchanged
 
     Core::applyPendingMorphInternal(st);
 

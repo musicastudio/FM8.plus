@@ -99,7 +99,7 @@ void __fastcall detourArpRun(void* core, uint32_t destSel, int inBlockPos) {
 
 // Detour of MidiEventHandler (0x1800e6660 family). Arp events (tl_inArp) are routed by mode: cloned
 // or suppressed for MIDI out, and only played internally as the mask logic allows. Live input passes
-// straight through, but a live CC1 (mod wheel) is captured for the morph feature.
+// straight through, except the morph CC, which is captured and swallowed.
 void __fastcall detourMidiHandler(void* fm8midi, void* ev, int flag) {
     InstanceState* st = current ? current : g_singleton;
     if (!st) { o_midiHnd(fm8midi, ev, flag); return; }
@@ -114,12 +114,14 @@ void __fastcall detourMidiHandler(void* fm8midi, void* ev, int flag) {
             o_midiHnd(fm8midi, ev, flag);
         return;
     }
-    // Live input: if this is the selected morph CC, capture its value. Forwarding is decided by the
-    // per-host shim (VST2 blocks it upstream at effProcessEvents; others may forward). Here we only
-    // capture and pass through, since skipping FM8's handler mid-dispatch can strand the event.
+    // Live input: if this is the selected morph CC, capture its value and swallow the event, so the
+    // CC drives only the morph and FM8 never sees it (no mod-wheel movement, no MIDI-learn). The
+    // caller owns the event, this handler only consumes it, so returning early strands nothing.
     const int16_t mc = st->morphCc.load(std::memory_order_relaxed);
-    if (mc >= 0 && (status & 0xf0) == 0xb0 && d1 == (uint8_t)mc)
+    if (mc >= 0 && (status & 0xf0) == 0xb0 && d1 == (uint8_t)mc) {
         st->morphPending.store(d2, std::memory_order_relaxed);
+        return;
+    }
     o_midiHnd(fm8midi, ev, flag);
 }
 

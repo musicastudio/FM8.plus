@@ -198,8 +198,10 @@ One sink, two sources. The sink is the internal Morph X/Y setter (the `MorphX`/`
 variable-properties path automation uses), called, not hooked, so the on-screen `XYHandleMorph`
 follows and there is one morph code path across hosts. Math: `theta = start + (v/127)*2pi`,
 default `start = -90 deg` so CC 0 sits at the top, `x = 0.5 + r*cos(theta)`,
-`y = 0.5 + r*sin(theta)`, clamped to `[0,1]`, `r` from the INI (default 0.5). CC1 passes through to
-FM8 unchanged so existing preset mod-wheel routings keep working.
+`y = 0.5 + r*sin(theta)`, clamped to `[0,1]`, `r` from the INI (default 0.5). The chosen CC is
+swallowed, never reaching FM8, so it drives the morph only: no mod-wheel movement, no MIDI-learn.
+In VST2 and EXE the handler detour returns without calling the original; in VST3 the process wrapper
+hides that parameter's queue from FM8 for the block.
 
 Sources differ by host since CC1 arrives differently:
 
