@@ -4,9 +4,10 @@
 #include <cmath>
 #include "MinHook.h"
 #include "rsrc.h"
-#if __has_include("gui/forms/frm5.h") && __has_include("gui/forms/frm15.h")
+#if __has_include("gui/forms/frm5.h") && __has_include("gui/forms/frm15.h") && __has_include("gui/forms/pic193.h")
 #include "gui/forms/frm5.h"     // generated into the build tree by tools/gen_forms.py (NI data, never in the repo)
 #include "gui/forms/frm15.h"
+#include "gui/forms/pic193.h"
 #define FM8PLUS_HAVE_FORMS 1
 #endif
 
@@ -15,7 +16,11 @@ namespace Core {
 
 thread_local InstanceState* current = nullptr;
 
-namespace { InstanceState* g_singleton = nullptr; void (*g_arpBlockCb)(InstanceState&) = nullptr; }
+namespace {
+InstanceState* g_singleton = nullptr;
+void (*g_arpBlockCb)(InstanceState&) = nullptr;
+bool g_logoWidened = false;   // set by serveForms: the wordmark carries the "+" and the wider rect
+}
 void setSingleton(InstanceState* s) { g_singleton = s; }
 void setArpBlockCallback(void (*cb)(InstanceState&)) { g_arpBlockCb = cb; }
 
@@ -77,19 +82,27 @@ using SetByTagFn = intptr_t (*)(void* editBuf, uint32_t tag, float value, char t
 // pointer (param_1 == EditBuffer; +0x29e8 -> arp) for the internal morph setter.
 // Walk core -> VstObject (*(core+8)) -> EditBuffer (*(VstObject+0x55d0)), matching what the
 // dispatch does internally (FUN_1800ef7f0 returns *(x+0x55d0)). SEH-guarded: a bad chain yields null.
-void* editBufFromCore(void* core) {
+// Both pointers hang off the same object, so one guarded walk fetches them together. `outer` is the
+// FM8VstObject: the arp dispatch and FormMain's command sink hand it to the same accessor, which is
+// what ties the About argument (*(outer + 0x5620)) to the instance we are processing.
+void coreObjects(void* core, void*& editBuf, void*& app) {
+    editBuf = app = nullptr;
     __try {
         void* outer = *(void**)((uint8_t*)core + 8);
-        if (!outer) return nullptr;
-        return *(void**)((uint8_t*)outer + kVstObjEditBuf);
-    } __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+        if (!outer) return;
+        editBuf = *(void**)((uint8_t*)outer + kVstObjEditBuf);
+        app = *(void**)((uint8_t*)outer + kVstObjApp);
+    } __except (EXCEPTION_EXECUTE_HANDLER) { editBuf = app = nullptr; }
 }
 
 void __fastcall detourArpRun(void* core, uint32_t destSel, int inBlockPos) {
     InstanceState* st = current ? current : g_singleton;
     if (!st) { o_arpRun(core, destSel, inBlockPos); return; }
     if (st->pendingFlush.exchange(false, std::memory_order_relaxed)) flushExternal(*st);  // audio-thread flush
-    if (void* eb = editBufFromCore(core)) st->editBuf.store(eb, std::memory_order_relaxed);
+    void *eb, *app;
+    coreObjects(core, eb, app);
+    if (eb) st->editBuf.store(eb, std::memory_order_relaxed);
+    if (app) st->appObj.store(app, std::memory_order_relaxed);
     const bool prev = tl_inArp; const int32_t prevPos = tl_arpPos;
     tl_inArp = true; tl_arpPos = inBlockPos;
     o_arpRun(core, destSel, inBlockPos);   // runs the engine and dispatches events through the MIDI handler
@@ -254,42 +267,38 @@ void flushExternal(InstanceState& st) {
 
 void* addressOf(const Site& s) { return g_installed ? addr(s) : nullptr; }
 
-void shiftLogoLeft(void* module, int px) {
-    if (!module) return;
-    void* g_base = module;   // scan the caller-provided module (works before Core::install)
-    auto* dos = (IMAGE_DOS_HEADER*)g_base;
-    auto* nt = (IMAGE_NT_HEADERS*)((uint8_t*)g_base + dos->e_lfanew);
-    // Scan only the .rsrc section for the logo control rect {x1=21,y1=35,x2=116,y2=58}.
-    auto* sec = IMAGE_FIRST_SECTION(nt);
-    const uint8_t pat[16] = {21,0,0,0, 35,0,0,0, 116,0,0,0, 58,0,0,0};
-    for (int i = 0; i < nt->FileHeader.NumberOfSections; ++i, ++sec) {
-        if (memcmp(sec->Name, ".rsrc", 5) != 0) continue;
-        uint8_t* start = (uint8_t*)g_base + sec->VirtualAddress;
-        size_t n = sec->Misc.VirtualSize;
-        for (size_t o = 0; o + 16 <= n; ++o) {
-            if (start[o] != 21) continue;
-            if (memcmp(start + o, pat, 16) != 0) continue;
-            uint8_t* p = start + o; DWORD oldProt;
-            if (VirtualProtect(p, 12, PAGE_READWRITE, &oldProt)) {
-                *(int32_t*)p -= px;         // x1
-                *(int32_t*)(p + 8) -= px;   // x2
-                VirtualProtect(p, 12, oldProt, &oldProt);
-            }
-        }
+bool aboutReady(const InstanceState& st) {
+    return g_installed && st.appObj.load(std::memory_order_relaxed) != nullptr;
+}
+
+bool showAbout(InstanceState& st) {
+    void* app = st.appObj.load(std::memory_order_relaxed);
+    if (!app || !g_installed) return false;
+    auto show = (void (*)(void*))addr(kShowAboutDialog);
+    __try {
+        show(app);   // modal: returns when the user closes FM8's About panel
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        st.appObj.store(nullptr, std::memory_order_relaxed);   // stale pointer, stop offering it
+        return false;
     }
 }
 
 bool serveForms(void* module) {
 #ifdef FM8PLUS_HAVE_FORMS
     if (!Rsrc::install((HMODULE)module)) return false;
-    Rsrc::overrideForm(5, kFrm5, sizeof kFrm5);
-    Rsrc::overrideForm(15, kFrm15, sizeof kFrm15);
+    Rsrc::serve("FRM", 5, kFrm5, sizeof kFrm5);        // FormMain header, wordmark control widened
+    Rsrc::serve("FRM", 15, kFrm15, sizeof kFrm15);     // FormMainCompact, same control
+    Rsrc::serve("PICTURE", 193, kPic193, sizeof kPic193);   // the wordmark bitmap with the "+" on it
+    g_logoWidened = true;
     return true;
 #else
     (void)module;
     return false;
 #endif
 }
+
+bool logoWidened() { return g_logoWidened; }
 
 bool setMorphXY(InstanceState& st, float x, float y) {
     void* eb = st.editBuf.load(std::memory_order_relaxed);

@@ -5,7 +5,7 @@
 namespace fm8plus::Rsrc {
 namespace {
 
-struct Entry { int id; const void* data; size_t size; };
+struct Entry { const char* type; int id; const void* data; size_t size; };
 constexpr int kMax = 32;
 Entry g_entries[kMax];           // a fake HRSRC/HGLOBAL is a pointer into this array
 int g_count = 0;
@@ -25,9 +25,10 @@ Entry* ours(const void* h) {
 }
 
 HRSRC WINAPI h_find(HMODULE mod, LPCSTR name, LPCSTR type) {
-    if (mod == g_fm8 && IS_INTRESOURCE(name) && !IS_INTRESOURCE(type) && _stricmp(type, "FRM") == 0) {
+    if (mod == g_fm8 && IS_INTRESOURCE(name) && !IS_INTRESOURCE(type)) {
         const int id = (int)(uintptr_t)name;
-        for (int i = 0; i < g_count; ++i) if (g_entries[i].id == id) return (HRSRC)&g_entries[i];
+        for (int i = 0; i < g_count; ++i)
+            if (g_entries[i].id == id && _stricmp(type, g_entries[i].type) == 0) return (HRSRC)&g_entries[i];
     }
     return o_find(mod, name, type);
 }
@@ -72,9 +73,13 @@ bool install(HMODULE fm8) {
     return true;
 }
 
-void overrideForm(int id, const void* data, size_t size) {
-    for (int i = 0; i < g_count; ++i) if (g_entries[i].id == id) { g_entries[i] = {id, data, size}; return; }
-    if (g_count < kMax) g_entries[g_count++] = {id, data, size};
+void serve(const char* type, int id, const void* data, size_t size) {
+    for (int i = 0; i < g_count; ++i)
+        if (g_entries[i].id == id && _stricmp(type, g_entries[i].type) == 0) {
+            g_entries[i] = {type, id, data, size};
+            return;
+        }
+    if (g_count < kMax) g_entries[g_count++] = {type, id, data, size};
 }
 
 } // namespace fm8plus::Rsrc

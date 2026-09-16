@@ -39,26 +39,33 @@ event out: 1 bus(es)
     [0] 'FM8+ Arp Out' channels=16 busType=0 flags=0x1
 ```
 
-**Editor overlay (the "+" button), VST2 and VST3, in a real window** (`tools/vsteditor.py`, a
-ctypes GUI host that opens the editor in a top-level window, dumps the child-window tree with Z order
-and positions, and screenshots just that window). First report from Reaper (2026-09-10): the logo
-shifted but no "+" in either format. The harness found three separate causes, all fixed:
+**The "FM8+" button, all three hosts, in a real window** (`tools/vsteditor.py` for the plug-ins, a
+ctypes GUI host that opens the editor in a top-level window; a matching probe drives the standalone).
 
-| Cause | Symptom in the harness | Fix |
-|-------|------------------------|-----|
-| `UpdateLayeredWindow` `pptDst` is parent-relative for a child window; the shim passed the screen rect | overlay created at (109,22) but found at (109+editorX, 22+editorY) | pass `pptDst = nullptr` |
-| FM8's full-size `NIVSTChildWindow` sits above a newly created sibling either way | overlay directly below FM8's child in Z order from the moment the editor opens | explicit `SetWindowPos(HWND_TOP)` after creation (a single raise sticks; FM8 never re-raises) |
-| The VST3 shim had no editor hook at all | no `FM8plusOverlay` window in the process | hook `IEditController::createView` and the view's `attached`/`removed` from the live vtables, gated to FM8+ instances |
+The button was a layered child window over the editor until 2026-09-16, and that design cost three
+separate fixes to get visible at all (`UpdateLayeredWindow`'s `pptDst` is parent-relative for a child
+window; FM8's full-size `NIVSTChildWindow` sits above a newly created sibling either way; the VST3
+shim had no editor hook), and it still put a window of ours in the host's Z order, where other
+plug-ins and windows could land on top of it. It is now FM8's own artwork instead: `Core::serveForms`
+hands FM8 a widened FRM 5/15 and a widened PICTURE 193 with the "+" painted on, and `ui.cpp`
+subclasses the window FM8 draws into and takes the click (docs/gui.md 7). Nothing of ours is in any
+Z order, and FM8 scales and repaints the "+" with the rest of its GUI.
 
-After the fixes both formats show `FM8plusOverlay > NIVSTChildWindow` at (109,22) right after the
-editor opens, and the screenshot shows the "+" beside the shifted logo with no intervention.
+Verified against the installed FM8 with the shims as they ship:
 
-The "+" position itself was then found to differ from the standalone (2026-09-11): the plug-in
-overlay was created at client (109,22) while the EXE's floated at window-rect (109,82), which is
-client (101,31) under the Windows 10 frame, so the plug-in "+" sat 8 px right and 9 px high of the
-EXE's. Both hosts now share one client-relative origin (`kPlusX`/`kPlusY` in `ui.cpp`; the
-standalone glues through `ClientToScreen` instead of the window rect). Harness screenshots put the
-"+" pixel box at (111,41)-(124,54) in VST2, VST3 and the EXE, against logo text rows 35-57.
+| Check | VST2 | VST3 | Standalone |
+|---|---|---|---|
+| FM8 draws the widened wordmark (logo-coloured pixels counted in the 22px plus strip) | pass, 76 | pass, 76 | pass, 76 |
+| Posted click on the "+" opens the FM8.plus menu | pass | pass | pass |
+| The same at 2x GUI Scale (294 pixels, click still lands) | n/a | n/a | pass |
+| "About FM8" brings up FM8's own About panel | pass | untested live | pass (482x338 `#32770`) |
+| Window tree under the host's editor HWND | `NIVSTChildWindow` only | `NIVSTChildWindow` only | the top-level window itself, no children |
+
+`SetWindowSubclass` returns 0 when it is called from a thread other than the window's owner, which is
+exactly what the standalone did (it finds FM8's window from a worker thread): the wordmark drew but no
+click ever arrived. It now rides into FM8's UI thread on a one-shot `WH_CALLWNDPROC` hook. The VST3
+About path is the same core code as VST2's with the address from the same decompilation; only a live
+run is missing, since the VST3 test host has no `process()` call to capture the pointer with.
 
 **GUI analysis and layout tooling** (`docs/gui.md` and its three sub-documents, `tools/fm8gui.py`,
 `tools/frm_grammar.py`, `tools/gen_forms.py`, 2026-09-10). FM8's GUI is 74 `FRM` form resources
@@ -90,8 +97,8 @@ installed FM8 with the shims as they ship:
 | VST3 editor at 2x | pass (`IPlugView::getSize` 1896x1124, same render) |
 | Standalone at 2x | pass (window 1912x1183 from startup, scaled before FM8 creates it; keyboard strip and all pages render) |
 | Mouse lands on the control under the pointer at 2x | pass (clicks at `logical x 2` switch the Navigator page they name; at 1:1 those points are in the keyboard strip) |
-| Scale changed from the menu while the editor is open | pass (FM8's child 948x562 -> 2370x1405, overlay 30x36 -> 75x90, host told the new rect, full repaint, INI updated) |
-| The "+" tracks the scale | pass (client (101,31) 30x36 -> (202,62) 60x72 at 2x, cross geometry scales with it) |
+| Scale changed from the menu while the editor is open | pass (FM8's child 948x562 -> 2370x1405, host told the new rect, full repaint, INI updated) |
+| The "+" tracks the scale | pass (it is part of the wordmark bitmap, so FM8's own blit scales it; the click rect follows) |
 | VST2 feature regression at 1x | pass (arp, morph, tempo and gain numbers unchanged) |
 
 **Installer**: `installer\FM8.plus.iss` (Inno Setup) and `install.ps1` / `uninstall.ps1` install
@@ -112,7 +119,7 @@ ships. Nothing Native Instruments produced is redistributed in the repo, the bin
   `IMidiMapping`) in `inputParameterChanges`; confirmed as the mapping target, not yet observed live.
 - **Tempo Override and Increase Gain** are verified headless under VST2; the VST3 process-context
   tempo scaling and both features under the standalone still want a listening test in a DAW.
-- **Standalone** overlay button and menu confirmed on a real run (see above); the arp-out to a WinMM
+- **Standalone** button, menu and About panel confirmed on a real run (see above); the arp-out to a WinMM
   port and the actual audio still need a listening test with a MIDI monitor.
 - **VST2 host coverage.** Plugin-to-host MIDI is not routed by every host; where a host drops it,
   Clone/MIDI-only produce nothing downstream (the mode is labelled honestly).
@@ -126,15 +133,15 @@ ships. Nothing Native Instruments produced is redistributed in the repo, the bin
 - **Coexistence with plain FM8 in one process.** FM8+ loads the stock FM8 module in place and shares
   it, so the feature hooks are gated to FM8+ instances (by `Core::current` in VST2, by an instance
   registry in VST3) and plain FM8 stays stock. The one shared side effect is the logo shift: it
-  patches the module's form resource in memory, so a plain FM8 editor opened in the *same* process as
-  an FM8+ instance shows the 11px gap (no "+"). Cosmetic, stock file untouched, and absent when only
-  one of the two is loaded.
+  serves the header forms and the wordmark bitmap to the shared module, so a plain FM8 editor opened
+  in the *same* process as an FM8+ instance also shows the "FM8+" wordmark. Its clicks are untouched
+  (no subclass on that window), so the logo still opens FM8's About panel there. Cosmetic, stock file
+  untouched, and absent when only one of the two is loaded.
 
-- The **overlay button** is a Win32 child over the editor, raised once above FM8's child at creation.
-  If some DAW re-raises the plug-in window later, the "+" would vanish there; the cheap upgrade is a
-  periodic re-raise timer (the standalone already has one), and the deeper fallback is the INI plus
-  the native NGL menu (addresses already located in `docs/hooks.md`). Run
-  `python tools/vsteditor.py vst2|vst3 [path]` after any overlay or shim change.
+- **"About FM8" needs the audio thread to have run once.** The FM8App pointer is captured from the arp
+  dispatch, which runs every block, so the item is live within a block of instantiation; until then it
+  is greyed rather than guessing a pointer. Run `python tools/vsteditor.py vst2|vst3 [path]` after any
+  change to the button or the shims.
 - **Standalone morph** applies via the internal setter using the EditBuffer captured from the arp
   dispatch, which runs every block; if a future FM8 build gates that call, capture the EditBuffer
   from another per-block site instead.

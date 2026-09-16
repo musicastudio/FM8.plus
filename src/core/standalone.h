@@ -8,7 +8,7 @@ namespace fm8plus {
 namespace standalone {
 
 // Shift the FM8 logo now (we are injected while the process is still suspended, before the GUI is
-// built), then defer the hooks, WinMM MIDI-out, and overlay onto a worker thread. `self` is the
+// built), then defer the hooks, WinMM MIDI-out, and the logo menu hook onto a worker thread. `self` is the
 // injected module handle. Safe to call once from DllMain.
 void attachExe(HMODULE self);
 

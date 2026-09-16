@@ -148,11 +148,12 @@ that code switched off. It never calls `SetProcessDpiAwareness`, so `GetDpiForWi
 So the feature is three detours and a number (`docs/hooks.md`, "GUI scale"): the app-object getter
 sets the gate byte, the scale getter returns the chosen factor, and the surface-scale getter is held
 at 1 so the DIB stays logical and the `StretchDIBits` at the end of the paint does the enlarging. FM8
-then sizes its own window, hit-tests the mouse and repaints correctly with no further help. What is
-left for FM8.plus is the part FM8 cannot know about: the "+" overlay moves and grows with the scale,
-and a hosted editor has to tell the host its new size, over `effEditGetRect` / `IPlugView::getSize`
-when it opens and `audioMasterSizeWindow` / `IPlugFrame::resizeView` when the scale changes while it
-is open. The standalone resizes FM8's own top-level window itself.
+then sizes its own window, hit-tests the mouse and repaints correctly with no further help, the
+"FM8+" wordmark included, since that is one of its own controls. What is left for FM8.plus is the
+part FM8 cannot know about: a hosted editor has to tell the host its new size, over
+`effEditGetRect` / `IPlugView::getSize` when it opens and `audioMasterSizeWindow` /
+`IPlugFrame::resizeView` when the scale changes while it is open. The standalone resizes FM8's own
+top-level window itself.
 
 The detours are process-wide, so each plug-in shim registers the editor window the host gave it and
 the scale getter answers 1.0 outside that window tree. A plain FM8 instance sharing the module in the

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """GUI editor probe for the FM8.plus wrappers (ctypes, no DAW needed).
 
-Opens the plug-in editor in a real top-level window, pumps messages, then reports what the FM8.plus
-"+" overlay window is doing: does it exist, who owns it, where it sits relative to the editor, and
-which sibling window is above it in the Z order. Saves a screenshot of just the probe window (never
-the desktop), and runs two live experiments on the overlay: raise it to the top of the Z order, then
-move it back to where the shim intended, with a screenshot after each.
+Opens the plug-in editor in a real top-level window, pumps messages, then checks the two halves of
+the "FM8+" button: that FM8 is drawing the widened wordmark from the resources FM8.plus serves it
+(counted in the pixels beside the logo), and that a click on it reaches our window subclass and
+opens the menu (posted, then dismissed from a watcher thread). Saves a screenshot of just the probe
+window and a crop of the wordmark, never the desktop.
 
     python tools/vsteditor.py vst2 [dll]      default I:\\vstplugins64\\FM8.plus.dll
     python tools/vsteditor.py vst3 [vst3]     default C:\\Program Files\\Common Files\\VST3\\FM8.plus.vst3
@@ -28,7 +28,13 @@ import vst3host as v3  # noqa: E402
 
 DEFAULT_VST2 = r"I:\vstplugins64\FM8.plus.dll"
 DEFAULT_VST3 = r"C:\Program Files\Common Files\VST3\FM8.plus.vst3"
-OVERLAY_CLASS = "FM8plusOverlay"
+
+# The widened "FM8+" wordmark in editor client pixels at 1x, its colour, and how much of it
+# the "+" occupies (must match src/core/ui.cpp and tools/gen_forms.py).
+LOGO_RECT = (10, 35, 127, 58)
+LOGO_COLOUR = (107, 125, 134)
+PLUS_W = 22
+MENU_CLASS = "#32768"   # the Win32 popup-menu window class
 
 user32 = C.WinDLL("user32", use_last_error=True)
 kernel32 = C.WinDLL("kernel32", use_last_error=True)
@@ -76,6 +82,8 @@ AdjustWindowRectEx = _sig("AdjustWindowRectEx", C.c_int, C.POINTER(W.RECT), C.c_
 EnumWindows = _sig("EnumWindows", C.c_int, ENUMPROC, C.c_ssize_t)
 GetWindowThreadProcessId = _sig("GetWindowThreadProcessId", C.c_uint, VP, C.POINTER(C.c_uint))
 RegisterClassW = _sig("RegisterClassW", C.c_uint16, C.POINTER(WNDCLASSW))
+PostMessageW = _sig("PostMessageW", C.c_int, VP, C.c_uint, C.c_size_t, C.c_ssize_t)
+FindWindowExW = _sig("FindWindowExW", VP, VP, VP, C.c_wchar_p, C.c_wchar_p)
 kernel32.GetModuleHandleW.restype = VP
 kernel32.GetModuleHandleW.argtypes = [C.c_wchar_p]
 kernel32.GetCurrentProcess.restype = VP        # pseudo-handle is 64-bit -1; a c_int restype truncates it
@@ -86,6 +94,8 @@ WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW = 0x80000, 0x8
 GW_CHILD, GW_HWNDNEXT, GW_HWNDPREV = 5, 2, 3
 SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER, SWP_NOACTIVATE = 1, 2, 4, 0x10
 WM_CLOSE, WM_DESTROY, WM_QUIT = 0x10, 0x2, 0x12
+WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x100, 0x101, 0x201, 0x202
+VK_ESCAPE, VK_UP, VK_RETURN = 0x1b, 0x26, 0x0d
 
 _keep = []   # ctypes callbacks that must outlive the window
 
@@ -177,9 +187,8 @@ def dump_tree(root):
         while h:
             cls, txt, r, st, ex, vis = info(h)
             rel = (r[0] - ox, r[1] - oy, r[2] - ox, r[3] - oy)
-            mark = "  <-- FM8.plus overlay" if cls == OVERLAY_CLASS else ""
             print(f"{'  ' * depth}z{z} {h:#x} {cls!r} text={txt!r} rel={rel} size={r[2]-r[0]}x{r[3]-r[1]} "
-                  f"[{flags(st, ex)}]{' HIDDEN' if not vis else ''}{mark}")
+                  f"[{flags(st, ex)}]{' HIDDEN' if not vis else ''}")
             found.append((h, cls))
             walk(h, depth + 1)
             h = GetWindow(h, GW_HWNDNEXT)
@@ -190,18 +199,85 @@ def dump_tree(root):
     return found
 
 
-def overlays_anywhere():
-    """Any FM8plusOverlay top-level windows owned by this process (the standalone-style popup form)."""
+def logo_pixels(root, path):
+    """Grab the wordmark out of the editor's client area, save the crop, and count the logo-coloured
+    pixels in the strip the "+" occupies. Stock FM8 has nothing there."""
+    from PIL import ImageGrab
+    ox, oy = client_origin(root)
+    x1, y1, x2, y2 = LOGO_RECT
+    im = ImageGrab.grab(bbox=(ox + x1, oy + y1, ox + x2, oy + y2)).convert("RGB")
+    im.resize((im.width * 4, im.height * 4)).save(path)
+    print(f"wordmark crop -> {path}")
+    px = im.load()
+    return sum(1 for x in range(im.width - PLUS_W, im.width) for y in range(im.height)
+               if max(abs(a - b) for a, b in zip(px[x, y], LOGO_COLOUR)) < 40)
+
+
+def top_of_process(exclude_class=None):
+    """Top-level windows owned by this process."""
     pid, out = os.getpid(), []
 
     def cb(h, _):
         p = C.c_uint()
         GetWindowThreadProcessId(h, C.byref(p))
-        if p.value == pid and info(h)[0] == OVERLAY_CLASS:
+        if p.value == pid and (exclude_class is None or info(h)[0] != exclude_class):
             out.append(h)
         return 1
     EnumWindows(ENUMPROC(cb), 0)
     return out
+
+
+def click_logo(root, out_dir=None, tag="", idle=None, about=False):
+    """Post a left click on the "+" and drive whatever it opens from a watcher thread.
+
+    Everything the click triggers runs modally inside our own DispatchMessageW (TrackPopupMenu, then
+    FM8's About panel), so this thread can only pump. The watcher does the driving instead, which
+    works because ctypes drops the GIL while the main thread is blocked: Escape to dismiss the menu,
+    or Up Up Enter to pick "About FM8" (second from last) and then screenshot and close the panel
+    FM8 puts up. Returns (menu opened, About panel found)."""
+    import threading
+    child = GetWindow(root, GW_CHILD) or root
+    x = LOGO_RECT[2] - PLUS_W // 2
+    y = (LOGO_RECT[1] + LOGO_RECT[3]) // 2
+    before = set(top_of_process())
+    got = {"menu": False, "dialog": None}
+
+    def watch():
+        m = None
+        for _ in range(100):
+            time.sleep(0.05)
+            m = FindWindowExW(None, None, MENU_CLASS, None)
+            if m:
+                break
+        if not m:
+            return
+        got["menu"] = True
+        for k in ((VK_UP, VK_UP, VK_RETURN) if about else (VK_ESCAPE,)):
+            PostMessageW(m, WM_KEYDOWN, k, 0)
+            PostMessageW(m, WM_KEYUP, k, 0)
+            time.sleep(0.15)
+        if not about:
+            return
+        for _ in range(100):      # FM8's About panel: find it, shoot it, close it
+            time.sleep(0.05)
+            new = [h for h in top_of_process(MENU_CLASS) if h not in before and IsWindowVisible(h)]
+            if not new:
+                continue
+            h = new[0]
+            cls, _txt, r, _st, _ex, _vis = info(h)
+            got["dialog"] = (h, cls, r[2] - r[0], r[3] - r[1])
+            if out_dir:
+                screenshot(h, os.path.join(out_dir, f"{tag}_about.png"))
+            PostMessageW(h, WM_CLOSE, 0, 0)
+            return
+
+    t = threading.Thread(target=watch, daemon=True)
+    t.start()
+    PostMessageW(child, WM_LBUTTONDOWN, 1, (y << 16) | x)
+    PostMessageW(child, WM_LBUTTONUP, 0, (y << 16) | x)
+    pump(12 if about else 3.5, idle)
+    t.join(1)
+    return got["menu"], got["dialog"]
 
 
 def screenshot(root, path):
@@ -246,44 +322,16 @@ def resource_hook_check(module_name):
 
 
 def diagnose(root, out_dir, tag, idle=None):
-    found = dump_tree(root)
-    ov = [h for h, cls in found if cls == OVERLAY_CLASS]
-    popups = overlays_anywhere()
-    screenshot(root, os.path.join(out_dir, f"{tag}_1_initial.png"))
-    if not ov and not popups:
-        print("RESULT: no FM8plusOverlay window exists anywhere in this process -> the shim never created it")
-        return
-    if popups:
-        for h in popups:
-            print(f"RESULT: overlay exists as a TOP-LEVEL popup {h:#x} rect={info(h)[2]}")
-    for h in ov:
-        cls, txt, r, st, ex, vis = info(h)
-        ox, oy = client_origin(root)
-        parent = GetParent(h)
-        above = GetWindow(h, GW_HWNDPREV)
-        print(f"RESULT: overlay {h:#x} is a child of {parent:#x} ({info(parent)[0]!r}), "
-              f"rel={(r[0]-ox, r[1]-oy)} size={r[2]-r[0]}x{r[3]-r[1]} visible={vis}")
-        if above:
-            acls, _, ar, _, _, _ = info(above)
-            print(f"        directly ABOVE it in Z order: {above:#x} {acls!r} size={ar[2]-ar[0]}x{ar[3]-ar[1]}"
-                  f"{'  (covers the overlay)' if ar[0] <= r[0] and ar[1] <= r[1] and ar[2] >= r[2] and ar[3] >= r[3] else ''}")
-        else:
-            print("        nothing above it in Z order (it is the topmost sibling)")
-        # Experiment 1: raise it. If the "+" appears now, the cause is Z order. Then keep pumping to
-        # see whether FM8 pushes its own window back above ours.
-        SetWindowPos(h, VP(0), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
-        pump(0.5, idle)
-        screenshot(root, os.path.join(out_dir, f"{tag}_2_raised.png"))
-        print(f"        z-order right after raise: {zorder(root)}")
-        pump(3, idle)
-        print(f"        z-order 3 s later:         {zorder(root)}")
-        # Experiment 2: put it where the shim intended (109,22 in the parent's client). If it only
-        # appears now, the cause is a bad position (UpdateLayeredWindow's pptDst on a child window).
-        SetWindowPos(h, None, 109, 22, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
-        pump(0.5, idle)
-        screenshot(root, os.path.join(out_dir, f"{tag}_3_raised_moved.png"))
-        r2 = info(h)[2]
-        print(f"        after raise+move: rel={(r2[0]-ox, r2[1]-oy)}")
+    dump_tree(root)
+    screenshot(root, os.path.join(out_dir, f"{tag}_editor.png"))
+    n = logo_pixels(root, os.path.join(out_dir, f"{tag}_logo.png"))
+    print(f"RESULT: wordmark {'carries the + ' if n > 40 else 'has NO + '}"
+          f"({n} logo-coloured pixels in the {PLUS_W}px plus strip)")
+    opened, _ = click_logo(root, idle=idle)
+    print(f"RESULT: click on the FM8+ logo {'opened the FM8.plus menu' if opened else 'opened NO menu'}")
+    # "About FM8" must reach FM8's own dialog function, so a new top-level window has to appear.
+    _, dlg = click_logo(root, out_dir, tag, idle, about=True)
+    print(f"RESULT: About FM8 {f'opened FM8s own panel {dlg[1]!r} {dlg[2]}x{dlg[3]}' if dlg else 'opened NOTHING'}")
 
 
 # --- VST2 ---------------------------------------------------------------------------------------
@@ -310,6 +358,7 @@ def run_vst2(dll, seconds, out_dir, keep):
     print(f"effEditOpen(hwnd={hwnd:#x}) -> {rv}")
     print(f"z-order right after effEditOpen: {zorder(hwnd)}")
     idle = lambda: h.d(effEditIdle)
+    h.process(4)   # the About pointer is captured on the audio thread, like the morph EditBuffer
     pump(0.3, idle)
     print(f"z-order after 0.3 s of idle:     {zorder(hwnd)}")
     pump(seconds, idle)

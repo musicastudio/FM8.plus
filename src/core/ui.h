@@ -1,7 +1,11 @@
-// FM8.plus in-editor toggle UI: a small "FM8+" button overlaid on the FM8 editor window that
-// opens a popup menu with the mod-wheel-morph checkbox and the three-way arp MIDI-out radio.
-// Self-contained Win32, so it needs no FM8 GUI reverse engineering. The standalone reuses the
-// same overlay on its main window.
+// FM8.plus in-editor toggle UI. FM8 itself draws the button: Core::serveForms widens the header
+// form's wordmark control and hands FM8 a wordmark bitmap with a "+" on it, so the "FM8+" logo is
+// part of FM8's own GUI (it scales, clips and repaints with everything else, and no window of ours
+// sits above the host's). All that is left here is the click: we subclass the window FM8 draws the
+// editor into, and a press inside the wordmark opens the popup menu instead of reaching FM8. That
+// press is what stock FM8 uses to open its About panel, so the menu ends with "About FM8", which
+// calls FM8's own dialog function (Core::showAbout), and "About FM8.plus", which opens the project
+// page.
 #pragma once
 #include <windows.h>
 
@@ -10,28 +14,28 @@ struct InstanceState;
 
 namespace ui {
 
-class Overlay {
+class LogoMenu {
 public:
-    void attach(HWND parent, InstanceState* st, HMODULE self); // create the button on the editor
-    void detach();                                             // destroy it (editor closing)
-    void refresh(InstanceState& st);                           // re-sync check marks after a state load
+    void attach(HWND parent, InstanceState* st);   // parent = the editor window the host gave us
+    void detach();                                 // editor closing
 
-    // Standalone helper: find this process's main window (blocking up to timeoutMs) and attach the
-    // overlay to it. Safe to call from a worker thread; the button is created on that thread.
-    void attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeoutMs);
-    // Optional: list MIDI out devices for the standalone port picker (names via midiOutGetDevCaps).
-    void setStandalone(bool v) { standalone_ = v; }
+    // Standalone helper: find this process's main window (blocking up to timeoutMs) and hook it.
+    // Safe to call from a worker thread; the thread returns once the subclass is in place.
+    void attachToMainWindow(InstanceState* st, unsigned timeoutMs);
 
     // GUI Scale: a hosted plug-in cannot resize its own editor, it has to ask the host. The shim
     // registers the host's way of doing that (VST2 audioMasterSizeWindow, VST3 IPlugFrame::resizeView)
     // and the menu calls it with the new editor size in pixels. The standalone leaves this unset and
-    // the overlay resizes FM8's own top-level window itself.
+    // the menu resizes FM8's own top-level window itself.
     using HostResizeFn = void (*)(void* ctx, int w, int h);
     void setHostResize(HostResizeFn fn, void* ctx) { resize_ = fn; resizeCtx_ = ctx; }
+
 private:
-    HWND hwnd_ = nullptr;
-    InstanceState* st_ = nullptr;
-    bool standalone_ = false;
+    void hookTree(HWND root, InstanceState* st, bool topLevel);
+    static LRESULT CALLBACK installProc(int code, WPARAM wp, LPARAM lp);   // runs on FM8's UI thread
+    static constexpr int kMaxHooked = 8;
+    HWND hooked_[kMaxHooked] = {};
+    int count_ = 0;
     HostResizeFn resize_ = nullptr;
     void* resizeCtx_ = nullptr;
 };

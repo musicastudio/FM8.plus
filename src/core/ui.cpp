@@ -1,74 +1,21 @@
 #include "ui.h"
 #include "fm8plus.h"
 #include "settings.h"
+#include <commctrl.h>
+#include <shellapi.h>
 #include <windowsx.h>
-#include <objidl.h>
-// GDI+ headers reference the min/max macros that the project's NOMINMAX removes; restore them locally.
-#ifndef min
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-#define max(a, b) (((a) > (b)) ? (a) : (b))
-#define FM8PLUS_TMP_MINMAX
-#endif
-#pragma warning(push)
-#pragma warning(disable : 4458)   // the Windows SDK's own GDI+ headers shadow members under /W4
-#include <gdiplus.h>
-#pragma warning(pop)
-#ifdef FM8PLUS_TMP_MINMAX
-#undef min
-#undef max
-#undef FM8PLUS_TMP_MINMAX
-#endif
-#include <algorithm>
 #include <cmath>
 
 namespace fm8plus::ui {
 namespace {
-const wchar_t* kClass = L"FM8plusOverlay";
-constexpr int kW = 30, kH = 36;               // small transparent window holding just the "+"
-const int kLR = 107, kLG = 125, kLB = 134;    // sampled FM8 logo blue-grey (the "+" colour)
-const int kSR = 214, kSG = 235, kSB = 248;    // shimmer highlight colour
-constexpr int kTimerGlue = 1, kTimerShine = 2;
-// Overlay origin in FM8's client area, shared by every host so the "+" lands on the same pixels
-// beside the logo in the standalone and the plug-in editors (measured with tools/vsteditor.py).
-constexpr int kPlusX = 101, kPlusY = 31;
 
-// GUI Scale stretches FM8's whole GUI about the client origin, so every logical coordinate above
-// just multiplies: at 2x the wordmark ends at twice the pixels and so must the "+".
-inline int sc(int v) { return (int)lroundf(v * Core::guiScale()); }
+// The wordmark rect in FM8's own form coordinates. Stock FM8 is 95x23 at (21,35); serveForms moves
+// it kShift px left and grows it kPlusW px to the right to hold the "+". These three numbers must
+// match tools/gen_forms.py, which edits the form and paints the bitmap.
+constexpr int kLogoX1 = 21, kLogoY1 = 35, kLogoX2 = 116, kLogoY2 = 58;
+constexpr int kShift = 11, kPlusW = 22;
 
-// Screen position of the overlay for a top-level FM8 window (the standalone's floating button).
-POINT plusOrigin(HWND fm8) { POINT p{sc(kPlusX), sc(kPlusY)}; ClientToScreen(fm8, &p); return p; }
-
-// The "+" is drawn directly as a slanted cross, so FM8.plus carries no font dependency. The shape
-// is a plain 12-vertex polygon: two 3px bars spanning ~14.7px, sheared 10 degrees to the right to
-// sit italic beside FM8's own wordmark.
-constexpr float kPlusHalf  = 7.37f;    // half the overall arm span
-constexpr float kPlusThick = 1.515f;   // half the bar thickness
-constexpr float kPlusSlant = 0.1767f;  // tan(10 degrees) italic shear
-constexpr float kPlusDx    = 1.4f;     // nudge from the window centre, tuned against the logo
-constexpr float kPlusDy    = -1.54f;
-
-// Build the cross outline centred in a w x h window.
-void plusPoints(Gdiplus::PointF out[12], int w, int h) {
-    const float k = w / (float)kW;                 // GUI Scale: the window grew, so does the cross
-    const float a = kPlusHalf * k, t = kPlusThick * k;
-    const float cx = w * 0.5f + kPlusDx * k, cy = h * 0.5f + kPlusDy * k;
-    const float px[12] = {  a,  t,  t, -t, -t, -a, -a, -t, -t,  t,  t,  a };
-    const float py[12] = { -t, -t, -a, -a, -t, -t,  t,  t,  a,  a,  t,  t };
-    for (int i = 0; i < 12; ++i)
-        out[i] = Gdiplus::PointF(cx + px[i] - py[i] * kPlusSlant, cy + py[i]);
-}
-
-// GDI+ startup, once for this process.
-bool gpReady() {
-    static ULONG_PTR token = 0; static bool init = false, ok = false;
-    if (!init) {
-        init = true;
-        Gdiplus::GdiplusStartupInput in;
-        ok = Gdiplus::GdiplusStartup(&token, &in, nullptr) == Gdiplus::Ok;
-    }
-    return ok;
-}
+constexpr UINT_PTR kSubclassId = 1;
 
 // Command id ranges (kept apart so one TrackPopupMenu return value tells us which control fired).
 enum {
@@ -77,72 +24,44 @@ enum {
     ID_TEMPO_OFF = 3000,                                // ID_TEMPO_OFF + mode (0..5)
     ID_GAIN_OFF = 4000,                                 // ID_GAIN_OFF + db (0..10)
     ID_SCALE_0 = 5000,                                  // ID_SCALE_0 + index into kScales
+    ID_ABOUT_FM8 = 6000, ID_ABOUT_PLUS,
 };
+
+// Where "About FM8.plus" sends the browser.
+const wchar_t* const kProjectUrl = L"https://github.com/musicastudio/FM8.plus";
 
 // GUI Scale steps. 1x is stock FM8 down to the pixel.
 constexpr float kScales[] = {1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f};
 const wchar_t* const kScaleLabels[] = {L"1x (off)", L"1.5x", L"2x", L"2.5x", L"3x", L"3.5x", L"4x"};
 constexpr int kScaleCount = (int)(sizeof kScales / sizeof kScales[0]);
 
-// Per-window data behind GWLP_USERDATA: the instance state, the FM8 window the standalone overlay
-// tracks (null for a plugin child), and the hover/shimmer state.
+// Per-window data behind the subclass: the instance state, the window FM8 draws the form into
+// (clicks from any nested child are mapped into its client area), and the host resize hook.
 struct OData {
-    InstanceState* st; HWND target; bool hovering; float shine;
-    Overlay::HostResizeFn resize; void* resizeCtx;
+    InstanceState* st;
+    HWND root;
+    bool topLevel;                 // standalone: root is FM8's own top-level window
+    LogoMenu::HostResizeFn resize;
+    void* resizeCtx;
 };
 
-// Render the "+" into the layered window with per-pixel alpha (transparent background, so FM8's own
-// toolbar shows through and only the plus is visible), then push it with UpdateLayeredWindow. When
-// hovering, a brighter band sweeps across the plus (the shimmer).
-void renderPlus(HWND hwnd, OData* d) {
-    RECT wr; GetWindowRect(hwnd, &wr);
-    const int w = wr.right - wr.left, h = wr.bottom - wr.top;
-    if (w <= 0 || h <= 0) return;
+// The clickable wordmark in physical client pixels of `root`. GUI Scale stretches FM8's whole GUI
+// about the client origin, so every form coordinate just multiplies; FM8's own window procedure
+// divides the mouse back down the same way before it hit-tests its controls.
+RECT logoRect() {
+    const float s = Core::guiScale();
+    const bool wide = Core::logoWidened();
+    const int x1 = wide ? kLogoX1 - kShift : kLogoX1;
+    const int x2 = wide ? kLogoX2 + kPlusW - kShift : kLogoX2;
+    auto sc = [s](int v) { return (LONG)lroundf(v * s); };
+    return {sc(x1), sc(kLogoY1), sc(x2), sc(kLogoY2)};
+}
 
-    BITMAPINFO bi{}; bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bi.bmiHeader.biWidth = w; bi.bmiHeader.biHeight = -h;   // top-down
-    bi.bmiHeader.biPlanes = 1; bi.bmiHeader.biBitCount = 32; bi.bmiHeader.biCompression = BI_RGB;
-    void* bits = nullptr;
-    HDC screen = GetDC(nullptr);
-    HDC mem = CreateCompatibleDC(screen);
-    HBITMAP dib = CreateDIBSection(screen, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
-    HBITMAP oldBm = (HBITMAP)SelectObject(mem, dib);
-    auto* px = (uint32_t*)bits;
-    for (int i = 0; i < w * h; ++i) px[i] = 0;             // fully transparent
-
-    // Draw the "+" as a filled polygon (antialiased, per-pixel alpha) into a GDI+ PARGB bitmap, then
-    // copy it into the layered DIB. Centred; a highlight band sweeps across on hover.
-    if (gpReady()) {
-        Gdiplus::Bitmap bmp(w, h, PixelFormat32bppPARGB);
-        Gdiplus::Graphics gr(&bmp);
-        gr.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        gr.Clear(Gdiplus::Color(0, 0, 0, 0));
-        Gdiplus::PointF pts[12];
-        plusPoints(pts, w, h);
-        Gdiplus::SolidBrush base(Gdiplus::Color(255, kLR, kLG, kLB));
-        gr.FillPolygon(&base, pts, 12);
-        if (d->hovering) {
-            const Gdiplus::REAL bandX = d->shine * (w + 20) - 10;   // sweeping highlight band
-            gr.SetClip(Gdiplus::RectF(bandX - 5, 0, 10, (Gdiplus::REAL)h));
-            Gdiplus::SolidBrush shine(Gdiplus::Color(255, kSR, kSG, kSB));
-            gr.FillPolygon(&shine, pts, 12);
-            gr.ResetClip();
-        }
-        Gdiplus::Rect rr(0, 0, w, h); Gdiplus::BitmapData bd;
-        if (bmp.LockBits(&rr, Gdiplus::ImageLockModeRead, PixelFormat32bppPARGB, &bd) == Gdiplus::Ok) {
-            for (int y = 0; y < h; ++y) memcpy(px + y * w, (uint8_t*)bd.Scan0 + y * bd.Stride, (size_t)w * 4);
-            bmp.UnlockBits(&bd);
-        }
-    }
-
-    POINT ptSrc{0, 0}; SIZE sz{w, h};
-    BLENDFUNCTION bf{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
-    // pptDst stays null so the window keeps its position. For the plugin overlay (a child window) a
-    // non-null pptDst is taken relative to the parent's client area, so passing the screen rect here
-    // used to shove the "+" off by the editor's screen position (found with tools/vsteditor.py).
-    UpdateLayeredWindow(hwnd, screen, nullptr, &sz, mem, &ptSrc, 0, &bf, ULW_ALPHA);
-
-    SelectObject(mem, oldBm); DeleteObject(dib); DeleteDC(mem); ReleaseDC(nullptr, screen);
+bool onLogo(HWND hwnd, OData* d, LPARAM lp) {
+    POINT p{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+    if (hwnd != d->root) { ClientToScreen(hwnd, &p); ScreenToClient(d->root, &p); }
+    RECT r = logoRect();
+    return PtInRect(&r, p) != FALSE;
 }
 
 // Common MIDI CC names; unnamed controllers show just "CC n".
@@ -175,47 +94,23 @@ void rescaleClient(HWND w, float ratio) {
     SetWindowPos(w, nullptr, 0, 0, nw, nh, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-struct RescaleCtx { HWND skip; float ratio; };
-BOOL CALLBACK rescaleSibling(HWND h, LPARAM lp) {
-    auto* c = (RescaleCtx*)lp;
-    if (h != c->skip) rescaleClient(h, c->ratio);   // FM8's editor child; ours is skipped
-    return TRUE;
-}
-
-// Put the "+" back beside the wordmark at the new scale (same logical spot, new pixel size).
-void placeOverlay(HWND hwnd, OData* d) {
-    if (d->target) {
-        const POINT p = plusOrigin(d->target);
-        SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, sc(kW), sc(kH), SWP_NOACTIVATE);
-    } else {
-        SetWindowPos(hwnd, nullptr, sc(kPlusX), sc(kPlusY), sc(kW), sc(kH), SWP_NOZORDER | SWP_NOACTIVATE);
-    }
-    renderPlus(hwnd, d);
-}
-
 // GUI Scale change. FM8 itself does the work from here (it sizes every window it creates by the
-// scale, maps the mouse back and stretches the blit); all we have to do is resize the windows that
-// already exist, since nothing re-creates them.
-void applyScale(HWND hwnd, OData* d, float want) {
+// scale, maps the mouse back and stretches the blit); all we have to do is resize the window that
+// already exists, since nothing re-creates it.
+void applyScale(OData* d, float want) {
     const float old = Core::guiScale();
     Core::setGuiScale(want);
     settings::setGuiScale(Core::guiScale());   // persist what the core accepted
     const float ratio = Core::guiScale() / old;    // re-read: the core clamps to 1..4
     if (ratio == 1.0f) return;
 
-    if (d->target) {
-        rescaleClient(d->target, ratio);           // standalone: FM8's own window
-    } else if (HWND parent = GetParent(hwnd)) {
-        // Hosted: FM8's editor child is our sibling under the host's window. Resize it, then ask the
-        // host for the new editor size. A host that ignores the request picks the size up the next
-        // time the editor is opened, since the shim answers the editor rect at the current scale.
-        RescaleCtx rc{hwnd, ratio};
-        EnumChildWindows(parent, rescaleSibling, (LPARAM)&rc);
-        RECT c; GetClientRect(parent, &c);
-        if (d->resize)
-            d->resize(d->resizeCtx, (int)lroundf(c.right * ratio), (int)lroundf(c.bottom * ratio));
-    }
-    placeOverlay(hwnd, d);
+    RECT c; GetClientRect(d->root, &c);
+    const int nw = (int)lroundf(c.right * ratio), nh = (int)lroundf(c.bottom * ratio);
+    rescaleClient(d->root, ratio);
+    // Hosted: FM8's editor child fills the window the host gave us, so the host has to make room.
+    // A host that ignores the request picks the size up the next time the editor is opened, since
+    // the shim answers the editor rect at the current scale.
+    if (!d->topLevel && d->resize) d->resize(d->resizeCtx, nw, nh);
 }
 
 void showMenu(HWND hwnd, OData* d) {
@@ -268,7 +163,14 @@ void showMenu(HWND hwnd, OData* d) {
                     ID_SCALE_0 + i, kScaleLabels[i]);
     AppendMenuW(m, MF_POPUP, (UINT_PTR)scale, L"GUI Scale");
 
-    SetForegroundWindow(hwnd);   // required so the popup dismisses correctly for a top-level tool window
+    // (6) The two About items. Clicking the logo is how stock FM8 opens its About panel, and the
+    // wordmark is now our button, so the panel keeps its place here. It is greyed until the audio
+    // thread has handed us FM8's own pointer for it.
+    AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(m, MF_STRING | (Core::aboutReady(*st) ? 0 : MF_GRAYED), ID_ABOUT_FM8, L"About FM8");
+    AppendMenuW(m, MF_STRING, ID_ABOUT_PLUS, L"About FM8.plus");
+
+    SetForegroundWindow(GetAncestor(hwnd, GA_ROOT));   // so the popup dismisses on a click elsewhere
     POINT pt; GetCursorPos(&pt);
     int cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN, pt.x, pt.y, 0, hwnd, nullptr);
 
@@ -282,88 +184,83 @@ void showMenu(HWND hwnd, OData* d) {
     else if (cmd == ID_ARP_MIDI)  { st->arpMode.store((uint8_t)ArpMode::MidiOnly);    st->pendingFlush.store(true); settings::setArpModeDefault(2); }
     else if (cmd >= ID_TEMPO_OFF && cmd <= ID_TEMPO_OFF + 5) st->tempoMode.store((uint8_t)(cmd - ID_TEMPO_OFF));
     else if (cmd >= ID_GAIN_OFF && cmd <= ID_GAIN_OFF + 10)  st->gainDb.store((int8_t)(cmd - ID_GAIN_OFF));
-    else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + kScaleCount) applyScale(hwnd, d, kScales[cmd - ID_SCALE_0]);
+    else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + kScaleCount) applyScale(d, kScales[cmd - ID_SCALE_0]);
+    else if (cmd == ID_ABOUT_FM8)  Core::showAbout(*st);   // FM8's own dialog, modal until closed
+    else if (cmd == ID_ABOUT_PLUS) ShellExecuteW(hwnd, L"open", kProjectUrl, nullptr, nullptr, SW_SHOWNORMAL);
 
     DestroyMenu(m);
-    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
-LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    auto* d = (OData*)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+// Sits in front of FM8's own NI::UIA window procedure. Everything outside the wordmark passes
+// straight through, so FM8 behaves exactly as it does without us.
+LRESULT CALLBACK sub(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR id, DWORD_PTR ref) {
+    auto* d = (OData*)ref;
     switch (msg) {
-        case WM_LBUTTONUP:
-            if (d) showMenu(hwnd, d);         // the whole small window is the "+" hotspot
-            return 0;
-        case WM_MOUSEMOVE:
-            if (d && !d->hovering) {
-                d->hovering = true; d->shine = 0;
-                SetTimer(hwnd, kTimerShine, 33, nullptr);
-                TRACKMOUSEEVENT tme{sizeof(tme), TME_LEAVE, hwnd, 0}; TrackMouseEvent(&tme);
-                renderPlus(hwnd, d);
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONDBLCLK:
+            // Swallowed, so FM8's own logo Switch never sees the press and takes no capture.
+            if (onLogo(hwnd, d, lp)) { showMenu(hwnd, d); return 0; }
+            break;
+        case WM_SETCURSOR:
+            if (LOWORD(lp) == HTCLIENT) {
+                POINT p; GetCursorPos(&p); ScreenToClient(d->root, &p);
+                RECT r = logoRect();
+                if (PtInRect(&r, p)) { SetCursor(LoadCursor(nullptr, IDC_HAND)); return TRUE; }
             }
-            return 0;
-        case WM_MOUSELEAVE:
-            if (d && d->hovering) { d->hovering = false; KillTimer(hwnd, kTimerShine); renderPlus(hwnd, d); }
-            return 0;
-        case WM_TIMER:
-            if (wp == kTimerShine && d) {
-                d->shine += 0.06f; if (d->shine > 1.4f) d->shine = 0;   // sweep, then a brief pause
-                renderPlus(hwnd, d);
-            } else if (wp == kTimerGlue && d && d->target) {
-                // Standalone: keep the "+" glued to the right of FM8's logo; close when FM8 goes away.
-                if (!IsWindow(d->target)) { DestroyWindow(hwnd); return 0; }
-                RECT wr; GetWindowRect(hwnd, &wr);
-                const POINT p = plusOrigin(d->target);
-                const int w = sc(kW), h = sc(kH);
-                SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, w, h, SWP_NOACTIVATE);
-                if (wr.right - wr.left != w || wr.bottom - wr.top != h) renderPlus(hwnd, d);
-            }
-            return 0;
+            break;
         case WM_NCDESTROY:
-            delete d; SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
-            return 0;
+            RemoveWindowSubclass(hwnd, sub, id);
+            delete d;
+            break;
     }
-    return DefWindowProcW(hwnd, msg, wp, lp);
+    return DefSubclassProc(hwnd, msg, wp, lp);
 }
 
-void ensureClass(HMODULE self) {
-    static bool done = false;
-    if (done) return;
-    WNDCLASSEXW wc = {sizeof(wc)};
-    wc.lpfnWndProc = proc;
-    wc.hInstance = self;
-    wc.hCursor = LoadCursor(nullptr, IDC_HAND);
-    wc.lpszClassName = kClass;
-    RegisterClassExW(&wc);
-    done = true;
+// SetWindowSubclass only takes effect on the window's own thread. The standalone finds FM8's window
+// from a worker thread, so it rides into FM8's UI thread on a one-shot WH_CALLWNDPROC hook.
+struct Pending { LogoMenu* ov; HWND root; InstanceState* st; };
+Pending g_pending{};
+HHOOK g_installHook = nullptr;
+
+struct Kids { HWND* out; int cap, n; };
+BOOL CALLBACK collect(HWND h, LPARAM lp) {
+    auto* k = (Kids*)lp;
+    if (k->n < k->cap) k->out[k->n++] = h;
+    return TRUE;
 }
 } // namespace
 
-void Overlay::attach(HWND parent, InstanceState* st, HMODULE self) {
-    if (hwnd_ || !parent) return;
-    st_ = st;
-    ensureClass(self);
-    auto* d = new OData{st, nullptr, false, 0.0f, resize_, resizeCtx_};   // freed in WM_NCDESTROY
-    hwnd_ = CreateWindowExW(WS_EX_LAYERED, kClass, L"",
-                            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
-                            sc(kPlusX), sc(kPlusY), sc(kW), sc(kH), parent, nullptr, self, nullptr);
-    if (hwnd_) {
-        SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
-        // FM8's own editor child (NIVSTChildWindow, full-size) sits above a newly created sibling
-        // whichever is created first, so raise ours explicitly. A single raise sticks: FM8 never
-        // re-raises its window (tools/vsteditor.py watches the Z order over time).
-        SetWindowPos(hwnd_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-        renderPlus(hwnd_, d);
-    } else delete d;
+void LogoMenu::hookTree(HWND root, InstanceState* st, bool topLevel) {
+    if (!root) return;
+    // ponytail: FM8 draws the whole editor into the one window, but taking its descendants too costs
+    // three lines and makes the click work wherever the toolkit decides to put its surface.
+    HWND all[kMaxHooked] = {root};
+    Kids k{all + 1, kMaxHooked - 1, 0};
+    EnumChildWindows(root, collect, (LPARAM)&k);
+    for (int i = 0; i < 1 + k.n; ++i) {
+        auto* d = new OData{st, root, topLevel, resize_, resizeCtx_};   // freed in WM_NCDESTROY/detach
+        if (SetWindowSubclass(all[i], sub, kSubclassId, (DWORD_PTR)d)) hooked_[count_++] = all[i];
+        else delete d;
+    }
 }
 
-void Overlay::detach() {
-    if (hwnd_) { DestroyWindow(hwnd_); hwnd_ = nullptr; }   // WM_NCDESTROY frees the OData
-    st_ = nullptr;
+void LogoMenu::attach(HWND parent, InstanceState* st) {
+    if (count_ || !parent) return;
+    // FM8 creates its editor child inside the host's window before this runs, and that child is
+    // what the mouse goes to. Its client origin is the form origin, so it is our coordinate root.
+    HWND fm8 = GetWindow(parent, GW_CHILD);
+    hookTree(fm8 ? fm8 : parent, st, false);
 }
 
-void Overlay::refresh(InstanceState&) {
-    if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+void LogoMenu::detach() {
+    for (int i = 0; i < count_; ++i) {
+        DWORD_PTR ref = 0;
+        if (IsWindow(hooked_[i]) && GetWindowSubclass(hooked_[i], sub, kSubclassId, &ref)) {
+            RemoveWindowSubclass(hooked_[i], sub, kSubclassId);
+            delete (OData*)ref;
+        }
+    }
+    count_ = 0;
 }
 
 namespace {
@@ -379,7 +276,17 @@ BOOL CALLBACK findMain(HWND h, LPARAM lp) {
 }
 } // namespace
 
-void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeoutMs) {
+LRESULT CALLBACK LogoMenu::installProc(int code, WPARAM wp, LPARAM lp) {
+    HHOOK h = g_installHook;
+    if (code == HC_ACTION && h) {
+        g_installHook = nullptr;                                     // one shot
+        g_pending.ov->hookTree(g_pending.root, g_pending.st, true);
+        UnhookWindowsHookEx(h);
+    }
+    return CallNextHookEx(nullptr, code, wp, lp);
+}
+
+void LogoMenu::attachToMainWindow(InstanceState* st, unsigned timeoutMs) {
     HWND fm8 = nullptr;
     const unsigned step = 250;
     for (unsigned waited = 0; waited <= timeoutMs && !fm8; waited += step) {
@@ -388,23 +295,12 @@ void Overlay::attachToMainWindow(InstanceState* st, HMODULE self, unsigned timeo
         if (c.found) fm8 = c.found; else Sleep(step);
     }
     if (!fm8) return;
-
-    // A top-level floating button (this worker thread owns it and pumps its messages), glued to the
-    // FM8 window by a timer. A child of FM8's own window would be dead here, since this thread has no
-    // pump and FM8's GL surface would cover it.
-    ensureClass(self);
-    const POINT p = plusOrigin(fm8);
-    auto* d = new OData{st, fm8, false, 0.0f, nullptr, nullptr};
-    hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kClass, L"", WS_POPUP | WS_VISIBLE,
-                            p.x, p.y, sc(kW), sc(kH), nullptr, nullptr, self, nullptr);
-    if (!hwnd_) { delete d; return; }
-    st_ = st;
-    SetWindowLongPtrW(hwnd_, GWLP_USERDATA, (LONG_PTR)d);
-    renderPlus(hwnd_, d);
-    SetTimer(hwnd_, kTimerGlue, 500, nullptr);
-    MSG m;
-    while (GetMessageW(&m, nullptr, 0, 0) > 0) { TranslateMessage(&m); DispatchMessageW(&m); }
-    hwnd_ = nullptr;   // window destroyed (FM8 closed); the message loop and this thread end
+    const DWORD tid = GetWindowThreadProcessId(fm8, nullptr);
+    if (tid == GetCurrentThreadId()) { hookTree(fm8, st, true); return; }
+    g_pending = {this, fm8, st};
+    g_installHook = SetWindowsHookExW(WH_CALLWNDPROC, &LogoMenu::installProc, nullptr, tid);
+    if (g_installHook)   // a cross-thread send is what makes the hook fire, and WM_NULL does nothing else
+        SendMessageTimeoutW(fm8, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, 5000, nullptr);
 }
 
 } // namespace fm8plus::ui

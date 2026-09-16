@@ -50,7 +50,7 @@ struct Record {
     VstTimeInfo timeInfo{};               // scaled copy returned to FM8 for Tempo Override
     ERect editRect{};                     // scaled editor rect returned for GUI Scale
     bool customApplied = false;           // whether we have turned FM8's arp BPM-Sync off for Custom
-    ui::Overlay overlay;
+    ui::LogoMenu logoMenu;
 };
 constexpr int kMaxInst = 64;
 Record g_rec[kMaxInst];
@@ -83,7 +83,7 @@ bool ensureCore() {
     Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
     // Make room for the "+" before the editor form is built: serve the rebuilt header forms, or
     // fall back to patching the wordmark rect in the mapped resource.
-    if (g_coreHooked && !Core::serveForms(g_core)) Core::shiftLogoLeft(g_core, 11);
+    if (g_coreHooked) Core::serveForms(g_core);   // the "FM8+" wordmark FM8 draws itself
     return g_coreHooked;
 }
 
@@ -229,7 +229,6 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
                     r->st.tempoMode.store((uint8_t)tail[9]);
                     r->st.gainDb.store((int8_t)tail[10]);
                     r->st.morphCc.store((int16_t)((uint8_t)tail[11] | ((uint8_t)tail[12] << 8)));
-                    r->overlay.refresh(r->st);
                     fm8Len = val - kTrailerLen;
                 }
             }
@@ -254,17 +253,17 @@ intptr_t __cdecl thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t v
         case effEditOpen: {
             Core::addScaledWindow(ptr);   // before FM8 sizes its own child inside the host's window
             intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);   // FM8 creates its child first,
-            r->overlay.setHostResize(&hostResize, eff);                      // GUI Scale asks the host to resize
-            r->overlay.attach((HWND)ptr, &r->st, settings::self());          // so ours is newest = top of Z order
+            r->logoMenu.setHostResize(&hostResize, eff);                      // GUI Scale asks the host to resize
+            r->logoMenu.attach((HWND)ptr, &r->st);                            // then we subclass that child
             return rv;
         }
         case effEditClose:
             r->st.pendingFlush.store(true);   // audio thread flushes; UI thread must not touch the buffer
-            r->overlay.detach();
+            r->logoMenu.detach();
             return r->origDispatcher(eff, op, idx, val, ptr, opt);
         case effClose: {
             intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);
-            r->overlay.detach();
+            r->logoMenu.detach();
             r->eff.store(nullptr);   // release the record slot
             return rv;
         }
@@ -363,8 +362,8 @@ BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
         g_self = h; DisableThreadLibraryCalls(h);
         // Injected into FM8.exe by the launcher: attach the standalone features and leave the VST
-        // path dormant. shiftLogoLeft must run before FM8 builds its GUI, so do it here (the process
-        // is still suspended at injection time); the heavier init is deferred onto its own thread.
+        // path dormant. The GUI resources must be served before FM8 builds its GUI, so do it here
+        // (the process is still suspended at injection); the heavier init is deferred onto a thread.
         if (hostIsFm8Exe()) standalone::attachExe(h);
     }
     return TRUE;

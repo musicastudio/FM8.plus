@@ -113,6 +113,9 @@ constexpr Site kPopupAddItem       = {0x753f10, 0x70b4d0, 0x71b920}; // int f(Po
 constexpr Site kPopupAddSeparator  = {0x754410, 0x70b9d0, 0x71be20}; // f(PopupMenu*)
 constexpr Site kPopupSetSubmenu    = {0x75fe50, 0x717380, 0x7277d0}; // bool f(PopupMenu*, int idx, PopupMenu* sub)
 constexpr Site kPopupSetCheckState = {0x75fd30, 0x717260, 0x7276b0}; // bool f(PopupMenu*, int idx, int state)
+// What FM8's own logo click does: the FormMain sink's `case 5` calls this with
+// *(FM8VstObject + 0x5620), and it builds and runs FM8AboutDialog (ResourceManager 8000/8000).
+constexpr Site kShowAboutDialog    = {0x12bac0, 0x11b4b0, 0x128040}; // f(FM8App*)  modal, UI thread only
 
 // ---- Selected structure field offsets (from docs/hooks.md) -----------------
 // Engine (NI::MIDIArpeggiator_Engine)
@@ -128,6 +131,7 @@ constexpr uint32_t kArrElemStride  = 0x28;
 constexpr uint32_t kElemPackedWord = 0x10; // [data2][data1][status][flags] little-endian
 // FM8VstObject / FM8EditBuffer
 constexpr uint32_t kVstObjEditBuf  = 0x55d0; // *(VstObj+0x55d0) = FM8EditBuffer*
+constexpr uint32_t kVstObjApp      = 0x5620; // *(VstObj+0x5620) = FM8App*, the About dialog's argument
 constexpr uint32_t kEbParamBase    = 0x68;   // param float array, indexed by tag
 constexpr uint32_t kEbMorphX       = 0x278;  // == kEbParamBase + 0x84*4
 constexpr uint32_t kEbMorphY       = 0x27c;  // == kEbParamBase + 0x85*4

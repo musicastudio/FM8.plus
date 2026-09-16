@@ -181,6 +181,23 @@ Inject items: detour `0x18011dd00`, call original, then on `filePopup = *(FormMa
 
 **MenuItem** (~0x80): +0x60 commandId (read by sink), +0x6c isSeparator, +0x70 checkState (0 plain, 1 checked, 2 unchecked box), +0x78 submenu. **PopupMenu** (0x1d8): +0x00 vftable (0x180cbf798), +0xd8 owner form, +0x158/+0x160/+0x168 item vector. Evidence: item ctor `0x18070b560`, builder `0x18011dd00`.
 
+### The logo click and the About panel
+
+Control 5 of FRM 5/15 is the "FM8" wordmark (a Switch, mode 0, so it notifies on mouse-down only). Its click reaches the same FormMain command sink, `case 5`, which does one thing:
+
+```c
+app = *(void**)(*(void**)(sink_this + 0x10) + 0x5620);   // FM8VstObject -> FM8App
+ShowAboutDialog(app);                                     // builds FM8AboutDialog, runs it modally
+```
+
+| Target | Role | VST2 | EXE | VST3 | Signature | Conf |
+|---|---|---|---|---|---|---|
+| Show About dialog | ResourceManager::Init(8000,8000), constructs `FM8AboutDialog`, runs it at size {0x40,0x88} | `0x18011b4b0` | `0x14012bac0` | `0x180128040` | `void f(FM8App* app)` | high |
+
+Getting `app` needs no new hook: `*(sink_this + 0x10)` and `*(ArpRunDispatch_core + 8)` are handed to the same two accessors (`*(x+0x55d0)` = FM8EditBuffer, `*(x+0x55e0)` = FM8Midi), so they are the same FM8VstObject, and FM8.plus already walks it every block for the morph EditBuffer. `*(FM8VstObject + 0x5620)` is the FM8App back-pointer, written once at construction by `0x140130fd0(app, vstObj)`. So the About panel FM8.plus offers is FM8's, called the way FM8 calls it, with the pointer of the instance that was clicked.
+
+Dialogs are modal and run their own message loop on the UI thread, so the call only returns when the user closes the panel.
+
 ### GUI scale
 
 NI::UIA carries a complete HiDPI layer that FM8 never switches on. `Window::create` (`0x140780ad0`)

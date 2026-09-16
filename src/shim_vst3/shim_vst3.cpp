@@ -98,7 +98,7 @@ std::wstring selfDir() {
 // Per-instance state, keyed by an interface pointer of one of OUR instances. Fixed array; audio
 // thread does a lock-free scan. One logical instance registers several keys (the IComponent,
 // IAudioProcessor and IEditController subobjects, later its IPlugView), all pointing at one primary
-// record whose InstanceState the audio thread and the overlay menu share.
+// record whose InstanceState the audio thread and the logo menu share.
 struct Rec {
     std::atomic<void*> key{nullptr};
     Rec* primary = nullptr;          // record owning the shared state (itself for the first key)
@@ -106,7 +106,7 @@ struct Rec {
     V::IMidiMapping* midiMap = nullptr;
     int16_t cachedCc = -2;
     uint32_t cachedPid = 0;
-    ui::Overlay overlay;             // used on the primary only
+    ui::LogoMenu logoMenu;             // used on the primary only
 };
 constexpr int kMax = 256;   // four keys per logical instance, so ~64 instances
 Rec g_rec[kMax];
@@ -312,8 +312,8 @@ S::tresult h_process(void* self, V::ProcessData& data) {
     return rv;
 }
 
-// --- editor overlay: hook IEditController::createView and the returned IPlugView's attached/removed
-// so the "+" button is parented to the host's editor HWND (same overlay the VST2 shim uses). The
+// --- editor hook: hook IEditController::createView and the returned IPlugView's attached/removed
+// so the "FM8+" logo click is picked up inside the host's editor HWND (same path the VST2 shim uses). The
 // functions are found from the live vtables (slot 17 of IEditController; slots 4 and 5 of IPlugView),
 // so no reverse-engineered addresses are needed; both are gated to our instances by the registry.
 using CreateViewFn = void*     (PLUGIN_API*)(void* self, S::FIDString name);
@@ -373,17 +373,17 @@ void hostResize(void* ctx, int w, int h) {
 
 S::tresult PLUGIN_API h_attached(void* self, void* parent, S::FIDString type) {
     if (recFor(self)) Core::addScaledWindow(parent);   // before FM8 sizes its own child inside it
-    S::tresult rv = o_attached(self, parent, type);   // FM8 creates its child first, so ours lands on top
+    S::tresult rv = o_attached(self, parent, type);   // FM8 creates its child first; we subclass it
     Rec* r = recFor(self);
     if (r && rv == S::kResultOk) {
-        r->primary->overlay.setHostResize(&hostResize, self);   // GUI Scale: ask the host to resize
-        r->primary->overlay.attach((HWND)parent, &r->primary->st, g_self);
+        r->primary->logoMenu.setHostResize(&hostResize, self);   // GUI Scale: ask the host to resize
+        r->primary->logoMenu.attach((HWND)parent, &r->primary->st);
     }
     return rv;
 }
 S::tresult PLUGIN_API h_removed(void* self) {
     if (Rec* r = recFor(self)) {
-        r->primary->overlay.detach();
+        r->primary->logoMenu.detach();
         r->key.store(nullptr);   // ponytail: a view is attached once per createView in every host we know
     }
     return o_removed(self);
@@ -408,7 +408,7 @@ bool ensureCore() {
     settings::load(g_self);
     if (!Core::install((void*)g_core, Bin::Vst3)) return false;
     Core::setGuiScale(settings::guiScale());   // GUI Scale is live before the first editor is built
-    if (!Core::serveForms(g_core)) Core::shiftLogoLeft(g_core, 11);
+    Core::serveForms(g_core);   // the "FM8+" wordmark FM8 draws itself
     auto mk = [](const Site& s, void* det, void** orig) {
         void* t = Core::addressOf(s);
         return t && MH_CreateHook(t, det, orig) == MH_OK && MH_EnableHook(t) == MH_OK;

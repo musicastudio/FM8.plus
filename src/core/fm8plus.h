@@ -57,6 +57,9 @@ struct InstanceState {
     // the standalone and VST3 paths). null until the engine has processed once.
     std::atomic<void*> editBuf{nullptr};
 
+    // FM8App pointer, captured the same way and from the same object, for FM8's own About dialog.
+    std::atomic<void*> appObj{nullptr};
+
     // Global knobs mirrored from settings (read on the audio thread).
     std::atomic<float> morphRadius{0.5f};
     std::atomic<float> morphStartDeg{-90.0f};
@@ -106,6 +109,14 @@ void applyPendingMorphInternal(InstanceState& st);
 // Flush external note-offs for every sounding out-note (call on mode change / stop / close).
 void flushExternal(InstanceState& st);
 
+// Open FM8's own About dialog, the one its logo opens in stock FM8: the FormMain command sink's
+// `case 5` (control 5 is the wordmark) calls one function with the FM8App pointer, and that is what
+// this calls, so the dialog is FM8's, not a copy. `aboutReady` is false until the audio thread has
+// run once, since the pointer is captured from the arp dispatch like the EditBuffer. UI thread only
+// (the dialog is modal), and SEH-guarded against a stale pointer.
+bool aboutReady(const InstanceState& st);
+bool showAbout(InstanceState& st);
+
 // Resolve a hook Site to an absolute address in the installed module (for shim-added hooks).
 void* addressOf(const Site& s);
 
@@ -121,17 +132,17 @@ float guiScale();
 // turns the gate on, so the standalone (which never does) keeps scaling its whole process.
 void addScaledWindow(void* hwnd);
 
-// Shift FM8's top-left "FM8" wordmark left by `px` pixels: the logo is a PICTURE control whose rect
-// (21,35,116,58) lives in the FRM form resources; we patch its x1/x2 in `module`'s mapped .rsrc so FM8
-// draws it shifted (the form reads the resource when the GUI is built). Must run BEFORE that build:
-// for the standalone that means DllMain (before WinMain); for the plugins, at load (before the editor
-// opens). Idempotent (only patches a rect still at the original coordinates). No hooks required.
-void shiftLogoLeft(void* module, int px);
-
-// Serve FM8.plus's rebuilt forms (build/gui/forms/*.h, generated from the local FM8 by
-// tools/gen_forms.py) through the module's import table (see rsrc.h). Returns false when the headers
-// were not generated or the hook failed; callers then fall back to shiftLogoLeft.
+// Serve FM8.plus's rebuilt GUI resources (build/gui/forms/*.h, generated from the local FM8 by
+// tools/gen_forms.py) through the module's import table (see rsrc.h): the two header forms with the
+// wordmark control moved left and widened, and the wordmark bitmap with the "+" drawn on it. FM8
+// then draws, scales and clips the "+" as part of its own logo. Must run BEFORE FM8 builds its GUI:
+// for the standalone that means DllMain (before WinMain); for the plugins, at load. Returns false
+// when the headers were not generated or the hook failed, leaving FM8's GUI completely stock.
 bool serveForms(void* module);
+
+// True once serveForms has succeeded, i.e. the wordmark is the wider "FM8+" one. ui.cpp hit-tests
+// clicks against the matching rect; without it the stock "FM8" logo itself opens the menu.
+bool logoWidened();
 
 } // namespace Core
 } // namespace fm8plus

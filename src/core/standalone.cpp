@@ -1,5 +1,5 @@
 // Standalone attach implementation. Installs the shared arp/morph hooks against the FM8.exe image,
-// opens a WinMM MIDI-out port, and shows the overlay. Formerly the body of the version.dll shim;
+// opens a WinMM MIDI-out port, and hooks the "FM8+" logo click. Formerly the body of the version.dll shim;
 // now driven by launcher injection so nothing is placed in FM8's own folder.
 #include "standalone.h"
 #include <mmsystem.h>
@@ -17,7 +17,7 @@ namespace {
 HMODULE g_self = nullptr;
 InstanceState g_inst;
 HMIDIOUT g_midiOut = nullptr;
-ui::Overlay g_overlay;
+ui::LogoMenu g_logoMenu;
 
 // Open the MIDI-out device whose name matches the INI (else device 0).
 void openMidiOut() {
@@ -46,9 +46,8 @@ void onArpBlock(InstanceState& st) {
     Core::applyPendingMorphInternal(st);
 }
 
-DWORD WINAPI overlayThread(LPVOID) {
-    g_overlay.setStandalone(true);
-    g_overlay.attachToMainWindow(&g_inst, g_self, 30000);  // wait up to 30s for FM8's window
+DWORD WINAPI logoMenuThread(LPVOID) {
+    g_logoMenu.attachToMainWindow(&g_inst, 30000);  // wait up to 30s for FM8's window
     return 0;
 }
 
@@ -69,7 +68,7 @@ DWORD WINAPI initThread(LPVOID) {
     Core::setSingleton(&g_inst);
     Core::setArpBlockCallback(&onArpBlock);
     openMidiOut();
-    CloseHandle(CreateThread(nullptr, 0, overlayThread, nullptr, 0, nullptr));
+    CloseHandle(CreateThread(nullptr, 0, logoMenuThread, nullptr, 0, nullptr));
     return 0;
 }
 
@@ -79,7 +78,7 @@ void attachExe(HMODULE self) {
     g_self = self;
     // Must happen before FM8 builds its GUI. We are injected while FM8.exe is suspended, so this runs
     // first; guarded, so a wrong build is left untouched.
-    if (!Core::serveForms(GetModuleHandleW(nullptr))) Core::shiftLogoLeft(GetModuleHandleW(nullptr), 11);
+    Core::serveForms(GetModuleHandleW(nullptr));   // the "FM8+" wordmark; plain FM8 look if it fails
     CloseHandle(CreateThread(nullptr, 0, initThread, nullptr, 0, nullptr));
 }
 
