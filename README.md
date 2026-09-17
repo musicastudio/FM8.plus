@@ -5,7 +5,7 @@
 [![License: GPLv3](https://img.shields.io/github/license/musicastudio/FM8.plus)](https://github.com/musicastudio/FM8.plus/blob/main/LICENSE)
 [![Version](https://img.shields.io/github/v/release/musicastudio/FM8.plus?color=7a39fb)](https://github.com/musicastudio/FM8.plus/releases/latest)
 
-An enhancement layer for Native Instruments FM8 on Windows, supporting v1.4.6 *(final version, released 2022-12-23)* and v1.4.1 *(final version with 32-bit VST support, released 2015-10-20)*. It adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`
+An enhancement layer for Native Instruments FM8 on Windows, supporting **FM8 v1.4.6** *(final version, released 2022-12-23)* and **FM8 v1.4.1** *(final version with 32-bit VST support, released 2015-10-20)*. It adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`
 
 **Discord:** https://discord.gg/MA9UkqrEXr
 
