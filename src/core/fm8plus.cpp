@@ -307,6 +307,22 @@ BOOL WINAPI detourInvalidateRect(HWND h, const RECT* r, BOOL erase) {
     return o_invalidateRect(h, &p, erase);
 }
 
+// And back: Windows hands the paint rect in physical pixels, and FM8 redraws the logical rect it reads
+// there. Unconverted, a partial repaint the host asks for (a window being resized, say) redraws the
+// wrong region at twice the size and leaves the one asked for blank. Round outwards; the blit is
+// clipped to the real update region anyway.
+using BeginPaintFn = HDC (WINAPI*)(HWND, LPPAINTSTRUCT);
+BeginPaintFn o_beginPaint = nullptr;
+HDC WINAPI detourBeginPaint(HWND h, LPPAINTSTRUCT ps) {
+    HDC dc = o_beginPaint(h, ps);
+    const float s = scaleForWindow(h);
+    if (dc && ps && s != 1.0f) {
+        RECT& r = ps->rcPaint;
+        r = {(LONG)floorf(r.left / s), (LONG)floorf(r.top / s), (LONG)ceilf(r.right / s), (LONG)ceilf(r.bottom / s)};
+    }
+    return dc;
+}
+
 BOOL WINAPI detourScreenToClient(HWND h, LPPOINT pt) {
     BOOL ok = o_screenToClient(h, pt);
     const float s = scaleForWindow(h);
@@ -352,6 +368,7 @@ void installGuiScale() {
           & imp("USER32.dll", "GetClientRect",     (void*)&detourGetClientRect,   (void**)&o_getClientRect)
           & imp("USER32.dll", "GetWindowRect",     (void*)&detourGetWindowRect,   (void**)&o_getWindowRect)
           & imp("USER32.dll", "InvalidateRect",    (void*)&detourInvalidateRect,  (void**)&o_invalidateRect)
+          & imp("USER32.dll", "BeginPaint",        (void*)&detourBeginPaint,      (void**)&o_beginPaint)
           & imp("USER32.dll", "ScreenToClient",    (void*)&detourScreenToClient,  (void**)&o_screenToClient)
           & imp("USER32.dll", "ClientToScreen",    (void*)&detourClientToScreen,  (void**)&o_clientToScreen)
           & imp("GDI32.dll",  "SetDIBitsToDevice", (void*)&detourSetDIBitsToDevice, (void**)&o_setDIBits);
