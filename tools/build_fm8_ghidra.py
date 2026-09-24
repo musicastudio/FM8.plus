@@ -45,7 +45,18 @@ VERSIONS = [
     dict(key="vst32_141", proj_name="FM8_141_VST_32", program="FM8.dll",
          binary=ROOT / "FM8_141_VST_32" / "FM8.dll",
          proj=ROOT / "FM8_141_VST_32_GHIDRA_PROJ", analysis=ROOT / "FM8_141_VST_32_GHIDRA_ANALYSIS"),
+    # 1.0.3 (2007-10-18), the last release with a DXi. The DXi and the x86 VST2 are the same build,
+    # so diffing them isolates NI's DXi layer.
+    dict(key="dxi103", proj_name="FM8_103_DXi", program="FM8DXi.dll",
+         binary=ROOT / "FM8_103_DXi" / "FM8DXi.dll",
+         proj=ROOT / "FM8_103_DXi_GHIDRA_PROJ", analysis=ROOT / "FM8_103_DXi_GHIDRA_ANALYSIS"),
+    dict(key="vst32_103", proj_name="FM8_103_VST_32", program="FM8.dll",
+         binary=ROOT / "FM8_103_VST_32" / "FM8.dll",
+         proj=ROOT / "FM8_103_VST_32_GHIDRA_PROJ", analysis=ROOT / "FM8_103_VST_32_GHIDRA_ANALYSIS"),
 ]
+
+
+VTABLES = False
 
 
 def log(msg: str) -> None:
@@ -117,6 +128,47 @@ def analyze(program, v):
         "functions": n, "duration_seconds": round(time.time() - t0, 1),
         "completed_at": datetime.now().isoformat()}, indent=2))
     log(f"  analysis done: {n} functions in {timedelta(seconds=int(time.time()-t0))}")
+
+
+def define_vtable_functions(program) -> int:
+    """Auto-analysis misses functions reached only through a vtable (common in the DXi layer).
+    Define one at every slot of each run of >= 3 code pointers in the data sections."""
+    from ghidra.app.cmd.disassemble import DisassembleCommand
+    from ghidra.app.cmd.function import CreateFunctionCmd
+    mem, fm, af = program.getMemory(), program.getFunctionManager(), program.getAddressFactory()
+    ptr = program.getDefaultPointerSize()
+    code = [b for b in mem.getBlocks() if b.isExecute()]
+    in_code = lambda off: any(b.getStart().getOffset() <= off <= b.getEnd().getOffset() for b in code)
+    targets = set()
+    import jpype
+    for b in mem.getBlocks():
+        if b.isExecute() or not b.isInitialized() or str(b.getName()).startswith(".rsrc"):
+            continue
+        buf = jpype.JArray(jpype.JByte)(int(b.getSize())); b.getBytes(b.getStart(), buf)
+        data = memoryview(buf).tobytes()
+        run = []
+        for i in range(0, len(data) - ptr + 1, ptr):
+            val = int.from_bytes(data[i:i + ptr], "little")
+            if in_code(val):
+                run.append(val)
+                continue
+            if len(run) >= 3:
+                targets.update(run)
+            run = []
+    made = 0
+    tx = program.startTransaction("vtable functions")
+    try:
+        for off in sorted(targets):
+            a = af.getDefaultAddressSpace().getAddress(off)
+            if fm.getFunctionContaining(a) is not None:
+                continue
+            DisassembleCommand(a, None, True).applyTo(program)
+            if CreateFunctionCmd(a).applyTo(program):
+                made += 1
+    finally:
+        program.endTransaction(tx, True)
+    log(f"  vtable pass: {made} functions defined from {len(targets)} vtable slots")
+    return made
 
 
 def decompile(program, v):
@@ -202,20 +254,25 @@ def process(v):
             log("  analysis already done, skipping")
         else:
             analyze(program, v)
+        if VTABLES:
+            define_vtable_functions(program)
         decompile(program, v)
     log(f"FM8 {v['key']}: complete")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", default="", help="comma list of keys: exe,vst3,vst2,exe141,vst64_141,vst32_141")
+    ap.add_argument("--only", default="", help="comma list of keys: exe,vst3,vst2,exe141,vst64_141,vst32_141,dxi103,vst32_103")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--vtables", action="store_true", help="define vtable-only functions, then decompile them")
     args = ap.parse_args()
+    global VTABLES
+    VTABLES = args.vtables
     keys = {k.strip() for k in args.only.split(",") if k.strip()}
     todo = [v for v in VERSIONS if not keys or v["key"] in keys]
     pending = []
     for v in todo:
-        if is_complete(v):
+        if is_complete(v) and not VTABLES:
             print(f"  {v['key']:<5} DONE     -> {v['analysis'] / 'decomp.db'}")
         elif not v["binary"].exists():
             print(f"  {v['key']:<5} MISSING  -> {v['binary']}")

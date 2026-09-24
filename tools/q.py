@@ -11,7 +11,7 @@
     python tools/q.py vst2 xfrom 0x1800bd090     # xrefs from a function body (needs export)
     python tools/q.py vst2 stats
 
-Binary keys: exe, vst2, vst3 (1.4.6); exe141, vst64_141, vst32_141 (1.4.1). Add -n N to cap rows (default 40), -f to print full bodies.
+Binary keys: exe, vst2, vst3 (1.4.6); exe141, vst64_141, vst32_141 (1.4.1); dxi103, vst32_103 (1.0.3). Add -n N to cap rows (default 40), -f to print full bodies.
 """
 from __future__ import annotations
 
@@ -26,7 +26,8 @@ from pathlib import Path
 ROOT = Path(os.environ.get("FM8_DISASM", Path(__file__).resolve().parents[1].parent / "FM8_DISASM"))
 DBS = {"exe": "FM8_EXE_GHIDRA_ANALYSIS", "vst2": "FM8_VST2_GHIDRA_ANALYSIS", "vst3": "FM8_VST3_GHIDRA_ANALYSIS",
        "exe141": "FM8_141_EXE_GHIDRA_ANALYSIS", "vst64_141": "FM8_141_VST_64_GHIDRA_ANALYSIS",
-       "vst32_141": "FM8_141_VST_32_GHIDRA_ANALYSIS"}
+       "vst32_141": "FM8_141_VST_32_GHIDRA_ANALYSIS",
+       "dxi103": "FM8_103_DXi_GHIDRA_ANALYSIS", "vst32_103": "FM8_103_VST_32_GHIDRA_ANALYSIS"}
 
 
 def connect(key: str) -> sqlite3.Connection:
