@@ -203,7 +203,7 @@ def dump_tree(root):
 def gui_scale():
     """The GUI Scale FM8.plus will apply, straight from the INI it reads at attach."""
     import configparser
-    ini = os.path.join(os.environ.get("APPDATA", ""), "FM8.plus", "FM8.plus.ini")
+    ini = os.path.join(os.environ.get("PROGRAMDATA", ""), "FM8.plus", "FM8.plus.ini")
     try:
         c = configparser.ConfigParser()
         c.read(ini)

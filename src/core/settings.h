@@ -1,4 +1,4 @@
-// FM8.plus global settings, persisted to %APPDATA%\FM8.plus\FM8.plus.ini.
+// FM8.plus global settings, persisted machine-wide to %ProgramData%\FM8.plus\FM8.plus.ini.
 // Per-instance state (arp mode, mod-wheel toggle) travels in the DAW project via a chunk trailer;
 // these are the process-wide defaults and knobs plus the standalone MIDI-out device name.
 #pragma once

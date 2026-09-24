@@ -24,6 +24,13 @@ function Copy-To([string]$src, [string]$destDir, [string]$label) {
 
 Write-Host "FM8.plus installer (installs alongside FM8; stock FM8 untouched)" -ForegroundColor White
 
+# Machine-wide settings folder, writable by Users (by SID, so it works on any Windows language),
+# since DAWs run unelevated and save the INI there.
+$cfg = Join-Path $env:ProgramData "FM8.plus"
+New-Item -ItemType Directory -Force -Path $cfg | Out-Null
+icacls $cfg /grant "*S-1-5-32-545:(OI)(CI)M" | Out-Null
+Write-Host "[Settings] $cfg" -ForegroundColor Green
+
 if (Test-Path $Vst2) { Copy-To $dll (Split-Path $Vst2) "VST2 wrapper" }
 else { Write-Host "[VST2] FM8.dll not found at $Vst2, skipping" -ForegroundColor Yellow }
 

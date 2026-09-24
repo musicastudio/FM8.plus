@@ -5,7 +5,7 @@
 [![License: GPLv3](https://img.shields.io/github/license/musicastudio/FM8.plus)](https://github.com/musicastudio/FM8.plus/blob/main/LICENSE)
 [![Version](https://img.shields.io/github/v/release/musicastudio/FM8.plus?color=7a39fb)](https://github.com/musicastudio/FM8.plus/releases/latest)
 
-An enhancement layer for Native Instruments FM8 on Windows, supporting **FM8 v1.4.6** *(final version, released 2022-12-23)* and **FM8 v1.4.1** *(final version with 32-bit VST support, released 2015-10-20)*. It adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`
+An enhancement layer for Native Instruments FM8 on Windows, supporting **FM8 v1.4.6** *(final version, released 2022-12-23)* and **FM8 v1.4.1** *(final version with 32-bit VST support, released 2015-10-20)*. It adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`, and brings back the DXi for 32-bit DXi hosts such as SONAR, which NI dropped after FM8 1.0.3.
 
 **Discord:** https://discord.gg/MA9UkqrEXr
 
@@ -18,14 +18,17 @@ Release thread on Native Instruments forum: [https://community.native-instrument
 3. **Tempo Override.** Unshackle the arp from the DAW tempo: Off, 0.25x, 0.5x, 2x, 4x of host tempo, or Custom (frees FM8's own arp Tempo control). VST2 scales the host time FM8 reads; VST3 scales the process context.
 4. **Increase Gain.** Push the output beyond the normal level: Off, +1 dB up to +10 dB, applied post-fader on the plugin output.
 5. **GUI Scale.** Make the whole FM8 interface bigger: 1x (off), 2x, 3x or 4x. Whole numbers only, and the enlarging blit replicates pixels instead of interpolating, so the artwork comes out sharp and pixel-exact rather than blurred. Everything scales together, the window, the mouse and the whole interface, in the standalone and in both plug-in formats. The setting is remembered and applies to every FM8.plus window.
+6. **Restore DXi.** FM8.plus as a DXi soft synth again, for 32-bit DXi hosts such as SONAR. NI shipped a DXi until FM8 1.0.3 (2007) and dropped it from 1.0.4 on; FM8.plus brings it back for FM8 1.4.1, the last 32-bit FM8, with every FM8.plus feature included. It is optional in the installer (see [Install](#install)).
 
 **To access these features, click the `FM8+` logo in the top-left corner to open the menu.**
 
-Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults and the GUI scale live in `%APPDATA%\FM8.plus\FM8.plus.ini`.
+Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults and the GUI scale live machine-wide in `%ProgramData%\FM8.plus\FM8.plus.ini`, shared by every user and every host.
 
 ## Install
 
-Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folders (64-bit and 32-bit), `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames, copies, or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. The v1.4.6 and v1.4.1 builds gain the features; any other build is loaded and left as plain FM8. v1.4.1 is the last release with a 32-bit plug-in, and it has no VST3. Rescan plugins in your DAW afterwards, and FM8.plus appears alongside FM8.
+Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folders (64-bit and 32-bit), `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. The v1.4.6 and v1.4.1 builds gain the features; any other build is loaded and left as plain FM8. v1.4.1 is the last release with a 32-bit plug-in, and it has no VST3. Rescan plugins in your DAW afterwards, and FM8.plus appears alongside FM8.
+
+**DXi.** Ticking **Enable DXi (requires 32-bit FM8 1.4.1)** on the locations page installs everything 32-bit: the 32-bit VST2 `FM8.plus.dll`, and FM8.plus as a DXi soft synth for 32-bit DXi hosts such as SONAR. The DXi lives in `%ProgramData%\FM8.plus`, registered from there beside a copy of your own 32-bit `FM8.dll`, so moving or removing your VST folders cannot break it. That copy is the only FM8 file FM8.plus ever copies, and it stays on your machine. 1.4.1 is the last 32-bit FM8, so the copy never goes stale.
 
 Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` removes everything again.
 
@@ -62,9 +65,11 @@ The core detours two internal FM8 functions (the arpeggiator dispatch and the MI
 
 Every hook is guarded by the FM8 build's PE timestamp; on any mismatch the layer degrades to plain forwarding rather than risk a crash, so a Native Access repair or a different FM8 version is safe.
 
+The DXi is a DirectShow filter speaking Cakewalk's MFX interfaces, laid out the way FM8 1.0.3's own DXi was, the last FM8 that shipped one. Reverse engineering that DXi showed NI's DXi and VST2 adapters are thin layers over the same internal render path, so the FM8.plus DXi renders FM8 1.4.1 through the FM8.plus VST2 wrapper in the same DLL and gets every feature with it. The findings are in [docs/dxi.md](docs/dxi.md).
+
 ## Build
 
-Needs Visual Studio 2022, CMake, and the two vendored submodules. The 32-bit VST2 wrapper for FM8 1.4.1 x86 builds from the same source with `-A Win32` into `build32`.
+Needs Visual Studio 2022, CMake, and the two vendored submodules. The 32-bit VST2 wrapper for FM8 1.4.1 x86 builds from the same source with `-A Win32` into `build32`, and that `FM8.plus.dll` is the DXi as well. `build32\Release\dxihost.exe <FM8.plus.dll>` tests the DXi headless, the way SONAR drives it, with 1.4.1's 32-bit `FM8.dll` beside it, and adding `--view` opens its editor with live audio and MIDI in, to look at.
 
 ```bash
 git submodule update --init --recursive
@@ -81,10 +86,12 @@ FM8.plus/
   src/core/         shared feature core (hooks, arp routing, morph, settings, UI, standalone attach, rvas.h)
   src/shim_vst2/    VST2 wrapper -> FM8.plus.dll
   src/shim_vst3/    VST3 wrapper -> FM8.plus.vst3
+  src/dxi/          DXi soft synth, built into the 32-bit FM8.plus.dll
   src/launcher/     standalone launcher -> FM8.plus.exe
   src/vst2/         minimal VST 2.4 ABI header
   docs/             design, reverse-engineering notes, hook reference, status
-  tools/            pyghidra helpers, the headless VST2/VST3 test hosts, and make_icon.ps1
+  tools/            pyghidra helpers, the headless VST2/VST3/DXi test hosts, and make_icon.ps1
+  third_party/      MinHook, VST3 interfaces, and Microsoft's DirectShow BaseClasses (MIT) for the DXi
   installer/        PowerShell + Inno Setup installers and the "+" icon overlay
 ../FM8_DISASM/      binaries and Ghidra projects (not in git)
 ```
@@ -95,6 +102,6 @@ All five features are verified end to end against the real FM8 with the headless
 
 ## Licence
 
-FM8.plus is released under the GNU General Public License v3.0; see [LICENSE](LICENSE).
+FM8.plus is released under the GNU General Public License v3.0; see [LICENSE](LICENSE). The DXi builds on Microsoft's DirectShow BaseClasses, vendored in `third_party/strmbase` under the MIT licence. Its Cakewalk MFX declarations in `src/dxi/mfx.h` are our own, written from the published interface layout; no Cakewalk SDK file is included.
 
 It is an independent interoperability add-on for software you already own. Other than a documentation screenshot of FM8 in use, it ships no Native Instruments code or artwork, loads your installed FM8 at runtime, and reverses none of its content into the repository; build and use your own copy, and do not redistribute FM8 itself. The FM8.plus shortcut icon is composited on your own machine at install time from your own FM8 installation, so no Native Instruments icon is distributed with FM8.plus. The "+" glyph is rasterized as a slanted cross by our own code, onto a copy of your own FM8's wordmark that is made in memory on your machine each time FM8 loads, so FM8.plus bundles no third-party font, artwork or form data of any kind.

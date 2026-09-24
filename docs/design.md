@@ -71,7 +71,7 @@ host-specific. Decisions that were not obvious, with the reason each won:
 | `core/morph.*` | CC1 (0..127) into an angle, then centre + r*(cos,sin); calls the internal Morph X/Y setter; radius and start angle from settings; toggle-gated | 70 |
 | `core/arp.*` | Per-instance atomic mode byte; two 128-bit-per-channel note masks; fixed 256-entry lock-free event ring written on the audio thread; routing, suppression, flush | 210 |
 | `core/midiout.*` | One sink interface, three backends draining the ring: VST2 `VstEvents` into `audioMasterProcessEvents`, VST3 `IEventList::addEvent` into `outputEvents`, EXE `midiOutShortMsg` | 190 |
-| `core/settings.*` | `%APPDATA%\FM8.plus\FM8.plus.ini` read and write; 12-byte chunk-trailer codec; std::atomic mirrors read on the audio thread | 150 |
+| `core/settings.*` | `%ProgramData%\FM8.plus\FM8.plus.ini` read and write (machine-wide, one-time carry-over from the old `%APPDATA%` INI); 12-byte chunk-trailer codec; std::atomic mirrors read on the audio thread | 150 |
 | `core/ui.*` | Small Win32 child control over the editor: mod-wheel-morph checkbox, three-way arp radio, standalone port picker; per instance via the editor HWND | 220 |
 | `shim_vst2` builds `FM8.dll` | Proxy: export `VSTPluginMain` and `NICreatePlugInInstance`, LoadLibrary the renamed core, capture `audioMaster`, install hooks, wrap `dispatcher` (chunk, editor open) and `processReplacing` (flush ring) | 160 |
 | `shim_vst3` builds `FM8.vst3` | Proxy: forward `GetPluginFactory`/`InitDll`/`ExitDll`; on first `createInstance` patch the component vtable and hook `getState`/`setState` and `IPlugView::attached` | 180 |

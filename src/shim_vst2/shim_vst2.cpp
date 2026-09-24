@@ -364,7 +364,17 @@ static bool hostIsFm8Exe() {
     return base == L"fm8.exe";
 }
 
-BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID) {
+#ifndef _WIN64
+// The 32-bit build is also FM8.plus's DXi (src/dxi), whose DirectShow BaseClasses need the module handle.
+extern "C" BOOL WINAPI _DllEntryPoint(HINSTANCE, ULONG, LPVOID);
+#endif
+
+BOOL APIENTRY DllMain(HMODULE h, DWORD reason, LPVOID reserved) {
+#ifndef _WIN64
+    _DllEntryPoint(h, reason, reserved);
+#else
+    (void)reserved;
+#endif
     if (reason == DLL_PROCESS_ATTACH) {
         g_self = h; DisableThreadLibraryCalls(h);
         // Injected into FM8.exe by the launcher: attach the standalone features and leave the VST

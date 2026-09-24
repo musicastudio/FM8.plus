@@ -8,7 +8,7 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(FM8PLUS_X64 ON)
 elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
   set(FM8PLUS_X64 OFF)
-  message(STATUS "FM8.plus: 32-bit build, VST2 shim only (FM8 1.4.1 x86)")
+  message(STATUS "FM8.plus: 32-bit build, VST2 shim and DXi (FM8 1.4.1 x86)")
 else()
   message(FATAL_ERROR "FM8.plus must be built for x64 or x86")
 endif()
@@ -42,6 +42,25 @@ endfunction()
 
 # --- VST2 wrapper: builds FM8.plus.dll (distinct plug-in, loads stock FM8.dll) ---------------
 fm8_shim(shim_vst2 src/shim_vst2/shim_vst2.cpp "FM8.plus" "dll")
+
+# --- DXi (32-bit only): the same FM8.plus.dll is also a DXi soft synth for DXi hosts like SONAR --
+# Microsoft's DirectShow BaseClasses (MIT, vendored from Windows-classic-samples) carry the filter
+# plumbing, as they did for FM8 1.0.3's own DXi. They predate /permissive- and /W4.
+if(NOT FM8PLUS_X64)
+  file(GLOB STRMBASE_SRC third_party/strmbase/*.cpp)
+  add_library(strmbase STATIC ${STRMBASE_SRC})
+  target_include_directories(strmbase PUBLIC third_party/strmbase)
+  target_compile_definitions(strmbase PUBLIC UNICODE _UNICODE)
+  target_compile_options(strmbase PRIVATE /W0 /permissive /UWIN32_LEAN_AND_MEAN /UNOMINMAX)
+  target_link_libraries(strmbase PUBLIC strmiids winmm ole32 oleaut32 uuid advapi32 user32 gdi32)
+  target_sources(shim_vst2 PRIVATE src/dxi/dxi.cpp)
+  set_source_files_properties(src/dxi/dxi.cpp PROPERTIES COMPILE_OPTIONS "/permissive;/UWIN32_LEAN_AND_MEAN")
+  target_link_libraries(shim_vst2 PRIVATE strmbase)
+  # Headless DXi host (test only): drives the DXi the way SONAR does, no DAW needed.
+  add_executable(dxihost tools/dxihost.cpp)
+  set_source_files_properties(tools/dxihost.cpp PROPERTIES COMPILE_OPTIONS "/permissive;/UWIN32_LEAN_AND_MEAN")
+  target_link_libraries(dxihost PRIVATE strmbase)
+endif()
 
 # --- VST3 wrapper: builds FM8.plus.vst3 (single-file module, loads stock FM8.vst3) -----------
 if(FM8PLUS_X64 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/shim_vst3/shim_vst3.cpp")

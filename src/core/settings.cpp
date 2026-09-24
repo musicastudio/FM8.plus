@@ -14,13 +14,22 @@ float g_radius = 0.5f;
 float g_startDeg = -90.0f;
 std::wstring g_midiOut;
 
+// Machine-wide, so every user and every host share one set of defaults. The installer grants Users
+// modify on the folder, since DAWs run unelevated and write here.
 std::wstring iniPath() {
     wchar_t* base = nullptr;
-    if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &base) != S_OK) return L"";
+    if (SHGetKnownFolderPath(FOLDERID_ProgramData, 0, nullptr, &base) != S_OK) return L"";
     std::wstring dir = std::wstring(base) + L"\\FM8.plus";
     CoTaskMemFree(base);
     CreateDirectoryW(dir.c_str(), nullptr);
-    return dir + L"\\FM8.plus.ini";
+    std::wstring ini = dir + L"\\FM8.plus.ini";
+    // Carry over the per-user INI from 1.0.5 and earlier, once: a no-op when there is no old INI or the
+    // new one already exists.
+    base = nullptr;
+    if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &base) == S_OK)
+        CopyFileW((std::wstring(base) + L"\\FM8.plus\\FM8.plus.ini").c_str(), ini.c_str(), TRUE);
+    CoTaskMemFree(base);
+    return ini;
 }
 } // namespace
 

@@ -6,9 +6,10 @@
 ;   - FM8.plus.dll   into the VST2 folder (beside stock FM8.dll), 64-bit and 32-bit
 ;   - FM8.plus.vst3  into the VST3 folder (beside stock FM8.vst3)
 ;   - FM8.plus.exe   (+ FM8.plus.dll) into FM8's program folder (beside stock FM8.exe)
-; plus a desktop and Start Menu shortcut to the launcher. No stock file is renamed, copied, or
-; modified, so a Native Access reinstall cannot break FM8.plus and uninstalling just removes our
-; files. The wrappers load the real FM8 in place and present themselves as the distinct plug-in
+;   - optionally the DXi: the 32-bit FM8.plus.dll registered from %ProgramData%\FM8.plus, beside a
+;     copy of the user's own 32-bit FM8 1.4.1 FM8.dll
+; plus a desktop and Start Menu shortcut to the launcher. No stock file is renamed or modified, so
+; a Native Access reinstall cannot break FM8.plus and uninstalling just removes our files. The wrappers load the real FM8 in place and present themselves as the distinct plug-in
 ; "FM8.plus"; the launcher starts FM8.exe with the standalone features injected.
 
 #ifndef BuildDir
@@ -21,7 +22,7 @@
 
 [Setup]
 AppName=FM8.plus
-AppVersion=1.0.5
+AppVersion=1.0.6
 AppPublisher=Musica Studio
 DefaultDirName={autopf}\FM8.plus
 DisableDirPage=yes
@@ -45,9 +46,19 @@ Source: "{#BuildDir}\FM8.plus.dll";  DestDir: "{code:DirVst2}"; Flags: ignorever
 Source: "{#BuildDir}\FM8.plus.vst3"; DestDir: "{code:DirVst3}"; Flags: ignoreversion; Check: DoVst3
 ; 32-bit VST2 wrapper -> the folder that holds the chosen 32-bit FM8.dll.
 Source: "{#BuildDir32}\FM8.plus.dll"; DestDir: "{code:DirVst2x86}"; Flags: ignoreversion; Check: DoVst2x86
+; DXi: the same 32-bit FM8.plus.dll, registered as a COM server from ProgramData, beside a private copy
+; of the user's own 32-bit FM8 1.4.1. That build is frozen (the last 32-bit FM8), so the copy cannot
+; go stale, and moving or removing the VST folders cannot break the DXi.
+Source: "{code:PathVst2x86}"; DestDir: "{commonappdata}\FM8.plus"; DestName: "FM8.dll"; Flags: external ignoreversion; Check: DoVst2x86
+Source: "{#BuildDir32}\FM8.plus.dll"; DestDir: "{commonappdata}\FM8.plus"; Flags: ignoreversion regserver 32bit; Check: DoVst2x86
 ; Launcher + the DLL it injects -> FM8's program folder (beside FM8.exe).
 Source: "{#BuildDir}\FM8.plus.exe";  DestDir: "{code:DirExe}"; Flags: ignoreversion; Check: DoExe
 Source: "{#BuildDir}\FM8.plus.dll";  DestDir: "{code:DirExe}"; Flags: ignoreversion; Check: DoExe
+
+[Dirs]
+; Machine-wide settings folder. Users need write access, since DAWs run unelevated and save the INI
+; there (without it, a legacy 32-bit host would be silently redirected into the VirtualStore).
+Name: "{commonappdata}\FM8.plus"; Permissions: users-modify
 
 [Icons]
 ; Start Menu entry next to FM8's own, and a desktop shortcut. Both launch FM8.plus and use the icon
@@ -68,6 +79,7 @@ const
 
 var
   LocPage: TInputFileWizardPage;
+  Dxi: TNewCheckBox;
 
 // Read the PE header timestamp. Inno's TStream.ReadBuffer won't take a raw scalar/array the way
 // Delphi does, so slurp the file and index bytes (1-based AnsiString). Only the first ~0x120 bytes
@@ -101,9 +113,10 @@ function DirExe (Param: string): string; begin Result := ExtractFileDir(Val(2));
 function PathExe(Param: string): string; begin Result := ExtractFileDir(Val(2)) + '\FM8.plus.exe'; end;
 
 function DirVst2x86(Param: string): string; begin Result := ExtractFileDir(Val(3)); end;
+function PathVst2x86(Param: string): string; begin Result := Val(3); end;
 
 function DoVst2: Boolean; begin Result := (Val(0) <> '') and FileExists(Val(0)); end;
-function DoVst2x86: Boolean; begin Result := (Val(3) <> '') and FileExists(Val(3)); end;
+function DoVst2x86: Boolean; begin Result := Dxi.Checked and (Val(3) <> '') and FileExists(Val(3)); end;
 function DoVst3: Boolean; begin Result := (Val(1) <> '') and FileExists(Val(1)); end;
 function DoExe:  Boolean; begin Result := (Val(2) <> '') and FileExists(Val(2)); end;
 
@@ -155,6 +168,23 @@ begin
   if CurStep = ssPostInstall then EmbedIcon;
 end;
 
+procedure DxiClick(Sender: TObject);
+begin
+  LocPage.PromptLabels[3].Enabled := Dxi.Checked;
+  LocPage.Edits[3].Enabled := Dxi.Checked;
+  LocPage.Buttons[3].Enabled := Dxi.Checked;
+end;
+
+// The 32-bit FM8.dll: where FM8 1.4.1's own installer recorded its x86 plug-in folder, else NI's default.
+function Default32: string;
+var dir: string;
+begin
+  Result := DEF_VST2_X86;
+  if RegQueryStringValue(HKLM32, 'SOFTWARE\Native Instruments\FM8', 'InstallVSTDir', dir) and
+     FileExists(AddBackslash(dir) + 'FM8.dll') then
+    Result := AddBackslash(dir) + 'FM8.dll';
+end;
+
 procedure InitializeWizard;
 begin
   LocPage := CreateInputFilePage(wpWelcome,
@@ -170,7 +200,19 @@ begin
   LocPage.Values[0] := DEF_VST2;
   LocPage.Values[1] := DEF_VST3;
   LocPage.Values[2] := DEF_EXE;
-  LocPage.Values[3] := DEF_VST2_X86;
+  LocPage.Values[3] := Default32;
+  // Everything 32-bit (the x86 VST2 wrapper and the DXi) hangs off this box, on the field's own label
+  // row, so the many users without FM8 1.4.1 x86 skip it. Ticked by default only when that build is here.
+  Dxi := TNewCheckBox.Create(LocPage);
+  Dxi.Parent := LocPage.Surface;
+  Dxi.Caption := 'Enable DXi (requires 32-bit FM8 1.4.1)';
+  Dxi.Left := LocPage.PromptLabels[3].Left + LocPage.PromptLabels[3].Width + ScaleX(16);
+  Dxi.Top := LocPage.PromptLabels[3].Top - ScaleY(2);
+  Dxi.Width := LocPage.SurfaceWidth - Dxi.Left;
+  Dxi.Height := ScaleY(17);
+  Dxi.OnClick := @DxiClick;
+  Dxi.Checked := PeTimeStamp(Default32) = $56265F2B;
+  DxiClick(Dxi);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -182,7 +224,7 @@ begin
   for i := 0 to 3 do
   begin
     p := Trim(LocPage.Values[i]);
-    if p = '' then continue;
+    if (p = '') or ((i = 3) and not Dxi.Checked) then continue;
     if not FileExists(p) then
       warn := warn + '  - not found: ' + p + #13#10
     else if not Supported(PeTimeStamp(p)) then

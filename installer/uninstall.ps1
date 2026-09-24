@@ -25,4 +25,4 @@ Del (Join-Path $exeDir "FM8.plus.ico") "Composited icon"
 Del (Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "FM8 Plus.lnk") "Desktop shortcut"
 Del (Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Native Instruments\FM8\FM8 Plus.lnk") "Start Menu shortcut"
 
-Write-Host "`nDone. FM8 is stock (it was never modified). You may also delete %APPDATA%\FM8.plus." -ForegroundColor White
+Write-Host "`nDone. FM8 is stock (it was never modified). You may also delete %ProgramData%\FM8.plus (settings)." -ForegroundColor White
