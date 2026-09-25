@@ -6,6 +6,7 @@
 //     vst2probe <bundle.vst> --editor out.png [click-x click-y] [seconds]
 //                                             open the editor, optionally click a logical point,
 //                                             report any menu that opens, and save a screenshot
+//     vst2probe <bundle.vst> --scale <dir> <start> <seq>   GUI Scale test (tools/mac/scaletest.h)
 //
 // Exit code 0 when the check passes.
 #import <Cocoa/Cocoa.h>
@@ -15,15 +16,16 @@
 #include <initializer_list>
 #define VSTCALLBACK
 #include "../../src/vst2/vst2.h"
+#include "scaletest.h"
 
 namespace {
 int g_events = 0, g_noteOns = 0, g_first = 0;
 unsigned char g_firstEv[8][3];
 int g_sizeW = 0, g_sizeH = 0;
 
-intptr_t host(AEffect*, int32_t op, int32_t, intptr_t val, void* ptr, float opt) {
+intptr_t host(AEffect*, int32_t op, int32_t idx, intptr_t val, void* ptr, float) {
     if (op == audioMasterVersion) return 2400;
-    if (op == audioMasterSizeWindow) { g_sizeW = (int)val; g_sizeH = (int)opt; return 1; }
+    if (op == audioMasterSizeWindow) { g_sizeW = idx; g_sizeH = (int)val; return 1; }   // index = width, value = height
     if (op == audioMasterProcessEvents && ptr) {
         auto* evs = (VstEvents*)ptr;
         for (int i = 0; i < evs->numEvents; ++i) {
@@ -195,6 +197,28 @@ int runEditor(AEffect* eff, const char* out, double cx, double cy, double secs) 
     printf("RESULT: %s\n", ok ? (cx < 0 ? "editor opened" : "logo click opened the menu") : "FAILED");
     return ok ? 0 : 1;
 }
+int runScale(AEffect* eff, const char* dir, double startScale, const char* seq) {
+    start(eff);
+    render(eff, 8);   // "About FM8" waits for the audio thread to have run once
+    NSWindow* win = [[NSWindow alloc] initWithContentRect:NSMakeRect(40, 40, 400, 300)
+                                                styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+    win.title = @"FM8.plus VST2 scale test";
+    [win makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+    scaletest::Host h;
+    h.win = win;
+    h.open = [&] {
+        ERect* er = nullptr;
+        eff->dispatcher(eff, effEditGetRect, 0, 0, &er, 0);
+        if (er) { g_sizeW = er->right - er->left; g_sizeH = er->bottom - er->top; }   // the host sizes to this
+        [win setContentSize:NSMakeSize(g_sizeW, g_sizeH)];
+        eff->dispatcher(eff, effEditOpen, 0, 0, (__bridge void*)win.contentView, 0);
+    };
+    h.close = [&] { eff->dispatcher(eff, effEditClose, 0, 0, nullptr, 0); };
+    h.fm8View = [&] { return (NSView*)win.contentView.subviews.firstObject; };
+    h.asked = [&] { return NSMakeSize(g_sizeW, g_sizeH); };
+    return scaletest::run(h, dir, startScale, seq);
+}
 } // namespace
 
 int main(int argc, char** argv) {
@@ -218,6 +242,7 @@ int main(int argc, char** argv) {
         if (!strcmp(mode, "--arp")) rc = runArp(eff);
         else if (!strcmp(mode, "--morph")) rc = runMorph(eff);
         else if (!strcmp(mode, "--params")) rc = runParams(eff);
+        else if (!strcmp(mode, "--scale") && argc > 5) rc = runScale(eff, argv[3], atof(argv[4]), argv[5]);
         else if (!strcmp(mode, "--editor"))
             rc = runEditor(eff, argc > 3 ? argv[3] : nullptr, argc > 5 ? atof(argv[4]) : -1, argc > 5 ? atof(argv[5]) : -1,
                            argc > 6 ? atof(argv[6]) : 2.0);

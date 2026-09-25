@@ -4,6 +4,7 @@
 //     auprobe --morph                    send CC 11 and watch Morph X/Y (needs morph_cc=11)
 //     auprobe --state                    round-trip ClassInfo and check the FM8.plus key survives
 //     auprobe --editor out.png [x y]     open the Cocoa view, optionally click a logical point
+//     auprobe --scale <dir> <start> <seq>   GUI Scale test (tools/mac/scaletest.h)
 //
 // Must run in the GUI login session (the AU registrar lives there), e.g. from Terminal or `open`.
 #import <Cocoa/Cocoa.h>
@@ -14,6 +15,7 @@
 #include <cstring>
 #include <cmath>
 #include <initializer_list>
+#include "scaletest.h"
 
 namespace {
 AudioUnit g_au = nullptr;
@@ -166,6 +168,33 @@ int runEditor(const char* out, double cx, double cy) {
     printf("RESULT: %s\n", ok ? (cx < 0 ? "editor opened" : "logo click opened the menu") : "FAILED");
     return ok ? 0 : 1;
 }
+// An AU host learns of a resize from the view's frame, so "asked" is the container's frame size.
+int runScale(const char* dir, double startScale, const char* seq) {
+    render(8);   // "About FM8" waits for the audio thread to have run once
+    NSWindow* win = [[NSWindow alloc] initWithContentRect:NSMakeRect(40, 40, 400, 300)
+                                                styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+    win.title = @"FM8.plus AU scale test";
+    [win makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+    NSView* container = nil;
+    scaletest::Host h;
+    h.win = win;
+    h.open = [&] {
+        AudioUnitCocoaViewInfo info{};
+        UInt32 sz = sizeof info;
+        if (AudioUnitGetProperty(g_au, kAudioUnitProperty_CocoaUI, kAudioUnitScope_Global, 0, &info, &sz)) return;
+        NSBundle* b = [NSBundle bundleWithURL:(__bridge NSURL*)info.mCocoaAUViewBundleLocation];
+        id<AUCocoaUIBase> f = [[[b classNamed:(__bridge NSString*)info.mCocoaAUViewClass[0]] alloc] init];
+        container = [f uiViewForAudioUnit:g_au withSize:NSZeroSize];
+        [win setContentSize:container.frame.size];
+        [win.contentView addSubview:container];
+        [container setFrameOrigin:NSZeroPoint];
+    };
+    h.close = [&] { [container removeFromSuperview]; container = nil; };
+    h.fm8View = [&] { return (NSView*)(container.subviews.firstObject ?: container); };
+    h.asked = [&] { return container ? container.frame.size : NSZeroSize; };
+    return scaletest::run(h, dir, startScale, seq);
+}
 } // namespace
 
 int main(int argc, char** argv) {
@@ -192,6 +221,7 @@ int main(int argc, char** argv) {
         if (!strcmp(argv[1], "--arp")) rc = runArp();
         else if (!strcmp(argv[1], "--morph")) rc = runMorph();
         else if (!strcmp(argv[1], "--state")) rc = runState();
+        else if (!strcmp(argv[1], "--scale") && argc > 4) rc = runScale(argv[2], atof(argv[3]), argv[4]);
         else if (!strcmp(argv[1], "--editor"))
             rc = runEditor(argc > 2 ? argv[2] : nullptr, argc > 4 ? atof(argv[3]) : -1, argc > 4 ? atof(argv[4]) : -1);
         AudioUnitUninitialize(g_au);

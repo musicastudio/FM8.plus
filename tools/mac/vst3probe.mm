@@ -4,11 +4,13 @@
 //     vst3probe <bundle.vst3> --arp            check the added event-out bus, count arp notes on it
 //     vst3probe <bundle.vst3> --morph          send CC 11 and watch Morph X/Y (needs morph_cc=11)
 //     vst3probe <bundle.vst3> --editor out.png [x y]   open the editor, optionally click a logical point
+//     vst3probe <bundle.vst3> --scale <dir> <start> <seq>   GUI Scale test (tools/mac/scaletest.h)
 #import <Cocoa/Cocoa.h>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
+#include "scaletest.h"
 #include <vector>
 #include <unistd.h>
 #include "pluginterfaces/base/ipluginbase.h"
@@ -227,6 +229,31 @@ int runEditor(const char* out, double cx, double cy) {
     printf("RESULT: %s\n", ok ? (cx < 0 ? "editor opened" : "logo click opened the menu") : "FAILED");
     return ok ? 0 : 1;
 }
+int runScale(const char* dir, double startScale, const char* seq) {
+    render(8);   // "About FM8" waits for the audio thread to have run once
+    NSWindow* win = [[NSWindow alloc] initWithContentRect:NSMakeRect(40, 40, 400, 300)
+                                                styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+    win.title = @"FM8.plus VST3 scale test";
+    [win makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+    S::IPlugView* v = nullptr;
+    scaletest::Host h;
+    h.win = win;
+    h.open = [&] {
+        v = g_ctrl->createView(V::ViewType::kEditor);
+        if (!v) return;
+        v->setFrame(&g_frame);
+        S::ViewRect r{};
+        v->getSize(&r);
+        g_frame.w = r.getWidth(); g_frame.h = r.getHeight();   // the host sizes to this
+        [win setContentSize:NSMakeSize(g_frame.w, g_frame.h)];
+        v->attached((__bridge void*)win.contentView, S::kPlatformTypeNSView);
+    };
+    h.close = [&] { if (v) { v->removed(); v->release(); v = nullptr; } };
+    h.fm8View = [&] { return (NSView*)win.contentView.subviews.firstObject; };
+    h.asked = [&] { return NSMakeSize(g_frame.w, g_frame.h); };
+    return scaletest::run(h, dir, startScale, seq);
+}
 } // namespace
 
 int main(int argc, char** argv) {
@@ -269,6 +296,7 @@ int main(int argc, char** argv) {
         int rc = 2;
         if (!strcmp(argv[2], "--arp")) rc = runArp();
         else if (!strcmp(argv[2], "--morph")) rc = runMorph();
+        else if (!strcmp(argv[2], "--scale") && argc > 5) rc = runScale(argv[3], atof(argv[4]), argv[5]);
         else if (!strcmp(argv[2], "--editor"))
             rc = runEditor(argc > 3 ? argv[3] : nullptr, argc > 5 ? atof(argv[4]) : -1, argc > 5 ? atof(argv[5]) : -1);
         g_proc->setProcessing(false);
