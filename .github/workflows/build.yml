@@ -23,7 +23,7 @@ jobs:
   windows:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Version from tag
@@ -54,7 +54,7 @@ jobs:
           Compress-Archive build\Release\FM8.plus.vst3 dist\FM8.plus-Windows-VST3.zip
           Compress-Archive build\Release\FM8.plus.exe, build\Release\FM8.plus.dll dist\FM8.plus-Windows-Standalone.zip
           Get-ChildItem dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: dist/*
@@ -64,7 +64,7 @@ jobs:
     # is the one check the Intel test Mac cannot make.
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Version from tag
@@ -85,14 +85,13 @@ jobs:
           codesign -s - -o runtime --entitlements daw.entitlements --force hwbp_test_hardened
           codesign -dv hwbp_test_hardened 2>&1 | grep flags
           ./hwbp_test_hardened
-      - name: Breakpoint redirect test (x86_64 under Rosetta)
-        continue-on-error: true   # informative: Rosetta may not emulate debug registers
+      - name: Breakpoint redirect test (x86_64 under Rosetta, where the Intel-only VST2 runs)
         run: |
           clang++ -std=c++17 -O2 -arch x86_64 -o hwbp_test_x64 tools/mac/hwbp_test.cpp src/mac/machook.cpp
           ./hwbp_test_x64
       - name: Package
         run: sh tools/mac/package.sh build-mac dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: dist/*
@@ -104,7 +103,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

@@ -27,7 +27,7 @@ Arp notes can only be told from live ones inside `FM8Midi::processMidiEventsFrom
 
 Rewriting FM8's code to detour them works on Intel in an unhardened host and nowhere else: on Apple Silicon every executable page is signature checked, and hardened-runtime hosts (Logic, `auval`, most current DAWs) kill a process that runs a modified page. So FM8.plus modifies nothing. It loads the function's address into the CPU's hardware breakpoint registers on each audio thread (`thread_set_state` with the debug state, on the calling thread), a SIGTRAP handler moves the stopped thread's program counter to `replaceArpDispatch`, and that runs FM8's own loop with the FM8.plus routing in between. It never calls the original, whose first instruction is the breakpoint. Plain FM8 instances that run on an armed thread take the same replacement with no routing, which is the stock loop.
 
-Tested: an Intel Mac in all three formats, including a host signed with the hardened runtime and Apple's `auval`. `tools/mac/hwbp_test.cpp` tests the redirect itself with no FM8, and CI runs it on Apple Silicon, plain and hardened.
+Tested with FM8 on an Intel Mac in all three formats, including a host signed with the hardened runtime and Apple's `auval`. `tools/mac/hwbp_test.cpp` tests the redirect itself with no FM8, and CI runs it on every push on Apple Silicon: native arm64, arm64 under the hardened runtime, and x86_64 under Rosetta (where the Intel-only VST2 runs on an Apple Silicon Mac). All three pass.
 
 ## Building and testing
 
