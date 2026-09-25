@@ -162,11 +162,21 @@ void showMenu(HWND hwnd, OData* d) {
     AppendMenuW(m, MF_POPUP, (UINT_PTR)gain, L"Increase Gain");
 
     // (5) GUI Scale.
+    // A step whose window would not fit the monitor is greyed: Windows clamps the resize, FM8 lays
+    // itself out to the clamped size, and the lost strip stays lost at every scale after.
     const float gs = Core::guiScale();
     HMENU scale = CreatePopupMenu();
-    for (int i = 0; i < kScaleCount; ++i)
-        AppendMenuW(scale, MF_STRING | (std::fabs(gs - kScales[i]) < 0.01f ? MF_CHECKED : 0),
-                    ID_SCALE_0 + i, kScaleLabels[i]);
+    RECT cl; GetClientRect(d->root, &cl);
+    RECT tw; GetWindowRect(GetAncestor(d->root, GA_ROOT), &tw);
+    MONITORINFO mi{sizeof mi};
+    GetMonitorInfoW(MonitorFromWindow(d->root, MONITOR_DEFAULTTONEAREST), &mi);
+    for (int i = 0; i < kScaleCount; ++i) {
+        const float k = kScales[i] / gs;   // growth of the client area, applied to the whole top window
+        const bool fits = (tw.right - tw.left) + lroundf(cl.right * (k - 1)) <= mi.rcWork.right - mi.rcWork.left
+                       && (tw.bottom - tw.top) + lroundf(cl.bottom * (k - 1)) <= mi.rcWork.bottom - mi.rcWork.top;
+        AppendMenuW(scale, MF_STRING | (std::fabs(gs - kScales[i]) < 0.01f ? MF_CHECKED : 0)
+                               | (fits ? 0 : MF_GRAYED), ID_SCALE_0 + i, kScaleLabels[i]);
+    }
     AppendMenuW(m, MF_POPUP, (UINT_PTR)scale, L"GUI Scale");
 
     // (6) The two About items. Clicking the logo is how stock FM8 opens its About panel, and the
@@ -201,11 +211,9 @@ void showMenu(HWND hwnd, OData* d) {
 // straight through, so FM8 behaves exactly as it does without us.
 LRESULT CALLBACK sub(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR id, DWORD_PTR ref) {
     auto* d = (OData*)ref;
-    // Our own hit tests work in physical pixels (logoRect scales with the GUI), so they use lp as it
-    // arrives. FM8 is the one that needs logical coordinates, and only on 1.4.1, whose NI::UIA has
-    // no layer to divide them itself: `down` carries that conversion and nothing else does.
-    intptr_t down = (intptr_t)lp;
-    Core::scaleMouseParam(hwnd, msg, down);
+    // Our own hit tests work in physical pixels (logoRect scales with the GUI), which is what lp
+    // carries here: FM8 maps it to logical itself on 1.4.6, and FM8.plus's own birth subclass does
+    // it on 1.4.1, both further down the chain.
     switch (msg) {
         case WM_LBUTTONDOWN:
         case WM_LBUTTONDBLCLK:
@@ -224,7 +232,7 @@ LRESULT CALLBACK sub(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR id, DWO
             delete d;
             break;
     }
-    return DefSubclassProc(hwnd, msg, wp, (LPARAM)down);
+    return DefSubclassProc(hwnd, msg, wp, lp);
 }
 
 // SetWindowSubclass only takes effect on the window's own thread. The standalone finds FM8's window
@@ -297,7 +305,7 @@ LRESULT CALLBACK LogoMenu::installProc(int code, WPARAM wp, LPARAM lp) {
     return CallNextHookEx(nullptr, code, wp, lp);
 }
 
-void LogoMenu::attachToMainWindow(InstanceState* st, unsigned timeoutMs) {
+HWND LogoMenu::attachToMainWindow(InstanceState* st, unsigned timeoutMs) {
     HWND fm8 = nullptr;
     const unsigned step = 250;
     for (unsigned waited = 0; waited <= timeoutMs && !fm8; waited += step) {
@@ -305,13 +313,14 @@ void LogoMenu::attachToMainWindow(InstanceState* st, unsigned timeoutMs) {
         EnumWindows(findMain, (LPARAM)&c);
         if (c.found) fm8 = c.found; else Sleep(step);
     }
-    if (!fm8) return;
+    if (!fm8) return nullptr;
     const DWORD tid = GetWindowThreadProcessId(fm8, nullptr);
-    if (tid == GetCurrentThreadId()) { hookTree(fm8, st, true); return; }
+    if (tid == GetCurrentThreadId()) { hookTree(fm8, st, true); return fm8; }
     g_pending = {this, fm8, st};
     g_installHook = SetWindowsHookExW(WH_CALLWNDPROC, &LogoMenu::installProc, nullptr, tid);
     if (g_installHook)   // a cross-thread send is what makes the hook fire, and WM_NULL does nothing else
         SendMessageTimeoutW(fm8, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, 5000, nullptr);
+    return fm8;
 }
 
 } // namespace fm8plus::ui

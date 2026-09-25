@@ -2,6 +2,7 @@
 #include "fm8plus.h"
 #include <windows.h>
 #include <windowsx.h>
+#include <commctrl.h>
 #include <cmath>
 #include "MinHook.h"
 #include "rsrc.h"
@@ -262,13 +263,49 @@ float scaleForWindow(HWND h) {
     return (s != 1.0f && h && ownsWindow(h)) ? s : 1.0f;
 }
 
+// Mouse messages arrive in physical pixels; FM8's own hit testing works in logical ones. The wheel
+// carries screen coordinates, which FM8 maps through our ScreenToClient instead.
+LRESULT CALLBACK mouseSubclass(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR id, DWORD_PTR) {
+    if (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST && msg != WM_MOUSEWHEEL && msg != WM_MOUSEHWHEEL) {
+        const float s = scaleForWindow(h);
+        if (s != 1.0f)
+            lp = MAKELPARAM((WORD)(SHORT)floorf(GET_X_LPARAM(lp) / s), (WORD)(SHORT)floorf(GET_Y_LPARAM(lp) / s));
+    } else if (msg == WM_NCDESTROY) {
+        RemoveWindowSubclass(h, mouseSubclass, id);
+    }
+    return DefSubclassProc(h, msg, wp, lp);
+}
+
+// A top-level window's size includes its frame, and only the client area inside it is FM8's to
+// scale: the caption and borders stay the size Windows draws them.
+SIZE frameOf(DWORD style, DWORD ex, bool menu) {
+    RECT r{0, 0, 0, 0};
+    AdjustWindowRectEx(&r, style, menu, ex);
+    return {r.right - r.left, r.bottom - r.top};
+}
+SIZE frameOf(HWND h) {
+    RECT w, c;
+    if (!o_getWindowRect(h, &w) || !o_getClientRect(h, &c)) return {0, 0};
+    return {(w.right - w.left) - c.right, (w.bottom - w.top) - c.bottom};
+}
+
 HWND WINAPI detourCreateWindowExW(DWORD ex, LPCWSTR cls, LPCWSTR name, DWORD style, int x, int y,
                                   int w, int h, HWND parent, HMENU menu, HINSTANCE inst, LPVOID p) {
+    // Children and owned popups of a scaled window are found through it later, so nothing here is
+    // registered: registering switched the standalone, which owns every window, over to the list.
     const float s = g_guiScale.load(std::memory_order_relaxed);
-    const bool ours = s != 1.0f && (tl_expectEditor || (parent && ownsWindow(parent)));
-    if (ours && w > 0 && h > 0) { w = up(w, s); h = up(h, s); }
+    // An unparented window is ours only in the standalone; in a host it is not FM8's editor.
+    const bool ours = s != 1.0f && (tl_expectEditor || (parent ? ownsWindow(parent) : g_bin == Bin::Exe141));
+    if (ours && w > 0 && h > 0) {
+        const SIZE f = (style & WS_CHILD) ? SIZE{0, 0} : frameOf(style, ex, menu != nullptr);
+        w = up(w - f.cx, s) + f.cx; h = up(h - f.cy, s) + f.cy;
+    }
+    if (ours) tl_expectEditor = false;
     HWND r = o_createWindowExW(ex, cls, name, style, x, y, w, h, parent, menu, inst, p);
-    if (ours && r) { tl_expectEditor = false; addScaledWindow(r); }
+    // Every FM8 window, whatever the scale today: the mapping is decided per message, so a window
+    // created at 1x still maps once the scale changes. Installed at birth, on the creating thread,
+    // so it also covers the popups and dialog contents no one else subclasses.
+    if (r) SetWindowSubclass(r, mouseSubclass, 0, 0);
     return r;
 }
 
@@ -276,7 +313,10 @@ HWND WINAPI detourCreateWindowExW(DWORD ex, LPCWSTR cls, LPCWSTR name, DWORD sty
 // host's, in the host's coordinates, and is not ours to touch.
 BOOL WINAPI detourSetWindowPos(HWND h, HWND after, int x, int y, int cx, int cy, UINT f) {
     const float s = scaleForWindow(h);
-    if (s != 1.0f && !(f & SWP_NOSIZE)) { cx = up(cx, s); cy = up(cy, s); }
+    if (s != 1.0f && !(f & SWP_NOSIZE)) {
+        const SIZE fr = (GetWindowLongPtrW(h, GWL_STYLE) & WS_CHILD) ? SIZE{0, 0} : frameOf(h);
+        cx = up(cx - fr.cx, s) + fr.cx; cy = up(cy - fr.cy, s) + fr.cy;
+    }
     return o_setWindowPos(h, after, x, y, cx, cy, f);
 }
 
@@ -292,8 +332,11 @@ BOOL WINAPI detourGetClientRect(HWND h, LPRECT r) {
 BOOL WINAPI detourGetWindowRect(HWND h, LPRECT r) {
     BOOL ok = o_getWindowRect(h, r);
     const float s = scaleForWindow(h);
-    if (ok && s != 1.0f && r) { r->right = r->left + down(r->right - r->left, s);
-                                r->bottom = r->top + down(r->bottom - r->top, s); }
+    if (ok && s != 1.0f && r) {
+        const SIZE f = (GetWindowLongPtrW(h, GWL_STYLE) & WS_CHILD) ? SIZE{0, 0} : frameOf(h);
+        r->right = r->left + down(r->right - r->left - f.cx, s) + f.cx;
+        r->bottom = r->top + down(r->bottom - r->top - f.cy, s) + f.cy;
+    }
     return ok;
 }
 
@@ -353,6 +396,37 @@ int WINAPI detourSetDIBitsToDevice(HDC hdc, int xD, int yD, DWORD w, DWORD h, in
                          xS, yS, (int)w, (int)h, bits, bmi, usage, SRCCOPY);
 }
 
+// FM8's dialogs (Audio and MIDI Settings, Options) are Win32 dialogs from an in-memory template,
+// so USER32 creates the frame without passing through our CreateWindowExW. FM8's content child
+// inside is scaled like any other, and the dialog around it stays at template size. Grow the dialog's
+// client area once FM8 has initialised it, about its centre, so it opens where it would have.
+using DialogBoxFn = INT_PTR (WINAPI*)(HINSTANCE, LPCDLGTEMPLATEW, HWND, DLGPROC, LPARAM);
+DialogBoxFn o_dialogBox = nullptr;
+thread_local DLGPROC tl_pendingDlgProc = nullptr;   // handed to the next dialog's first message
+const wchar_t kDlgProcProp[] = L"FM8.plus.dlgproc";
+
+INT_PTR CALLBACK scaledDlgProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+    auto orig = (DLGPROC)GetPropW(h, kDlgProcProp);
+    if (!orig) { orig = tl_pendingDlgProc; tl_pendingDlgProc = nullptr; SetPropW(h, kDlgProcProp, (HANDLE)orig); }
+    if (msg == WM_NCDESTROY) RemovePropW(h, kDlgProcProp);
+    const INT_PTR r = orig ? orig(h, msg, wp, lp) : FALSE;
+    const float s = scaleForWindow(h);
+    if (msg == WM_INITDIALOG && s != 1.0f) {
+        RECT w, c;
+        o_getWindowRect(h, &w); o_getClientRect(h, &c);
+        const int dw = up(c.right, s) - c.right, dh = up(c.bottom, s) - c.bottom;
+        o_setWindowPos(h, nullptr, w.left - dw / 2, w.top - dh / 2, (w.right - w.left) + dw,
+                       (w.bottom - w.top) + dh, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    return r;
+}
+
+INT_PTR WINAPI detourDialogBox(HINSTANCE inst, LPCDLGTEMPLATEW t, HWND owner, DLGPROC proc, LPARAM lp) {
+    if (!proc || scaleForWindow(owner) == 1.0f) return o_dialogBox(inst, t, owner, proc, lp);
+    tl_pendingDlgProc = proc;
+    return o_dialogBox(inst, t, owner, scaledDlgProc, lp);
+}
+
 // ponytail: best effort. A failure here costs the scale menu, not the arp and morph features.
 void installGuiScale() {
     if (is141(g_bin)) {
@@ -371,6 +445,7 @@ void installGuiScale() {
           & imp("USER32.dll", "BeginPaint",        (void*)&detourBeginPaint,      (void**)&o_beginPaint)
           & imp("USER32.dll", "ScreenToClient",    (void*)&detourScreenToClient,  (void**)&o_screenToClient)
           & imp("USER32.dll", "ClientToScreen",    (void*)&detourClientToScreen,  (void**)&o_clientToScreen)
+          & imp("USER32.dll", "DialogBoxIndirectParamW", (void*)&detourDialogBox, (void**)&o_dialogBox)
           & imp("GDI32.dll",  "SetDIBitsToDevice", (void*)&detourSetDIBitsToDevice, (void**)&o_setDIBits);
         return;
     }
@@ -385,20 +460,6 @@ void installGuiScale() {
         (HMODULE)g_base, "GDI32.dll", "SetStretchBltMode", (void*)&detourSetStretchBltMode);
 }
 } // namespace
-
-// Mouse messages arrive in physical pixels; FM8's own hit testing works in logical ones. The
-// subclass in ui.cpp calls this before passing a message down, so every control lands where it
-// looks. Returns false when the message carries no coordinates or the window is not scaled.
-bool scaleMouseParam(void* hwnd, unsigned msg, intptr_t& lp) {
-    if (!is141(g_bin)) return false;        // 1.4.6's UIA maps the coordinates itself
-    if (msg < WM_MOUSEFIRST || msg > WM_MOUSELAST || msg == WM_MOUSEWHEEL || msg == WM_MOUSEHWHEEL)
-        return false;                       // wheel carries screen coordinates, not client ones
-    const float s = scaleForWindow((HWND)hwnd);
-    if (s == 1.0f) return false;
-    const int x = down(GET_X_LPARAM(lp), s), y = down(GET_Y_LPARAM(lp), s);
-    lp = (intptr_t)MAKELPARAM((WORD)(SHORT)x, (WORD)(SHORT)y);
-    return true;
-}
 
 // Armed by the VST2 shim before FM8 builds its editor, so the new window is scaled from birth.
 void expectEditorWindow() { tl_expectEditor = true; }

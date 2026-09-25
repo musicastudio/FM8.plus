@@ -132,10 +132,6 @@ float guiScale();
 // turns the gate on, so the standalone (which never does) keeps scaling its whole process.
 void addScaledWindow(void* hwnd);
 
-// Physical -> logical for a mouse message's lParam, for the window subclass to apply before FM8
-// sees it. True when it rewrote lp. Only the 1.4.1 path needs it; 1.4.6's own UIA does this itself.
-bool scaleMouseParam(void* hwnd, unsigned msg, intptr_t& lp);
-
 // Arm the next window FM8 creates on this thread as a scaled editor (1.4.1 has no UIA layer to
 // ask, so the shim says when the editor is coming).
 void expectEditorWindow();
