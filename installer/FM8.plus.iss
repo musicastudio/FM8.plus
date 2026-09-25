@@ -15,6 +15,10 @@
 #ifndef BuildDir
   #define BuildDir "..\build\Release"
 #endif
+; The release version. CI passes the tag (/DAppVer=1.1.0); a local build takes this default.
+#ifndef AppVer
+  #define AppVer "1.1.0"
+#endif
 ; The 32-bit VST2 wrapper, for FM8 1.4.1's x86 plug-in (the last 32-bit build NI shipped).
 #ifndef BuildDir32
   #define BuildDir32 "..\build32\Release"
@@ -22,13 +26,13 @@
 
 [Setup]
 AppName=FM8.plus
-AppVersion=1.0.7
+AppVersion={#AppVer}
 AppPublisher=Musica Studio
 DefaultDirName={autopf}\FM8.plus
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
-OutputBaseFilename=FM8.plus-Setup
+OutputBaseFilename=FM8.plus-Windows-Installer
 UninstallDisplayIcon={app}\FM8.plus.ico
 Uninstallable=yes
 ArchitecturesInstallIn64BitMode=x64compatible

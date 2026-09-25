@@ -55,6 +55,20 @@ VERSIONS = [
          proj=ROOT / "FM8_103_VST_32_GHIDRA_PROJ", analysis=ROOT / "FM8_103_VST_32_GHIDRA_ANALYSIS"),
 ]
 
+# macOS 1.4.6. Universal bundles are split into thin FM8.<arch> slices beside the original first
+# (tools/macho_thin.py); the VST2 is x86_64-only. The binaries keep their full C++ symbol table.
+_MAC = {"vst": "FM8.vst", "vst3": "FM8.vst3", "au": "FM8.component", "aax": "FM8.aaxplugin", "app": "FM8.app"}
+for _t, _bundle in _MAC.items():
+    for _arch in ("x86_64", "arm64"):
+        if _t == "vst" and _arch == "arm64":
+            continue
+        _name = f"FM8_MAC_146_{_t.upper()}" + ("" if _arch == "x86_64" else "_ARM64")
+        _bin = "FM8" if _t == "vst" else f"FM8.{_arch}"
+        VERSIONS.append(dict(key=f"mac_{_t}" + ("" if _arch == "x86_64" else "_arm64"), proj_name=_name,
+                             program=_bin,
+                             binary=ROOT / f"FM8_MAC_146_{_t.upper()}" / _bundle / "Contents" / "MacOS" / _bin,
+                             proj=ROOT / f"{_name}_GHIDRA_PROJ", analysis=ROOT / f"{_name}_GHIDRA_ANALYSIS"))
+
 
 VTABLES = False
 
@@ -262,7 +276,7 @@ def process(v):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", default="", help="comma list of keys: exe,vst3,vst2,exe141,vst64_141,vst32_141,dxi103,vst32_103")
+    ap.add_argument("--only", default="", help="comma list of keys: exe,vst3,vst2,exe141,vst64_141,vst32_141,dxi103,vst32_103,mac_vst,mac_vst3,mac_au,mac_aax,mac_app (+_arm64)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--vtables", action="store_true", help="define vtable-only functions, then decompile them")
     args = ap.parse_args()

@@ -268,7 +268,7 @@ VST3; the EXE has no external param API, so it depends on the internal setter be
 `tools/find_rvas.py` runs once against the three Ghidra projects to emit `core/rvas.h`; the
 binaries never change, so the RVAs are stable forever.
 
-**Install (Inno Setup, `FM8.plus-Setup.exe`).** Locate the three FM8 files via
+**Install (Inno Setup, `FM8.plus-Windows-Installer.exe`).** Locate the three FM8 files via
 `HKLM\SOFTWARE\Native Instruments\FM8`, then default paths, then a browse dialog. Verify each
 original's SHA-256 and TimeDateStamp `0x63a57e00`. Rename `FM8.dll` and `FM8.vst3` in place to
 `FM8.plus.core`, copy the two proxies under the original names, copy `version.dll` next to

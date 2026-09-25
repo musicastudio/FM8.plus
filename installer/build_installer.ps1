@@ -1,4 +1,4 @@
-# Compiles installer\FM8.plus.iss into installer\Output\FM8.plus-Setup.exe.
+# Compiles installer\FM8.plus.iss into installer\Output\FM8.plus-Windows-Installer.exe.
 # Run after building the shims (build\Release must hold FM8.dll, FM8.vst3, version.dll).
 #   powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1
 $ErrorActionPreference = 'Stop'
@@ -29,7 +29,10 @@ $iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "ISCC.exe not found. Install Inno Setup 6 (winget install -e --id JRSoftware.InnoSetup)." }
 
-& $iscc "/DBuildDir=$build" "/DBuildDir32=$build32" $iss
+# CI sets FM8PLUS_VERSION from the release tag; otherwise the .iss default stands.
+$defs = @("/DBuildDir=$build", "/DBuildDir32=$build32")
+if ($env:FM8PLUS_VERSION) { $defs += "/DAppVer=$env:FM8PLUS_VERSION" }
+& $iscc @defs $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE." }
 
-Write-Host "Built: $(Join-Path $PSScriptRoot 'Output\FM8.plus-Setup.exe')"
+Write-Host "Built: $(Join-Path $PSScriptRoot 'Output\FM8.plus-Windows-Installer.exe')"

@@ -1,0 +1,118 @@
+# Builds FM8.plus for Windows and macOS on every push and pull request, runs the checks that need no
+# FM8 install, and on a v* tag publishes a release with the installers and the per-format zips:
+#   FM8.plus-Windows-Installer.exe  FM8.plus-Windows-VST2.zip  FM8.plus-Windows-VST2-32bit.zip
+#   FM8.plus-Windows-VST3.zip       FM8.plus-Windows-Standalone.zip
+#   FM8.plus-MacOS-Installer.dmg    FM8.plus-MacOS-VST2.zip  FM8.plus-MacOS-VST3.zip  FM8.plus-MacOS-AU.zip
+# FM8 itself is Native Instruments' and never enters CI; the feature tests against a real FM8 run
+# on a machine that has it (tools/vst2probe, tools/mac/*probe).
+name: build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# On a tag each job sets FM8PLUS_VERSION (v1.2.3 -> 1.2.3); branch builds keep the scripts' default.
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: echo "FM8PLUS_VERSION=$('${{ github.ref_name }}'.TrimStart('v'))" >> $env:GITHUB_ENV
+      - name: Build x64
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release
+      - name: Build x86 (FM8 1.4.1 32-bit VST2 and DXi)
+        run: |
+          cmake -S . -B build32 -G "Visual Studio 17 2022" -A Win32
+          cmake --build build32 --config Release
+      - name: Installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and
+              -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item installer\Output\FM8.plus-Windows-Installer.exe dist\
+          Compress-Archive build\Release\FM8.plus.dll dist\FM8.plus-Windows-VST2.zip
+          Compress-Archive build32\Release\FM8.plus.dll dist\FM8.plus-Windows-VST2-32bit.zip
+          Compress-Archive build\Release\FM8.plus.vst3 dist\FM8.plus-Windows-VST3.zip
+          Compress-Archive build\Release\FM8.plus.exe, build\Release\FM8.plus.dll dist\FM8.plus-Windows-Standalone.zip
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+
+  macos:
+    # Apple Silicon. The Intel slices are cross-compiled here; the arm64 run of the breakpoint test
+    # is the one check the Intel test Mac cannot make.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "FM8PLUS_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Build
+        run: sh tools/mac/build.sh
+      - name: Breakpoint redirect test (arm64, plain and hardened runtime)
+        run: |
+          clang++ -std=c++17 -O2 -arch arm64 -o hwbp_test tools/mac/hwbp_test.cpp src/mac/machook.cpp
+          ./hwbp_test
+          cat > daw.entitlements <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict><key>com.apple.security.cs.disable-library-validation</key><true/></dict></plist>
+          EOF
+          cp hwbp_test hwbp_test_hardened
+          codesign -s - -o runtime --entitlements daw.entitlements --force hwbp_test_hardened
+          codesign -dv hwbp_test_hardened 2>&1 | grep flags
+          ./hwbp_test_hardened
+      - name: Breakpoint redirect test (x86_64 under Rosetta)
+        continue-on-error: true   # informative: Rosetta may not emulate debug registers
+        run: |
+          clang++ -std=c++17 -O2 -arch x86_64 -o hwbp_test_x64 tools/mac/hwbp_test.cpp src/mac/machook.cpp
+          ./hwbp_test_x64
+      - name: Package
+        run: sh tools/mac/package.sh build-mac dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --title "FM8.plus $GITHUB_REF_NAME" \
+            --generate-notes --draft

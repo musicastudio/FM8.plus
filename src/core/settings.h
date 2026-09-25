@@ -1,9 +1,14 @@
-// FM8.plus global settings, persisted machine-wide to %ProgramData%\FM8.plus\FM8.plus.ini.
+// FM8.plus global settings, persisted machine-wide to %ProgramData%\FM8.plus\FM8.plus.ini
+// (macOS: /Users/Shared/FM8.plus/FM8.plus.ini, src/mac/settings_mac.cpp).
 // Per-instance state (arp mode, mod-wheel toggle) travels in the DAW project via a chunk trailer;
 // these are the process-wide defaults and knobs plus the standalone MIDI-out device name.
 #pragma once
 #include <string>
+#ifdef _WIN32
 #include <windows.h>
+#else
+using HMODULE = void*;
+#endif
 
 namespace fm8plus::settings {
 
