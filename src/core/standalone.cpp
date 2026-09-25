@@ -47,7 +47,9 @@ void onArpBlock(InstanceState& st) {
 }
 
 DWORD WINAPI logoMenuThread(LPVOID) {
-    g_logoMenu.attachToMainWindow(&g_inst, 30000);  // wait up to 30s for FM8's window
+    // Wait up to 30s for FM8's window, then say in its title bar that FM8.plus is running.
+    if (HWND w = g_logoMenu.attachToMainWindow(&g_inst, 30000))
+        SetWindowTextW(w, L"FM8 - Native Instruments (with FM8.plus - musica.studio)");
     return 0;
 }
 

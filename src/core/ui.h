@@ -21,7 +21,7 @@ public:
 
     // Standalone helper: find this process's main window (blocking up to timeoutMs) and hook it.
     // Safe to call from a worker thread; the thread returns once the subclass is in place.
-    void attachToMainWindow(InstanceState* st, unsigned timeoutMs);
+    HWND attachToMainWindow(InstanceState* st, unsigned timeoutMs);   // FM8's window, or null
 
     // GUI Scale: a hosted plug-in cannot resize its own editor, it has to ask the host. The shim
     // registers the host's way of doing that (VST2 audioMasterSizeWindow, VST3 IPlugFrame::resizeView)
