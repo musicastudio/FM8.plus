@@ -71,7 +71,8 @@ const void* stock(const char* type, int id, size_t& size) {
 // same cross to preview a layout change.
 constexpr int32_t kLogoX1 = 21, kLogoY1 = 35, kLogoX2 = 116, kLogoY2 = 58;
 constexpr int32_t kShift = 11, kPlusW = 22;
-constexpr float kPlusCx = 107.4f, kPlusCy = 12.46f;           // centre, in the widened picture
+constexpr int kTextDx = 4;   // the "FM8" artwork sits this far right in the widened picture
+constexpr float kPlusCx = 108.4f, kPlusCy = 12.46f;           // centre, in the widened picture
 constexpr float kPlusHalf = 7.37f, kPlusThick = 1.515f;       // arm span and bar thickness, halved
 constexpr float kPlusSlant = 0.1767f;                         // tan(10 degrees) italic shear
 constexpr uint32_t kPlusRgb = 0x6b7d86;                       // sampled from the wordmark itself
@@ -176,7 +177,7 @@ bool buildPicture() {
                 const int nw = w + kPlusW;
                 std::vector<uint32_t> buf((size_t)nw * h, 0);
                 for (int y = 0; y < h; ++y)
-                    std::memcpy(buf.data() + (size_t)y * nw,
+                    std::memcpy(buf.data() + (size_t)y * nw + kTextDx,
                                 (const uint8_t*)bd.Scan0 + (size_t)y * bd.Stride, (size_t)w * 4);
                 bmp.UnlockBits(&bd);
                 drawPlus(buf.data(), nw, h);

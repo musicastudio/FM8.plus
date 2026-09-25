@@ -27,8 +27,9 @@ INSTALLED = r"C:\Program Files\Native Instruments\FM8\FM8.exe"
 LOGO_PIC = 193
 LOGO_SHIFT = 11
 PLUS_W = 22
+TEXT_DX = 4      # the "FM8" artwork sits this far right inside the widened picture
 PLUS_COLOUR = (107, 125, 134, 255)
-PLUS_CX, PLUS_CY = 107.4, 12.46
+PLUS_CX, PLUS_CY = 108.4, 12.46
 PLUS_HALF, PLUS_THICK, PLUS_SLANT = 7.37, 1.515, 0.1767
 STOCK_RECT = 'rect="21,35,116,58"'
 WIDE_RECT = f'rect="{21 - LOGO_SHIFT},35,{116 + PLUS_W - LOGO_SHIFT},58"'
@@ -39,7 +40,7 @@ def plus_picture(src_png):
     from PIL import Image, ImageDraw
     src = Image.open(src_png).convert("RGBA")
     out = Image.new("RGBA", (src.width + PLUS_W, src.height), (0, 0, 0, 0))
-    out.paste(src, (0, 0))
+    out.paste(src, (TEXT_DX, 0))
     a, t, k = PLUS_HALF, PLUS_THICK, 8      # k = supersampling factor for the antialiased edges
     xs = (a, t, t, -t, -t, -a, -a, -t, -t, t, t, a)
     ys = (-t, -t, -a, -a, -t, -t, t, t, a, a, t, t)
