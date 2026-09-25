@@ -107,7 +107,7 @@ struct Inst {
     int16_t cachedCc = -2;
     uint32_t cachedPid = 0;
     S::IPlugFrame* frame = nullptr;
-    NSView* parent = nil;
+    NSView* parent = nil;   // our wrapper inside the host's view; FM8 builds its editor in it
     S::ViewRect base{};
 };
 constexpr int kMax = 64;
@@ -280,19 +280,18 @@ S::tresult PLUGIN_API process(void* self, V::ProcessData& data) {
 
 // ---- editor ------------------------------------------------------------------------------------
 enum { kCreateView = 17 };                                          // IEditController slot
-enum { kAttached = 4, kRemoved = 5, kGetSize = 9, kSetFrame = 12};   // IPlugView slots
+enum { kAttached = 4, kRemoved = 5, kGetSize = 9, kOnSize = 10, kSetFrame = 12};   // IPlugView slots
 
-// FM8's view keeps its logical size as its bounds while its frame grows, so Cocoa scales drawing
-// and mouse together (as in the VST2 and AU wrappers).
+// FM8's editor is built inside our wrapper view (i->parent), whose frame grows by the scale while
+// its bounds stay logical, so Cocoa scales drawing and mouse together and FM8's own view never learns
+// it is scaled (as in the VST2 and AU wrappers).
 void scaleEditor(Inst* i) {
     if (!i->parent || i->base.right <= i->base.left) return;
     const CGFloat s = Core::guiScale();
     const CGFloat w = i->base.right - i->base.left, h = i->base.bottom - i->base.top;
-    for (NSView* v in i->parent.subviews) {
-        [v setFrameSize:NSMakeSize(w * s, h * s)];
-        [v setBoundsSize:NSMakeSize(w, h)];
-        [v setNeedsDisplay:YES];
-    }
+    [i->parent setFrameSize:NSMakeSize(w * s, h * s)];
+    [i->parent setBoundsSize:NSMakeSize(w, h)];
+    for (NSView* v in i->parent.subviews) [v setNeedsDisplay:YES];
 }
 
 S::tresult PLUGIN_API viewGetSize(void* self, S::ViewRect* r) {
@@ -306,6 +305,21 @@ S::tresult PLUGIN_API viewGetSize(void* self, S::ViewRect* r) {
     return rv;
 }
 
+// The host sizes the view in window pixels; FM8 must only ever hear its logical size, since our
+// wrapper does the scaling. Passed through, FM8 grew its view to the scaled size inside the already
+// scaled wrapper, drawing at twice the scale and off the window.
+S::tresult PLUGIN_API viewOnSize(void* self, S::ViewRect* r) {
+    Inst* i = byPtr(self);
+    const float s = Core::guiScale();
+    S::ViewRect logical = r ? *r : S::ViewRect{};
+    if (r && s != 1.0f) {
+        logical.right = logical.left + (S::int32)lroundf((r->right - r->left) / s);
+        logical.bottom = logical.top + (S::int32)lroundf((r->bottom - r->top) / s);
+    }
+    scaleEditor(i);
+    return orig<S::tresult (*)(void*, S::ViewRect*)>(i->viewVt, kOnSize)(self, r ? &logical : r);
+}
+
 S::tresult PLUGIN_API viewSetFrame(void* self, S::IPlugFrame* frame) {
     Inst* i = byPtr(self);
     i->frame = frame;
@@ -316,20 +330,32 @@ S::tresult PLUGIN_API viewAttached(void* self, void* parent, S::FIDString type) 
     Inst* i = byPtr(self);
     Core::serveLogoMac(g_rsrc.c_str());   // FM8 empties its resource map with its last instance
     if (i->base.right <= i->base.left) { S::ViewRect r{}; viewGetSize(self, &r); }
-    const S::tresult rv = orig<S::tresult (*)(void*, void*, S::FIDString)>(i->viewVt, kAttached)(self, parent, type);
-    if (rv == S::kResultOk && type && !strcmp(type, S::kPlatformTypeNSView)) {
-        i->parent = (__bridge NSView*)parent;
-        if (!i->st.appObj.load()) Core::bindInstance(&i->st, i->comp);
+    void* into = parent;
+    if (parent && type && !strcmp(type, S::kPlatformTypeNSView)) {
+        NSView* host = (__bridge NSView*)parent;
+        [i->parent removeFromSuperview];
+        i->parent = [[NSView alloc] initWithFrame:host.bounds];
+        [host addSubview:i->parent];
         scaleEditor(i);
+        into = (__bridge void*)i->parent;
+    }
+    const S::tresult rv = orig<S::tresult (*)(void*, void*, S::FIDString)>(i->viewVt, kAttached)(self, into, type);
+    if (rv == S::kResultOk && i->parent) {
+        if (!i->st.appObj.load()) Core::bindInstance(&i->st, i->comp);
+    } else {
+        [i->parent removeFromSuperview];
+        i->parent = nil;
     }
     return rv;
 }
 
 S::tresult PLUGIN_API viewRemoved(void* self) {
     Inst* i = byPtr(self);
-    i->parent = nil;
     i->st.pendingFlush.store(true);
-    return orig<S::tresult (*)(void*)>(i->viewVt, kRemoved)(self);
+    const S::tresult rv = orig<S::tresult (*)(void*)>(i->viewVt, kRemoved)(self);
+    [i->parent removeFromSuperview];
+    i->parent = nil;
+    return rv;
 }
 
 void* PLUGIN_API createView(void* self, S::FIDString name) {
@@ -341,6 +367,7 @@ void* PLUGIN_API createView(void* self, S::FIDString name) {
     setSlot(view, kAttached, (void*)&viewAttached);
     setSlot(view, kRemoved, (void*)&viewRemoved);
     setSlot(view, kGetSize, (void*)&viewGetSize);
+    setSlot(view, kOnSize, (void*)&viewOnSize);
     setSlot(view, kSetFrame, (void*)&viewSetFrame);
     return view;
 }

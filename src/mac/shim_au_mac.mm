@@ -305,14 +305,15 @@ AudioComponentPlugInInterface* g_proto = nullptr;
 @end
 
 namespace {
+// The container's frame grows by the scale while its bounds stay logical; FM8's view inside keeps
+// frame == bounds. Scaling FM8's view itself made it repaint partial updates into its unscaled frame.
 void scaleEditor(Inst* i) {
     if (!i->container || !i->editor || i->base.width <= 0) return;
     const CGFloat s = Core::guiScale();
-    const NSSize big = NSMakeSize(i->base.width * s, i->base.height * s);
-    [i->container setFrameSize:big];
+    [i->container setFrameSize:NSMakeSize(i->base.width * s, i->base.height * s)];
+    [i->container setBoundsSize:i->base];
     [i->editor setFrameOrigin:NSZeroPoint];
-    [i->editor setFrameSize:big];
-    [i->editor setBoundsSize:i->base];
+    [i->editor setFrameSize:i->base];
     [i->editor setNeedsDisplay:YES];
 }
 void applyScale(void* ctx, float) { scaleEditor((Inst*)ctx); }

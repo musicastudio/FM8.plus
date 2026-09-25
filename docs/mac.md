@@ -18,7 +18,7 @@ From least to most invasive:
 | Morph | The morph CC is taken at the plug-in's MIDI input (VST2 events, AU `MIDIEvent`, the VST3 parameter the host maps it to) and applied with `FM8EditBuffer::SetParameter` on tags 0x84/0x85. | shims, `core_mac.cpp` setMorphXY |
 | About FM8 | What FormMain does for the wordmark: `FM8::getFormManager()`, its window (vtable +0x130), that window's base (+0x18), then `StandardAboutDialog2::MSVCHelper<FM8AboutDialog>::doShow`. | `core_mac.cpp` showAboutMac |
 | VST3 buses, process, editor | Each FM8.plus instance's IComponent, IAudioProcessor, IEditController and IPlugView get their own copy of the vtable with FM8.plus entries in it. Plain FM8 objects keep FM8's tables. | `shim_vst3_mac.mm` |
-| GUI Scale | FM8's editor view keeps its logical size as its bounds while its frame grows, so Cocoa scales the drawing and maps the mouse back. | shims |
+| GUI Scale | FM8 builds its editor inside a wrapper view whose frame grows by the scale while its bounds stay logical, so Cocoa scales the drawing and maps the mouse back. FM8's own view keeps frame equal to bounds: scaled directly, it repainted partial updates into its unscaled frame and blanked the rest of the editor. The VST3 `onSize` the host sends is divided back to the logical size before FM8 sees it. | shims |
 | Arp MIDI out | See below. | `machook.cpp`, `core_mac.cpp` replaceArpDispatch |
 
 ## The arpeggiator
@@ -39,4 +39,4 @@ build-mac/vst3probe ~/Library/Audio/Plug-Ins/VST3/FM8.plus.vst3 --arp
 sh tools/mac/ingui.sh "build-mac/auprobe --arp"
 ```
 
-Each also takes `--morph` (with `morph_cc=11` in the INI) and `--editor out.png x y`, which clicks a logical point and reports the menu. AU hosts must run in the logged-in GUI session, which is what `ingui.sh` is for. `FM8PLUS_TRACE=1` prints what the core resolved and bound.
+Each also takes `--morph` (with `morph_cc=11` in the INI) and `--editor out.png x y`, which clicks a logical point and reports the menu. `--scale <dir> <start> <sequence>` runs the GUI Scale test in `tools/mac/scaletest.h`: it checks the editor opens at the saved scale (`<start>`, from `gui_scale` in the INI), picks each step of `<sequence>` (e.g. `1,2,3,4,1,3,2,1,2`) from the real menu, checks the view and host sizes and compares every screenshot with 1x, clicks Navigator > Attributes at its scaled position, closes and reopens the editor, and opens About FM8, saving screenshots of each step in `<dir>`. AU hosts must run in the logged-in GUI session, which is what `ingui.sh` is for. `FM8PLUS_TRACE=1` prints what the core resolved and bound.

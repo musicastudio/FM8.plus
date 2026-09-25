@@ -41,7 +41,7 @@ struct Record {
     VstTimeInfo timeInfo{};
     ERect editRect{}, baseRect{};
     bool customApplied = false;
-    NSView* parent = nil;   // the host's view the editor lives in
+    NSView* parent = nil;   // our wrapper inside the host's view; FM8 builds its editor in it
 };
 constexpr int kMaxInst = 64;
 Record g_rec[kMaxInst];
@@ -172,18 +172,17 @@ void thunkProcessD(AEffect* eff, double** in, double** out, int32_t frames) {
     drainToHost(eff, *r);
 }
 
-// GUI Scale: FM8's view keeps drawing and hit-testing in its own logical coordinates (its bounds),
-// while its frame, and the host window around it, grow by the scale.
+// GUI Scale: FM8's editor is built inside our wrapper view, whose frame grows by the scale while its
+// bounds stay logical. FM8's own view keeps frame == bounds and never learns it is scaled; scaling
+// FM8's view itself made it repaint partial updates into its unscaled frame, blanking the rest.
 void scaleEditor(Record& r) {
     if (!r.parent) return;
     const float s = Core::guiScale();
     const CGFloat w = r.baseRect.right - r.baseRect.left, h = r.baseRect.bottom - r.baseRect.top;
     if (w <= 0 || h <= 0) return;
-    for (NSView* v in r.parent.subviews) {
-        [v setFrameSize:NSMakeSize(w * s, h * s)];
-        [v setBoundsSize:NSMakeSize(w, h)];
-        [v setNeedsDisplay:YES];
-    }
+    [r.parent setFrameSize:NSMakeSize(w * s, h * s)];
+    [r.parent setBoundsSize:NSMakeSize(w, h)];
+    for (NSView* v in r.parent.subviews) [v setNeedsDisplay:YES];
 }
 
 void applyScale(void* ctx, float) {
@@ -279,19 +278,25 @@ intptr_t thunkDispatch(AEffect* eff, int32_t op, int32_t idx, intptr_t val, void
         case effEditOpen: {
             Core::serveLogoMac(g_rsrc.c_str());   // FM8 empties its resource map with its last instance
             if (!r->baseRect.right) { ERect* er = nullptr; thunkDispatch(eff, effEditGetRect, 0, 0, &er, 0); }
-            const intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);
-            r->parent = (__bridge NSView*)ptr;
+            NSView* host = (__bridge NSView*)ptr;
+            [r->parent removeFromSuperview];
+            r->parent = host ? [[NSView alloc] initWithFrame:host.bounds] : nil;
+            if (r->parent) { [host addSubview:r->parent]; scaleEditor(*r); }
+            const intptr_t rv = r->origDispatcher(eff, op, idx, val, r->parent ? (__bridge void*)r->parent : ptr, opt);
             if (!r->st.appObj.load()) Core::bindInstance(&r->st, eff->object);
-            if (Core::guiScale() != 1.0f) scaleEditor(*r);
             return rv;
         }
-        case effEditClose:
+        case effEditClose: {
             r->st.pendingFlush.store(true);
+            const intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);
+            [r->parent removeFromSuperview];
             r->parent = nil;
-            return r->origDispatcher(eff, op, idx, val, ptr, opt);
+            return rv;
+        }
         case effClose: {
             const intptr_t rv = r->origDispatcher(eff, op, idx, val, ptr, opt);
             Core::unbindInstance(&r->st);
+            [r->parent removeFromSuperview];
             r->parent = nil;
             r->eff.store(nullptr);
             return rv;
