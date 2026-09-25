@@ -6,7 +6,9 @@ cd "$(dirname "$0")/../.."
 OUT=${1:-build-mac}
 mkdir -p "$OUT"
 MIN=-mmacosx-version-min=10.14
-VER=${FM8PLUS_VERSION:-1.1.0}   # CI passes the release tag
+VER=${FM8PLUS_VERSION:-1.0.8}   # CI passes the release tag
+# The AU version is packed as 0xMMmmpp.
+AUVER=$(echo "$VER" | awk -F. '{ print $1 * 65536 + $2 * 256 + $3 }')
 CXX="clang++ -std=c++17 -O2 -fobjc-arc -fvisibility=hidden -Wall -Wno-unused-function $MIN"
 CORE="src/mac/core_mac.cpp src/mac/machook.cpp src/mac/settings_mac.cpp src/mac/ui_mac.mm"
 FW="-framework Cocoa -framework CoreGraphics -framework ImageIO"
@@ -39,11 +41,11 @@ $CXX -arch x86_64 -bundle -o "$V/Contents/MacOS/FM8.plus" src/mac/shim_vst2_mac.
 codesign -s - --force "$V" >/dev/null 2>&1
 
 # AU: universal, like FM8.component. Its own type/subtype/maker so it lists beside plain FM8.
-AUX='<key>AudioComponents</key><array><dict>
+AUX="<key>AudioComponents</key><array><dict>
 <key>type</key><string>aumu</string><key>subtype</key><string>F8pl</string><key>manufacturer</key><string>Msca</string>
 <key>name</key><string>musica.studio: FM8.plus</string><key>description</key><string>FM8.plus</string>
-<key>factoryFunction</key><string>FM8PlusAUFactory</string><key>version</key><integer>65792</integer>
-<key>sandboxSafe</key><false/></dict></array>'
+<key>factoryFunction</key><string>FM8PlusAUFactory</string><key>version</key><integer>$AUVER</integer>
+<key>sandboxSafe</key><false/></dict></array>"
 A="$OUT/FM8.plus.component"
 bundle "$A" FM8.plus studio.musica.FM8plus.component BNDL "$AUX"
 $CXX -arch x86_64 -arch arm64 -bundle -o "$A/Contents/MacOS/FM8.plus" src/mac/shim_au_mac.mm $CORE $FW     -framework AudioToolbox -framework AudioUnit -framework CoreAudioKit -framework CoreMIDI

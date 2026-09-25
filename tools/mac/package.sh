@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")/../.."
 B=${1:-build-mac}
 OUT=${2:-dist}
-VER=${FM8PLUS_VERSION:-1.1.0}
+VER=${FM8PLUS_VERSION:-1.0.8}
 rm -rf "$OUT" && mkdir -p "$OUT"
 
 # The zips keep each bundle's structure and signature intact.
