@@ -1,6 +1,6 @@
 # Builds FM8.plus for Windows and macOS on every push and pull request, runs the checks that need no
 # FM8 install, and on a v* tag publishes a release with the installers and the per-format zips:
-#   FM8.plus-Windows-Installer.exe  FM8.plus-Windows-VST2.zip  FM8.plus-Windows-VST2-32bit.zip
+#   FM8.plus-Windows-Installer.exe  FM8.plus-Windows-VST2-64.zip  FM8.plus-Windows-VST2-32.zip
 #   FM8.plus-Windows-VST3.zip       FM8.plus-Windows-Standalone.zip
 #   FM8.plus-MacOS-Installer.dmg    FM8.plus-MacOS-VST2.zip  FM8.plus-MacOS-VST3.zip  FM8.plus-MacOS-AU.zip
 # FM8 itself is Native Instruments' and never enters CI; the feature tests against a real FM8 run
@@ -49,8 +49,8 @@ jobs:
         run: |
           New-Item -ItemType Directory dist | Out-Null
           Copy-Item installer\Output\FM8.plus-Windows-Installer.exe dist\
-          Compress-Archive build\Release\FM8.plus.dll dist\FM8.plus-Windows-VST2.zip
-          Compress-Archive build32\Release\FM8.plus.dll dist\FM8.plus-Windows-VST2-32bit.zip
+          Compress-Archive build\Release\FM8.plus.dll dist\FM8.plus-Windows-VST2-64.zip
+          Compress-Archive build32\Release\FM8.plus.dll dist\FM8.plus-Windows-VST2-32.zip
           Compress-Archive build\Release\FM8.plus.vst3 dist\FM8.plus-Windows-VST3.zip
           Compress-Archive build\Release\FM8.plus.exe, build\Release\FM8.plus.dll dist\FM8.plus-Windows-Standalone.zip
           Get-ChildItem dist

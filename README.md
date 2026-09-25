@@ -5,7 +5,7 @@
 [![License: GPLv3](https://img.shields.io/github/license/musicastudio/FM8.plus)](https://github.com/musicastudio/FM8.plus/blob/main/LICENSE)
 [![Version](https://img.shields.io/github/v/release/musicastudio/FM8.plus?color=7a39fb)](https://github.com/musicastudio/FM8.plus/releases/latest)
 
-An enhancement layer for Native Instruments FM8 on Windows, supporting **FM8 v1.4.6** *(final version, released 2022-12-23)* and **FM8 v1.4.1** *(final version with 32-bit VST support, released 2015-10-20)*. It adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`, and brings back the DXi for 32-bit DXi hosts such as SONAR, which NI dropped after FM8 1.0.3.
+An enhancement layer for Native Instruments FM8 on Windows and macOS, supporting **FM8 v1.4.6** *(final version, released 2022-12-23)* and, on Windows, **FM8 v1.4.1** *(final version with 32-bit VST support, released 2015-10-20)*. On Windows it adds new features to the standalone `FM8.exe`, the VST2 `FM8.dll` in both 64-bit and 32-bit, and `FM8.vst3`, and brings back the DXi for 32-bit DXi hosts such as SONAR, which NI dropped after FM8 1.0.3. On macOS it adds them to the VST2, VST3 and Audio Unit plug-ins, on Intel and Apple Silicon.
 
 **Discord:** https://discord.gg/MA9UkqrEXr
 
@@ -18,19 +18,41 @@ Release thread on Native Instruments forum: [https://community.native-instrument
 3. **Tempo Override.** Unshackle the arp from the DAW tempo: Off, 0.25x, 0.5x, 2x, 4x of host tempo, or Custom (frees FM8's own arp Tempo control). VST2 scales the host time FM8 reads; VST3 scales the process context.
 4. **Increase Gain.** Push the output beyond the normal level: Off, +1 dB up to +10 dB, applied post-fader on the plugin output.
 5. **GUI Scale.** Make the whole FM8 interface bigger: 1x (off), 2x, 3x or 4x. Whole numbers only, and the enlarging blit replicates pixels instead of interpolating, so the artwork comes out sharp and pixel-exact rather than blurred. Everything scales together, the window, the mouse and the whole interface, in the standalone and in both plug-in formats. The setting is remembered and applies to every FM8.plus window.
-6. **Restore DXi.** FM8.plus as a DXi soft synth again, for 32-bit DXi hosts such as SONAR. NI shipped a DXi until FM8 1.0.3 (2007) and dropped it from 1.0.4 on; FM8.plus brings it back for FM8 1.4.1, the last 32-bit FM8, with every FM8.plus feature included. It is optional in the installer (see [Install](#install)).
+6. **Restore DXi.** FM8.plus as a DXi soft synth again, for 32-bit DXi hosts such as SONAR. NI shipped a DXi until FM8 1.0.3 (2007) and dropped it from 1.0.4 on; FM8.plus brings it back for FM8 1.4.1, the last 32-bit FM8, with every FM8.plus feature included, bar one. A DXi cannot send MIDI to the host at all: the DXi interface gives a soft synth MIDI in and audio out, and nothing else. So the arpeggiator's Clone to MIDI and MIDI only modes have nowhere to send their notes from a DXi. In SONAR X1 and later, which take MIDI output from VST instruments, use the 32-bit VST2 FM8.plus for arp MIDI out. The DXi is optional in the installer (see [Install](#install)).
 
 **To access these features, click the `FM8+` logo in the top-left corner to open the menu.**
 
-Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults and the GUI scale live machine-wide in `%ProgramData%\FM8.plus\FM8.plus.ini`, shared by every user and every host.
+On macOS every feature except the DXi is there, in the VST2, VST3 and Audio Unit plug-ins. There is no Mac standalone, since FM8.app does not allow anything to be loaded into it, and no AAX.
+
+Per-instance settings (morph CC, arp mode, tempo, gain) travel with the DAW project via the plugin state; global defaults and the GUI scale live machine-wide in `%ProgramData%\FM8.plus\FM8.plus.ini` on Windows and `/Users/Shared/FM8.plus/FM8.plus.ini` on macOS, shared by every user and every host.
 
 ## Install
 
-Download the latest installer from the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest) and run it. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folders (64-bit and 32-bit), `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. The v1.4.6 and v1.4.1 builds gain the features; any other build is loaded and left as plain FM8. v1.4.1 is the last release with a 32-bit plug-in, and it has no VST3. Rescan plugins in your DAW afterwards, and FM8.plus appears alongside FM8.
+Everything is on the [Releases page](https://github.com/musicastudio/FM8.plus/releases/latest). Each release has an installer for each system, plus the plug-ins on their own for anyone who would rather copy them in by hand:
+
+| | Windows | macOS |
+|---|---|---|
+| Installer | `FM8.plus-Windows-Installer.exe` | `FM8.plus-MacOS-Installer.dmg` |
+| VST2 | `FM8.plus-Windows-VST2-64.zip`, `FM8.plus-Windows-VST2-32.zip` (also the DXi) | `FM8.plus-MacOS-VST2.zip` (Intel, and Rosetta on Apple Silicon) |
+| VST3 | `FM8.plus-Windows-VST3.zip` | `FM8.plus-MacOS-VST3.zip` |
+| Audio Unit | | `FM8.plus-MacOS-AU.zip` |
+| Standalone | `FM8.plus-Windows-Standalone.zip` | |
+
+A plug-in from a zip goes in the same folder as the matching FM8 plug-in, since it loads FM8 from beside itself.
+
+### Windows
+
+Run `FM8.plus-Windows-Installer.exe`. It needs administrator rights, since FM8 lives under Program Files. It installs FM8.plus as its own files next to your existing FM8: `FM8.plus.dll` in the VST2 folders (64-bit and 32-bit), `FM8.plus.vst3` in the VST3 folder, and an `FM8.plus.exe` launcher in FM8's program folder, plus a desktop shortcut and a Start Menu entry beside FM8's own. It never renames or modifies a stock FM8 file, so a Native Access repair or update cannot break it, and uninstalling simply removes the FM8.plus files. The v1.4.6 and v1.4.1 builds gain the features; any other build is loaded and left as plain FM8. v1.4.1 is the last release with a 32-bit plug-in, and it has no VST3. Rescan plugins in your DAW afterwards, and FM8.plus appears alongside FM8.
 
 **DXi.** Ticking **Enable DXi (requires 32-bit FM8 1.4.1)** on the locations page installs everything 32-bit: the 32-bit VST2 `FM8.plus.dll`, and FM8.plus as a DXi soft synth for 32-bit DXi hosts such as SONAR. The DXi lives in `%ProgramData%\FM8.plus`, registered from there beside a copy of your own 32-bit `FM8.dll`, so moving or removing your VST folders cannot break it. That copy is the only FM8 file FM8.plus ever copies, and it stays on your machine. 1.4.1 is the last 32-bit FM8, so the copy never goes stale.
 
 Prefer scripts, or building it yourself? From an elevated PowerShell run `powershell -ExecutionPolicy Bypass -File installer\install.ps1`, and `installer\uninstall.ps1` removes everything again.
+
+### macOS
+
+Open `FM8.plus-MacOS-Installer.dmg` and run **Install FM8.plus.pkg**. It adds `FM8.plus.vst`, `FM8.plus.vst3` and `FM8.plus.component` to `/Library/Audio/Plug-Ins`, beside FM8's own, and never modifies FM8. Rescan plug-ins in your DAW afterwards. To remove it, delete those three from the VST, VST3 and Components folders.
+
+FM8.plus is not yet signed with an Apple Developer ID, so macOS will say the package is from an unidentified developer. Right-click the package and choose **Open**, or allow it under **System Settings > Privacy & Security**. If you install from a zip instead, clear the download flag so your DAW will load it, for example `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/FM8.plus.vst3`.
 
 ## Background and How it was made
 
@@ -51,6 +73,8 @@ Using Claude Fable 5.1, The three modules (the standalone `FM8.exe`, the VST2 `F
 
 Claude worked through Ghidra's decompiler output, proposed and adversarially checked where each hook belonged, and confirmed the target functions are byte-identical across all three binaries so one set of detours works in every host. From there it wrote the hook code, the per-host proxies, and the headless test hosts that verify each feature against the real FM8, and the whole thing was built and checked with the model in the loop end to end. The reverse-engineering notes and the exact hook addresses are in [docs/hooks.md](docs/hooks.md) and [docs/design.md](docs/design.md).
 
+The macOS port followed in September 2026 with Claude Opus 5.5. NI's Mac binaries keep their C++ symbol names, which made the internals far easier to map, and the Mac port finds every function by name rather than by address.
+
 To be clear about what that means, this repository contains no Native Instruments source and no decompiled FM8 content. The analysis only informed where FM8.plus attaches its own code at runtime; the stock binaries are never touched on disk.
 
 As of September 2026, frontier LLMs can read disassembled code at a level close to the original source code. We are seeing the emergence of a new era of user-led modification and enhancements to proprietary software.
@@ -65,9 +89,15 @@ The core detours two internal FM8 functions (the arpeggiator dispatch and the MI
 
 Every hook is guarded by the FM8 build's PE timestamp; on any mismatch the layer degrades to plain forwarding rather than risk a crash, so a Native Access repair or a different FM8 version is safe.
 
+On macOS the same design is reached differently, since NI ships the Mac binaries with their C++ symbol names intact. FM8.plus finds every FM8 function it needs by name when it loads, so one build covers the VST2, VST3 and Audio Unit and both Intel and Apple Silicon, and no addresses are hard-coded. Almost nothing there changes FM8's code. The "FM8+" wordmark is served through FM8's own in-memory resource table, the logo click through FormMain's vtable, and the VST3 extras through each FM8.plus instance's own copy of its vtables. GUI Scale lets Cocoa stretch FM8's view. The arpeggiator dispatch has no such seam, and macOS will not run modified code on Apple Silicon or in the hardened DAWs, so FM8.plus reaches it with a hardware breakpoint instead. The CPU's debug registers stop the audio thread as it enters FM8's function, and FM8.plus runs its own copy of that function, with the arp routing added, in its place. No code in memory changes, so code signing has nothing to object to. The details are in [docs/mac.md](docs/mac.md).
+
 The DXi is a DirectShow filter speaking Cakewalk's MFX interfaces, laid out the way FM8 1.0.3's own DXi was, the last FM8 that shipped one. Reverse engineering that DXi showed NI's DXi and VST2 adapters are thin layers over the same internal render path, so the FM8.plus DXi renders FM8 1.4.1 through the FM8.plus VST2 wrapper in the same DLL and gets every feature with it. The findings are in [docs/dxi.md](docs/dxi.md).
 
 ## Build
+
+Every push is built by [GitHub Actions](.github/workflows/build.yml) on Windows and on an Apple Silicon Mac, and pushing a `v*` tag builds a release with both installers and the zips above. To build by hand:
+
+### Windows
 
 Needs Visual Studio 2022, CMake, and the two vendored submodules. The 32-bit VST2 wrapper for FM8 1.4.1 x86 builds from the same source with `-A Win32` into `build32`, and that `FM8.plus.dll` is the DXi as well. `build32\Release\dxihost.exe <FM8.plus.dll>` tests the DXi headless, the way SONAR drives it, with 1.4.1's 32-bit `FM8.dll` beside it, and adding `--view` opens its editor with live audio and MIDI in, to look at.
 
@@ -79,6 +109,10 @@ cmake --build build --config Release
 
 Outputs in `build\Release`: `FM8.plus.dll` (VST2 wrapper), `FM8.plus.vst3` (VST3 wrapper), and `FM8.plus.exe` (standalone launcher). `installer\FM8.plus.iss` is an Inno Setup script that packages them into the setup installer, and `installer\build_installer.ps1` compiles it. The FM8.plus icon is FM8's own program icon with a "+" added, so it is never shipped here: at install time `tools\make_icon.ps1` composites it on your machine from your own FM8 install and `installer\icon_overlay.ico` (the only icon artwork in this repo), then injects it into your installed `FM8.plus.exe` as its icon resource. The binaries we distribute carry no Native Instruments artwork.
 
+### macOS
+
+Needs the Xcode command line tools and the VST3 submodule. `sh tools/mac/build.sh` builds `FM8.plus.vst`, `FM8.plus.vst3` and `FM8.plus.component` into `build-mac`, with test hosts beside them, and `sh tools/mac/package.sh` makes the DMG and the zips. The test hosts (`vst2probe`, `vst3probe`, `auprobe`) drive a real FM8 install; see [docs/mac.md](docs/mac.md).
+
 ## Layout
 
 ```
@@ -88,9 +122,12 @@ FM8.plus/
   src/shim_vst3/    VST3 wrapper -> FM8.plus.vst3
   src/dxi/          DXi soft synth, built into the 32-bit FM8.plus.dll
   src/launcher/     standalone launcher -> FM8.plus.exe
+  src/mac/          macOS core and the VST2, VST3 and Audio Unit wrappers
   src/vst2/         minimal VST 2.4 ABI header
-  docs/             design, reverse-engineering notes, hook reference, status
-  tools/            pyghidra helpers, the headless VST2/VST3/DXi test hosts, and make_icon.ps1
+  docs/             design, reverse-engineering notes, hook reference, status, macOS notes
+  tools/            pyghidra and Mach-O helpers, the headless VST2/VST3/DXi test hosts, and make_icon.ps1
+  tools/mac/        macOS build, packaging, test hosts and the breakpoint self-test
+  .github/          the GitHub Actions build and release workflow
   third_party/      MinHook, VST3 interfaces, and Microsoft's DirectShow BaseClasses (MIT) for the DXi
   installer/        PowerShell + Inno Setup installers and the "+" icon overlay
 ../FM8_DISASM/      binaries and Ghidra projects (not in git)
@@ -99,6 +136,8 @@ FM8.plus/
 ## Status
 
 All five features are verified end to end against the real FM8 with the headless host in `tools/vst2host.py`, running the FM8.plus VST2 wrapper as it ships (arp MIDI out in every mode, morph on an arbitrary CC with the CC blocked from FM8, tempo scaling, and gain), and the VST2 wrapper reports its own distinct identity. The VST3 wrapper is verified headless too: it presents FM8.plus and FM8 FX.plus as distinct plug-ins under their own vendor string and adds the "FM8.plus Arp Out" event bus only to its own instances. The standalone launcher is verified to start FM8 and inject the features. GUI Scale is verified in a real window in all three modes: the editor and the standalone render at 2x, 3x and 4x with no interpolation, clicks land on the control under the pointer, and changing the scale from the menu resizes a live editor. A full audio-path pass inside a DAW is the remaining check; see [docs/status.md](docs/status.md).
+
+On macOS the VST2, VST3 and Audio Unit are verified against the real FM8 on an Intel Mac with the headless hosts in `tools/mac`: arp MIDI out in all three modes, morph, the wordmark menu and GUI Scale, including in a host built with the hardened runtime, and the Audio Unit passes Apple's `auval`. The hardware-breakpoint redirect behind the arp is tested on Apple Silicon in CI on every push, natively, under the hardened runtime, and under Rosetta. FM8 itself on an Apple Silicon Mac, in a real DAW, is the check still to come.
 
 ## Licence
 

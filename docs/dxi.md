@@ -41,7 +41,9 @@ So NI's DXi and VST2 adapters are thin layers over one shared framework path, an
 
 **GUI Scale.** Changing the scale with the editor open grows FM8's window, but neither DXi, MFX nor `IPropertyPage` has a way for a page to ask its frame for more room: the DXi SDK's sample host sizes a page once from `GetPageInfo`, `IMfxNotifyHost` only carries audio-port changes, and SONAR remembers a plug-in window's size from its first opening. So the page does what JUCE's VST wrapper does for hosts that ignore `sizeWindow`: it resizes each window above it by the same amount, keeping its margins, up to the top-level DX window, stopping at an MDI client or before a parent holding over 100 px of other content. Reopening the editor sizes it from `GetPageInfo`, which answers at the current scale. Dragging SONAR's window bigger also exposed a bug in FM8.plus's 1.4.1 scaling layer, which is not DXi-specific: it scaled FM8's own `InvalidateRect` calls but not the paint rect Windows hands FM8 in `BeginPaint`, so any partial repaint the host asked for (a strip exposed by dragging one edge) was redrawn in the wrong place at double size and the strip itself left blank. `BeginPaint` is now converted too. The harness's `--drag` option reproduces it at 2x (the frame starts at half size and is dragged out one edge at a time).
 
-Not implemented yet: `IMediaParams` automation of FM8's parameters from the host, patch and note names, and arp MIDI out to the host (FM8.plus's arp MIDI out modes do not reach a DXi host).
+Not implemented yet: `IMediaParams` automation of FM8's parameters from the host, and patch and note names.
+
+Not possible: arp MIDI out. The DXi still captures the arpeggiator's notes (it renders through the same detours as the 32-bit VST2), but a DXi has no way to hand MIDI back to the host. `IMfxSoftSynth::OnEvents` only receives events, and the SDK describes the synth as always the last element in the chain; only a MIDI effect (`IMfxEventFilter`) gets an output queue. This is a limit of every DXi, not of FM8.plus. SONAR X1 and later take MIDI output from VST instruments, so the 32-bit VST2 FM8.plus is the way to get arp MIDI out there.
 
 ## Testing
 
