@@ -33,7 +33,7 @@ Everything is on the [Releases page](https://github.com/musicastudio/FM8.plus/re
 | | Windows | macOS |
 |---|---|---|
 | Installer | `FM8.plus-Windows-Installer.exe` | `FM8.plus-MacOS-Installer.dmg` |
-| VST2 | `FM8.plus-Windows-VST2-64.zip`, `FM8.plus-Windows-VST2-32.zip` (also the DXi) | `FM8.plus-MacOS-VST2.zip` (Intel, and Rosetta on Apple Silicon) |
+| VST2 | `FM8.plus-Windows-VST2-64.zip`, `FM8.plus-Windows-VST2-32-DXi.zip` (VST2 and DXi in one DLL) | `FM8.plus-MacOS-VST2.zip` (Intel, and Rosetta on Apple Silicon) |
 | VST3 | `FM8.plus-Windows-VST3.zip` | `FM8.plus-MacOS-VST3.zip` |
 | Audio Unit | | `FM8.plus-MacOS-AU.zip` |
 | Standalone | `FM8.plus-Windows-Standalone.zip` | |
