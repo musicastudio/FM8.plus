@@ -3,7 +3,9 @@
 //     vst3probe <bundle.vst3> --classes        list the factory's classes (expect FM8.plus)
 //     vst3probe <bundle.vst3> --arp            check the added event-out bus, count arp notes on it
 //     vst3probe <bundle.vst3> --morph          send CC 11 and watch Morph X/Y (needs morph_cc=11)
+//     vst3probe <bundle.vst3> --bench          audio-thread CPU over 23 s of audio, arp on, chord held
 //     vst3probe <bundle.vst3> --editor out.png [x y]   open the editor, optionally click a logical point
+//     vst3probe <bundle.vst3> --clicks <prefix> x,y[,2] ...   click (or double-click) each point, shoot each
 //     vst3probe <bundle.vst3> --scale <dir> <start> <seq>   GUI Scale test (tools/mac/scaletest.h)
 #import <Cocoa/Cocoa.h>
 #include <cmath>
@@ -13,6 +15,7 @@
 #include "scaletest.h"
 #include <vector>
 #include <unistd.h>
+#include <time.h>
 #include "pluginterfaces/base/ipluginbase.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
@@ -153,9 +156,35 @@ int runArp() {
     int ons = 0;
     for (auto& e : g_out.ev) if (e.type == V::Event::kNoteOnEvent) ++ons;
     printf("audio peak %.3f; events out %zu (note-ons %d)\n", peak, g_out.ev.size(), ons);
+    printf("first sample offsets:");
+    for (size_t k = 0; k < g_out.ev.size() && k < 8; ++k) printf(" %d", g_out.ev[k].sampleOffset);
+    printf("\n");
     const bool ok = outs == 1 && ons > 0;
     printf("RESULT: %s\n", ok ? "arpeggiator emitted MIDI on the FM8.plus bus" : "NO ARP MIDI OUT");
     return ok ? 0 : 1;
+}
+
+// The cost FM8.plus adds shows against stock FM8.vst3 run the same way. The arp plays throughout,
+// so both the silent samples and the ones carrying arp notes are timed.
+int runBench() {
+    V::ParamID arp = paramId("Arpeggiator On");
+    if (arp == (V::ParamID)-1) arp = paramId("Arp On");
+    g_changes.q.push_back({}); g_changes.q.back().id = arp; g_changes.q.back().v = 1.0;
+    render(4);
+    for (int p : {60, 64, 67}) note(p);
+    constexpr int kBlocks = 2000;
+    timespec c0, c1, w0, w1;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &c0); clock_gettime(CLOCK_MONOTONIC, &w0);
+    render(kBlocks);
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &c1); clock_gettime(CLOCK_MONOTONIC, &w1);
+    auto secs = [](timespec a, timespec b) { return (b.tv_sec - a.tv_sec) + (b.tv_nsec - a.tv_nsec) / 1e9; };
+    const double audio = kBlocks * 512 / 44100.0, cpu = secs(c0, c1);
+    int ons = 0;
+    for (auto& e : g_out.ev) if (e.type == V::Event::kNoteOnEvent) ++ons;
+    printf("%.1f s of audio: %.3f s thread CPU, %.3f s wall, %.1f%% of one core; %d arp note-ons out\n",
+           audio, cpu, secs(w0, w1), 100.0 * cpu / audio, ons);
+    printf("RESULT: bench done\n");
+    return 0;
 }
 
 int runMorph() {
@@ -229,6 +258,49 @@ int runEditor(const char* out, double cx, double cy) {
     printf("RESULT: %s\n", ok ? (cx < 0 ? "editor opened" : "logo click opened the menu") : "FAILED");
     return ok ? 0 : 1;
 }
+
+// A sequence of clicks at logical points, "x,y" for a single click and "x,y,2" for a double click,
+// with a screenshot after each (<prefix>_<n>.png). Works on stock FM8.vst3 too, for comparisons.
+int runClicks(const char* prefix, char** pts, int n) {
+    S::IPlugView* v = g_ctrl->createView(V::ViewType::kEditor);
+    if (!v) { printf("RESULT: FAILED no view\n"); return 1; }
+    v->setFrame(&g_frame);
+    S::ViewRect r{};
+    v->getSize(&r);
+    NSWindow* win = [[NSWindow alloc] initWithContentRect:NSMakeRect(100, 100, r.getWidth(), r.getHeight())
+                                                styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+    [win makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+    v->attached((__bridge void*)win.contentView, S::kPlatformTypeNSView);
+    render(8);
+    pump(4);
+    for (int k = 0; k <= n; ++k) {
+        if (k > 0) {
+            double x = 0, y = 0; int count = 1;
+            sscanf(pts[k - 1], "%lf,%lf,%d", &x, &y, &count);
+            for (int c = 1; c <= count; ++c)
+                for (NSEventType t : {NSEventTypeLeftMouseDown, NSEventTypeLeftMouseUp})
+                    [NSApp postEvent:[NSEvent mouseEventWithType:t location:NSMakePoint(x, r.getHeight() - y) modifierFlags:0
+                                                       timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:win.windowNumber
+                                                         context:nil eventNumber:0 clickCount:c pressure:1] atStart:NO];
+            pump(2);
+            render(8);
+            pump(1);
+        }
+        CGImageRef img = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow,
+                                                 (CGWindowID)win.windowNumber, kCGWindowImageBoundsIgnoreFraming);
+        NSBitmapImageRep* rep = [[NSBitmapImageRep alloc] initWithCGImage:img];
+        CGImageRelease(img);
+        char path[512];
+        snprintf(path, sizeof path, "%s_%d.png", prefix, k);
+        [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:@(path) atomically:YES];
+        printf("after %s -> %s\n", k ? pts[k - 1] : "opening", path);
+    }
+    v->removed();
+    v->release();
+    printf("RESULT: clicks done\n");
+    return 0;
+}
 int runScale(const char* dir, double startScale, const char* seq) {
     render(8);   // "About FM8" waits for the audio thread to have run once
     NSWindow* win = [[NSWindow alloc] initWithContentRect:NSMakeRect(40, 40, 400, 300)
@@ -296,9 +368,11 @@ int main(int argc, char** argv) {
         int rc = 2;
         if (!strcmp(argv[2], "--arp")) rc = runArp();
         else if (!strcmp(argv[2], "--morph")) rc = runMorph();
+        else if (!strcmp(argv[2], "--bench")) rc = runBench();
         else if (!strcmp(argv[2], "--scale") && argc > 5) rc = runScale(argv[3], atof(argv[4]), argv[5]);
         else if (!strcmp(argv[2], "--editor"))
             rc = runEditor(argc > 3 ? argv[3] : nullptr, argc > 5 ? atof(argv[4]) : -1, argc > 5 ? atof(argv[5]) : -1);
+        else if (!strcmp(argv[2], "--clicks") && argc > 3) rc = runClicks(argv[3], argv + 4, argc - 4);
         g_proc->setProcessing(false);
         g_comp->setActive(false);
         g_comp->terminate();

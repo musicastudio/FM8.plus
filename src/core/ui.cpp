@@ -30,11 +30,6 @@ enum {
 // Where "About FM8.plus" sends the browser.
 const wchar_t* const kProjectUrl = L"https://github.com/musicastudio/FM8.plus";
 
-// GUI Scale steps. 1x is stock FM8 down to the pixel; the rest are whole numbers so the blit
-// replicates each pixel exactly instead of interpolating (see Core::setGuiScale).
-constexpr float kScales[] = {1.0f, 2.0f, 3.0f, 4.0f};
-const wchar_t* const kScaleLabels[] = {L"1x (off)", L"2x", L"3x", L"4x"};
-constexpr int kScaleCount = (int)(sizeof kScales / sizeof kScales[0]);
 
 // Per-window data behind the subclass: the instance state, the window FM8 draws the form into
 // (clicks from any nested child are mapped into its client area), and the host resize hook.
@@ -80,11 +75,18 @@ const wchar_t* ccName(int cc) {
     }
 }
 
-// Multiply one window's client area by `ratio`, keeping its top-left. A top-level window needs the
-// frame added back; a child's client area is its whole window.
-void rescaleClient(HWND w, float ratio) {
+// A client size at scale `from`, taken to scale `to` by way of its logical size, so a fractional
+// step lands on the pixel FM8 itself rounds to rather than drifting from one step to the next.
+SIZE rescaled(const RECT& c, float from, float to) {
+    return {lroundf(lroundf(c.right / from) * to), lroundf(lroundf(c.bottom / from) * to)};
+}
+
+// Take one window's client area from scale `from` to `to`, keeping its top-left. A top-level window
+// needs the frame added back; a child's client area is its whole window.
+void rescaleClient(HWND w, float from, float to) {
     RECT c; GetClientRect(w, &c);
-    int nw = (int)lroundf(c.right * ratio), nh = (int)lroundf(c.bottom * ratio);
+    const SIZE n = rescaled(c, from, to);
+    int nw = n.cx, nh = n.cy;
     if (nw <= 0 || nh <= 0) return;
     const LONG_PTR style = GetWindowLongPtrW(w, GWL_STYLE);
     if (!(style & WS_CHILD)) {
@@ -102,16 +104,16 @@ void applyScale(OData* d, float want) {
     const float old = Core::guiScale();
     Core::setGuiScale(want);
     settings::setGuiScale(Core::guiScale());   // persist what the core accepted
-    const float ratio = Core::guiScale() / old;    // re-read: the core clamps to 1..4
-    if (ratio == 1.0f) return;
+    const float now = Core::guiScale();    // re-read: the core clamps and snaps
+    if (now == old) return;
 
     RECT c; GetClientRect(d->root, &c);
-    const int nw = (int)lroundf(c.right * ratio), nh = (int)lroundf(c.bottom * ratio);
-    rescaleClient(d->root, ratio);
+    const SIZE n = rescaled(c, old, now);
+    rescaleClient(d->root, old, now);
     // Hosted: FM8's editor child fills the window the host gave us, so the host has to make room.
     // A host that ignores the request picks the size up the next time the editor is opened, since
     // the shim answers the editor rect at the current scale.
-    if (!d->topLevel && d->resize) d->resize(d->resizeCtx, nw, nh);
+    if (!d->topLevel && d->resize) d->resize(d->resizeCtx, n.cx, n.cy);
 }
 
 void showMenu(HWND hwnd, OData* d) {
@@ -170,12 +172,14 @@ void showMenu(HWND hwnd, OData* d) {
     RECT tw; GetWindowRect(GetAncestor(d->root, GA_ROOT), &tw);
     MONITORINFO mi{sizeof mi};
     GetMonitorInfoW(MonitorFromWindow(d->root, MONITOR_DEFAULTTONEAREST), &mi);
-    for (int i = 0; i < kScaleCount; ++i) {
-        const float k = kScales[i] / gs;   // growth of the client area, applied to the whole top window
+    for (int i = 0; i < kGuiScaleCount; ++i) {
+        const float k = kGuiScales[i] / gs;   // growth of the client area, applied to the whole top window
         const bool fits = (tw.right - tw.left) + lroundf(cl.right * (k - 1)) <= mi.rcWork.right - mi.rcWork.left
                        && (tw.bottom - tw.top) + lroundf(cl.bottom * (k - 1)) <= mi.rcWork.bottom - mi.rcWork.top;
-        AppendMenuW(scale, MF_STRING | (std::fabs(gs - kScales[i]) < 0.01f ? MF_CHECKED : 0)
-                               | (fits ? 0 : MF_GRAYED), ID_SCALE_0 + i, kScaleLabels[i]);
+        wchar_t label[16];
+        swprintf(label, 16, i ? L"%gx" : L"%gx (off)", kGuiScales[i]);
+        AppendMenuW(scale, MF_STRING | (std::fabs(gs - kGuiScales[i]) < 0.01f ? MF_CHECKED : 0)
+                               | (fits ? 0 : MF_GRAYED), ID_SCALE_0 + i, label);
     }
     AppendMenuW(m, MF_POPUP, (UINT_PTR)scale, L"GUI Scale");
 
@@ -200,7 +204,7 @@ void showMenu(HWND hwnd, OData* d) {
     else if (cmd == ID_ARP_MIDI)  { st->arpMode.store((uint8_t)ArpMode::MidiOnly);    st->pendingFlush.store(true); settings::setArpModeDefault(2); }
     else if (cmd >= ID_TEMPO_OFF && cmd <= ID_TEMPO_OFF + 5) st->tempoMode.store((uint8_t)(cmd - ID_TEMPO_OFF));
     else if (cmd >= ID_GAIN_OFF && cmd <= ID_GAIN_OFF + 10)  st->gainDb.store((int8_t)(cmd - ID_GAIN_OFF));
-    else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + kScaleCount) applyScale(d, kScales[cmd - ID_SCALE_0]);
+    else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + kGuiScaleCount) applyScale(d, kGuiScales[cmd - ID_SCALE_0]);
     else if (cmd == ID_ABOUT_FM8)  Core::showAbout(*st);   // FM8's own dialog, modal until closed
     else if (cmd == ID_ABOUT_PLUS) ShellExecuteW(hwnd, L"open", kProjectUrl, nullptr, nullptr, SW_SHOWNORMAL);
 

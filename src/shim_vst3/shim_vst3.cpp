@@ -328,11 +328,13 @@ using CreateViewFn = void*     (PLUGIN_API*)(void* self, S::FIDString name);
 using AttachedFn   = S::tresult (PLUGIN_API*)(void* self, void* parent, S::FIDString type);
 using RemovedFn    = S::tresult (PLUGIN_API*)(void* self);
 using GetSizeFn    = S::tresult (PLUGIN_API*)(void* self, S::ViewRect* size);
+using OnSizeFn     = S::tresult (PLUGIN_API*)(void* self, S::ViewRect* size);
 using SetFrameFn   = S::tresult (PLUGIN_API*)(void* self, void* frame);
 CreateViewFn o_createView = nullptr;
 AttachedFn   o_attached   = nullptr;
 RemovedFn    o_removed    = nullptr;
 GetSizeFn    o_getSize    = nullptr;
+OnSizeFn     o_onSize     = nullptr;
 SetFrameFn   o_setFrame   = nullptr;
 
 inline void* vslot(void* obj, int i) { return (*(void***)obj)[i]; }
@@ -354,6 +356,19 @@ S::tresult PLUGIN_API h_getSize(void* self, S::ViewRect* size) {
         size->bottom = size->top + (S::int32)lroundf((size->bottom - size->top) * s);
     }
     return rv;
+}
+
+// The host sizes the view in window pixels; FM8 must only ever hear its logical size, since its own
+// window layer applies the scale. Passed through, FM8 took the scaled size for its logical one, and
+// the next page change "corrected" it with a 1x resizeView: the host window snapped back to 1x
+// around a 2x editor (REAPER, v1.0.8).
+S::tresult PLUGIN_API h_onSize(void* self, S::ViewRect* r) {
+    const float s = recFor(self) ? Core::guiScale() : 1.0f;
+    if (!r || s == 1.0f) return o_onSize(self, r);
+    S::ViewRect logical = *r;
+    logical.right = r->left + (S::int32)lroundf((r->right - r->left) / s);
+    logical.bottom = r->top + (S::int32)lroundf((r->bottom - r->top) / s);
+    return o_onSize(self, &logical);
 }
 
 // The host hands the view its IPlugFrame here; slot 3 of that is resizeView, the only way a VST3
@@ -404,6 +419,7 @@ void* PLUGIN_API h_createView(void* self, S::FIDString name) {
         hookSlot(view, 4, (void*)&h_attached, (void**)&o_attached);
         hookSlot(view, 5, (void*)&h_removed,  (void**)&o_removed);
         hookSlot(view, 9, (void*)&h_getSize,  (void**)&o_getSize);    // IPlugView::getSize
+        hookSlot(view, 10, (void*)&h_onSize,  (void**)&o_onSize);     // IPlugView::onSize
         hookSlot(view, 12, (void*)&h_setFrame, (void**)&o_setFrame);  // IPlugView::setFrame
     }
     return view;

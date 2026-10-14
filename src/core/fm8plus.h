@@ -19,6 +19,12 @@ enum class ArpMode : uint8_t { Internal = 0, CloneToMidi = 1, MidiOnly = 2 };
 inline double tempoFactor(uint8_t mode) {
     return mode == 1 ? 0.25 : mode == 2 ? 0.5 : mode == 3 ? 2.0 : mode == 4 ? 4.0 : 1.0;
 }
+// The GUI Scale steps both menus offer. Whole steps replicate FM8's pixels exactly; the fractional
+// ones interpolate, for screens a whole step overshoots (a 2x FM8 does not fit a MacBook).
+inline constexpr float kGuiScales[] = {1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f};
+inline constexpr int kGuiScaleCount = (int)(sizeof kGuiScales / sizeof kGuiScales[0]);
+inline bool wholeScale(float s) { return s == std::floor(s); }
+
 // Extra output gain 0..10 dB as a linear multiplier.
 inline float gainLinear(int8_t db) { return db > 0 ? (float)std::pow(10.0, db / 20.0) : 1.0f; }
 
@@ -123,6 +129,7 @@ void* addressOf(const Site& s);
 // GUI scale: 1.0 = stock FM8, up to 4.0 = everything four times the size. Drives NI::UIA's own
 // HiDPI path (see kUiaDpiScale in rvas.h), so FM8 itself sizes the window, maps the mouse, scales its
 // dirty rects and stretches the blit; we only supply the number. Safe to call before a window exists.
+// Snaps to quarter steps.
 void  setGuiScale(float s);
 float guiScale();
 

@@ -10,6 +10,8 @@
 //
 // Exit code 0 when the editor opened and the child window matched the reported rect.
 #include <windows.h>
+#include <dbghelp.h>
+#pragma comment(lib, "dbghelp.lib")
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -217,8 +219,101 @@ int runMorph(AEffect* eff) {
     return moved ? 0 : 1;
 }
 
+// What a host that unloads unused plug-ins does (Ableton Live does, after a rescan or once the last
+// instance is gone): load, play, open the editor, close, FreeLibrary, and again. FM8.plus patches
+// FM8.dll, which outlives it, so a second round is where a patch left pointing into the freed
+// FM8.plus.dll would crash.
+// If a round stalls for 90 s, print where the main thread is: module+offset per frame, from dbghelp's walk.
+volatile LONG g_progress = 0;
+DWORD WINAPI watchdog(void* mainThread) {
+    LONG seen = -1; int still = 0;
+    for (;;) {
+        Sleep(1000);
+        const LONG now = g_progress;
+        still = now == seen ? still + 1 : 0;
+        seen = now;
+        if (still != 90) continue;
+        HANDLE t = (HANDLE)mainThread;
+        SuspendThread(t);
+        CONTEXT c{}; c.ContextFlags = CONTEXT_FULL;
+        GetThreadContext(t, &c);
+        HANDLE p = GetCurrentProcess();
+        SymInitialize(p, nullptr, TRUE);
+        STACKFRAME64 f{};
+#ifdef _WIN64
+        const DWORD machine = IMAGE_FILE_MACHINE_AMD64;
+        f.AddrPC.Offset = c.Rip; f.AddrStack.Offset = c.Rsp; f.AddrFrame.Offset = c.Rbp;
+#else
+        const DWORD machine = IMAGE_FILE_MACHINE_I386;
+        f.AddrPC.Offset = c.Eip; f.AddrStack.Offset = c.Esp; f.AddrFrame.Offset = c.Ebp;
+#endif
+        f.AddrPC.Mode = f.AddrStack.Mode = f.AddrFrame.Mode = AddrModeFlat;
+        printf("STALLED 20 s; main thread stack:\n");
+        for (int i = 0; i < 40 && StackWalk64(machine, p, t, &f, &c, nullptr, SymFunctionTableAccess64,
+                                                SymGetModuleBase64, nullptr) && f.AddrPC.Offset; ++i) {
+            char mod[MAX_PATH] = "?";
+            HMODULE m = nullptr;
+            if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                   (LPCSTR)f.AddrPC.Offset, &m))
+                GetModuleFileNameA(m, mod, MAX_PATH);
+            const char* base = strrchr(mod, '\\');
+            printf("  %s+0x%llx\n", base ? base + 1 : mod, (unsigned long long)(f.AddrPC.Offset - (DWORD64)m));
+        }
+        ExitProcess(3);
+    }
+}
+
+int runReload(const char* dllPath, bool keep) {
+    if (keep) LoadLibraryA(dllPath);   // "--reload keep": a host that never unloads, for comparison
+    HANDLE me;
+    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &me, 0, FALSE, DUPLICATE_SAME_ACCESS);
+    CreateThread(nullptr, 0, watchdog, me, 0, nullptr);
+    WNDCLASSEXW wc{sizeof(wc)};
+    wc.lpfnWndProc = proc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"FM8PlusReload";
+    RegisterClassExW(&wc);
+    for (int round = 1; round <= 3; ++round) {
+        HMODULE m = LoadLibraryA(dllPath);
+        if (!m) { printf("FAIL LoadLibrary round %d -> %lu\n", round, GetLastError()); return 1; }
+        auto entry = (AEffect * (*)(intptr_t(*)(AEffect*, int32_t, int32_t, intptr_t, void*, float)))
+                     (void*)GetProcAddress(m, "VSTPluginMain");
+        AEffect* eff = entry ? entry(&VSTCALLBACK_host) : nullptr;
+        if (!eff) { printf("FAIL no AEffect round %d\n", round); return 1; }
+        const int32_t uid = eff->uniqueID;
+        InterlockedIncrement(&g_progress);
+        eff->dispatcher(eff, effOpen, 0, 0, nullptr, 0);
+        g_noteOnsFromPlugin = 0;
+        const int arp = runArp(eff);
+        InterlockedIncrement(&g_progress);
+        HWND host = CreateWindowExW(0, wc.lpszClassName, L"FM8.plus reload", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                    0, 0, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);
+        eff->dispatcher(eff, effEditOpen, 0, 0, host, 0);
+        pump(1.5);
+        const bool child = GetWindow(host, GW_CHILD) != nullptr;
+        InterlockedIncrement(&g_progress);
+        printf("round %d: editor open, closing\n", round);
+        eff->dispatcher(eff, effEditClose, 0, 0, nullptr, 0);
+        DestroyWindow(host);
+        printf("round %d: editor closed, effClose\n", round);
+        eff->dispatcher(eff, effClose, 0, 0, nullptr, 0);   // FM8 1.4.1 x64 never returns here in this probe
+        printf("round %d: FreeLibrary\n", round);
+        FreeLibrary(m);
+        InterlockedIncrement(&g_progress);
+        printf("round %d: uniqueID 0x%08x, arp %s, editor %s, module %s after FreeLibrary\n", round, (unsigned)uid,
+               arp == 0 ? "ok" : "FAILED", child ? "ok" : "FAILED",
+               GetModuleHandleA(dllPath) ? "still loaded" : "unloaded");
+        if ((arp != 0 && uid == 0x466D382B) || !child) return 1;   // stock FM8 has no arp MIDI out
+        pump(2);   // a host idles between instances; FM8 finishes tearing the last one down meanwhile
+    }
+    printf("RESULT: three load/unload rounds survived\n");
+    return 0;
+}
+
 int main(int argc, char** argv) {
-    if (argc < 2) { printf("usage: vst2probe <plugin.dll> [out.bmp|--arp|--morph] [seconds]\n"); return 2; }
+    if (argc < 2) { printf("usage: vst2probe <plugin.dll> [out.bmp|--arp|--morph|--reload] [seconds]\n"); return 2; }
+    setvbuf(stdout, nullptr, _IONBF, 0);   // a crash must not take the last lines with it
+    if (argc > 2 && strcmp(argv[2], "--reload") == 0) return runReload(argv[1], argc > 3 && !strcmp(argv[3], "keep"));
     const char* dllPath = argv[1];
     const bool morphMode = argc > 2 && strcmp(argv[2], "--morph") == 0;
     const bool arpMode = argc > 2 && strcmp(argv[2], "--arp") == 0;

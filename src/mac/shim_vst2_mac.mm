@@ -150,7 +150,7 @@ void thunkProcess(AEffect* eff, float** in, float** out, int32_t frames) {
     Record* r = recFor(eff);
     if (!r) return;
     r->st.clearBlock();
-    Core::armAudioThread();
+    Core::beginBlock(r->st);
     Core::current = &r->st;
     r->origProcess(eff, in, out, frames);
     Core::current = nullptr;
@@ -163,7 +163,7 @@ void thunkProcessD(AEffect* eff, double** in, double** out, int32_t frames) {
     Record* r = recFor(eff);
     if (!r || !r->origProcessD) return;
     r->st.clearBlock();
-    Core::armAudioThread();
+    Core::beginBlock(r->st);
     Core::current = &r->st;
     r->origProcessD(eff, in, out, frames);
     Core::current = nullptr;
@@ -180,9 +180,7 @@ void scaleEditor(Record& r) {
     const float s = Core::guiScale();
     const CGFloat w = r.baseRect.right - r.baseRect.left, h = r.baseRect.bottom - r.baseRect.top;
     if (w <= 0 || h <= 0) return;
-    [r.parent setFrameSize:NSMakeSize(w * s, h * s)];
-    [r.parent setBoundsSize:NSMakeSize(w, h)];
-    for (NSView* v in r.parent.subviews) [v setNeedsDisplay:YES];
+    macui::scaleWrapper((__bridge void*)r.parent, w, h, s);
 }
 
 void applyScale(void* ctx, float) {
@@ -197,7 +195,7 @@ void applyScale(void* ctx, float) {
 void onLogo(InstanceState* st) {
     Record* r = recOf(st);
     macui::ScaleHost sh;
-    if (r && r->parent) { sh.apply = &applyScale; sh.ctx = r; }
+    if (r && r->parent) { sh.apply = &applyScale; sh.ctx = r; sh.view = (__bridge void*)r->parent; }
     macui::showMenu(st, sh);
 }
 

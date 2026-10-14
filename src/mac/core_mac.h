@@ -19,9 +19,10 @@ void unbindInstance(InstanceState* st);
 // own About panel. `st` is the clicked instance.
 void setLogoHandler(void (*fn)(InstanceState* st));
 
-// Call at the top of every audio process call, before FM8 runs: loads the arp redirect into this
-// thread's debug registers (a no-op once it holds them).
-void armAudioThread();
+// Call at the top of every audio process call, after clearing the block and before FM8 runs: loads
+// the arp redirect into this thread's debug registers (a no-op once it holds them) and sends the
+// note-offs a mode change or editor close has asked for.
+void beginBlock(InstanceState& st);
 
 // Mac About: FM8's own panel for the bound instance. UI thread only.
 bool showAboutMac(InstanceState* st);

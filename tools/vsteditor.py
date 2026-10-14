@@ -7,12 +7,18 @@ the "FM8+" button: that FM8 is drawing the widened wordmark from the resources F
 opens the menu (posted, then dismissed from a watcher thread). Saves a screenshot of just the probe
 window and a crop of the wordmark, never the desktop.
 
-    python tools/vsteditor.py vst2 [dll]      default I:\\vstplugins64\\FM8.plus.dll
+    python tools/vsteditor.py vst2 [dll]      default C:\\Program Files\\Native Instruments\\FM8-1.4.6\\FM8.plus.dll
     python tools/vsteditor.py vst3 [vst3]     default C:\\Program Files\\Common Files\\VST3\\FM8.plus.vst3
 
     --seconds N   pump the editor this long before the dump (default 3)
     --out DIR     screenshot folder (default: this session's scratchpad, else cwd)
     --keep        after the dump, keep the window open until you close it
+    --click X,Y   after the dump, click this logical point; repeatable. Each click reports the
+                  window size and every resize the plug-in asked the host for (resizeView,
+                  audioMasterSizeWindow), which the probe honours the way REAPER does
+    --scale-to S  pick GUI Scale step S from the "+" menu; mixes with --click, in order. Each
+                  step passes when the window and FM8's child are both 948x562 x the INI's scale
+                  and the pixels on screen match a full repaint (no seams from partial repaints)
 """
 from __future__ import annotations
 
@@ -26,7 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vst2host as v2  # noqa: E402
 import vst3host as v3  # noqa: E402
 
-DEFAULT_VST2 = r"I:\vstplugins64\FM8.plus.dll"
+DEFAULT_VST2 = r"C:\Program Files\Native Instruments\FM8-1.4.6\FM8.plus.dll"
 DEFAULT_VST3 = r"C:\Program Files\Common Files\VST3\FM8.plus.vst3"
 
 # The widened "FM8+" wordmark in editor client pixels at 1x, its colour, and how much of it
@@ -410,7 +416,7 @@ class ERect(C.Structure):
 effEditGetRect, effEditOpen, effEditClose, effEditIdle = 13, 14, 15, 19
 
 
-def run_vst2(dll, seconds, out_dir, keep):
+def run_vst2(dll, seconds, out_dir, keep, steps=()):
     h = v2.Host(dll)
     print(f"loaded {dll}: uniqueID={h.e.uniqueID:#x} name={h.string(v2.effGetEffectName)!r} flags={h.e.flags:#x} (hasEditor={bool(h.e.flags & 1)})")
     h.open()
@@ -431,6 +437,15 @@ def run_vst2(dll, seconds, out_dir, keep):
     pump(seconds, idle)
     print(f"z-order after {seconds:g} s more:       {zorder(hwnd)}")
     diagnose(hwnd, out_dir, "vst2", idle)
+    state = {"hwnd": hwnd, "asked": []}
+
+    def size_window(w, ht):   # what a DAW does with audioMasterSizeWindow
+        state["asked"].append((w, ht))
+        rc = W.RECT(0, 0, w, ht)
+        AdjustWindowRectEx(C.byref(rc), WS_OVERLAPPEDWINDOW, 0, 0)
+        SetWindowPos(hwnd, None, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE)
+    h.on_size = size_window
+    run_steps(hwnd, steps, out_dir, "vst2", state, idle)
     if keep:
         print("window kept open; close it to finish")
         pump(1e9, idle)
@@ -444,7 +459,160 @@ class ViewRect(C.Structure):
     _fields_ = [("left", C.c_int32), ("top", C.c_int32), ("right", C.c_int32), ("bottom", C.c_int32)]
 
 
-def run_vst3(path, seconds, out_dir, keep):
+IPLUGFRAME_IID = v3.uid(0x367FAF01, 0xAFA94693, 0x8D4DA2A0, 0xED0882A3)
+EDITOR_1X = (948, 562)   # FM8 1.4.6's editor, logical
+SCALES = (1, 1.25, 1.5, 1.75, 2, 3, 4)   # the GUI Scale submenu, in order (src/core/fm8plus.h kGuiScales)
+WM_CHAR, VK_DOWN = 0x102, 0x28
+
+
+def pick_scale(root, scale, idle=None):
+    """Open the "+" menu and pick a GUI Scale step by keyboard: G opens the submenu with nothing
+    selected, then Down to the step and Enter. Returns whether the INI took the new scale."""
+    import threading
+    rect, plus_w = scaled_logo_rect()
+    x, y = rect[2] - plus_w // 2, (rect[1] + rect[3]) // 2
+
+    def watch():
+        for _ in range(100):
+            time.sleep(0.05)
+            m = FindWindowExW(None, None, MENU_CLASS, None)
+            if m:
+                break
+        else:
+            return
+        PostMessageW(m, WM_CHAR, ord("g"), 0)
+        time.sleep(0.6)   # the submenu has to open before the keys reach it
+        for k in [VK_DOWN] * (SCALES.index(scale) + 1) + [VK_RETURN]:
+            PostMessageW(m, WM_KEYDOWN, k, 0)
+            PostMessageW(m, WM_KEYUP, k, 0)
+            time.sleep(0.1)
+
+    t = threading.Thread(target=watch, daemon=True)
+    t.start()
+    child = GetWindow(root, GW_CHILD) or root
+    PostMessageW(child, WM_LBUTTONDOWN, 1, (y << 16) | x)
+    PostMessageW(child, WM_LBUTTONUP, 0, (y << 16) | x)
+    pump(3, idle)
+    t.join(1)
+    return gui_scale() == scale
+
+
+RedrawWindow = _sig("RedrawWindow", C.c_int, VP, VP, VP, C.c_uint)
+RDW_INVALIDATE, RDW_ALLCHILDREN, RDW_UPDATENOW = 0x1, 0x80, 0x100
+gdi32.BitBlt.restype, gdi32.BitBlt.argtypes = C.c_int, (VP, C.c_int, C.c_int, C.c_int, C.c_int, VP, C.c_int, C.c_int, C.c_uint)
+
+
+def grab_pixels(h):
+    """The pixels the window holds right now, copied with BitBlt. PrintWindow asks the window to
+    paint itself afresh, which hides exactly the stale or seamed regions a partial repaint leaves."""
+    from PIL import Image
+    r = W.RECT()
+    GetClientRect(h, C.byref(r))
+    w, ht = r.right, r.bottom
+    if w <= 0 or ht <= 0:
+        return None
+    bi = BITMAPINFOHEADER(C.sizeof(BITMAPINFOHEADER), w, -ht, 1, 32, 0, 0, 0, 0, 0, 0)
+    src = GetDC(h)
+    mem = gdi32.CreateCompatibleDC(src)
+    bits = VP()
+    dib = gdi32.CreateDIBSection(src, C.byref(bi), 0, C.byref(bits), None, 0)
+    old = gdi32.SelectObject(mem, dib)
+    gdi32.BitBlt(mem, 0, 0, w, ht, src, 0, 0, 0x00CC0020)   # SRCCOPY
+    img = Image.frombuffer("RGBA", (w, ht), C.string_at(bits, w * ht * 4), "raw", "BGRA", 0, 1).convert("RGB")
+    gdi32.SelectObject(mem, old)
+    gdi32.DeleteObject(dib)
+    gdi32.DeleteDC(mem)
+    ReleaseDC(h, src)
+    return img
+
+
+def run_steps(hwnd, steps, out_dir, tag, state, idle=None):
+    """--click and --scale-to, in order. After each: the window and FM8's child must both be the
+    1x editor times the INI's scale, and what FM8 left on screen (a click repaints only the page
+    that changed) must match a full repaint of the same state, or a scale's partial blits leave
+    seams. Returns the number of failures."""
+    fails = 0
+    for k, (what, arg) in enumerate(steps):
+        child = GetWindow(hwnd, GW_CHILD) or hwnd
+        state["asked"].clear()
+        picked = True
+        if what == "scale":
+            picked = pick_scale(hwnd, arg, idle)
+            label = f"scale to {arg:g}x ({'picked' if picked else 'NOT PICKED'}, INI now {gui_scale():g})"
+        else:
+            sc = gui_scale()
+            lx, ly = arg
+            x, y = int(lx * sc), int(ly * sc)
+            PostMessageW(child, WM_LBUTTONDOWN, 1, (y << 16) | x)
+            PostMessageW(child, WM_LBUTTONUP, 0, (y << 16) | x)
+            pump(3, idle)   # FM8 fills some lists in afterwards; let it finish
+            label = f"click at logical ({lx:g},{ly:g})"
+        want = (round(EDITOR_1X[0] * gui_scale()), round(EDITOR_1X[1] * gui_scale()))
+        got = client_size(hwnd)
+        sized = got == client_size(child) and max(abs(a - b) for a, b in zip(got, want)) <= 1
+        partial = grab_pixels(hwnd)
+        t0 = time.perf_counter()
+        RedrawWindow(child, None, None, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW)
+        repaint_ms = (time.perf_counter() - t0) * 1000
+        pump(0.5, idle)
+        full = grab_pixels(hwnd)
+        diff = 1.0
+        if partial and full and partial.size == full.size:
+            a, b = partial.tobytes(), full.tobytes()
+            diff = sum(1 for i in range(0, len(a), 3) if max(abs(a[i + j] - b[i + j]) for j in range(3)) > 24) / (len(a) // 3)
+        ok = picked and sized and diff < 0.001
+        fails += not ok
+        print(f"{'PASS' if ok else 'FAIL'} step {k + 1} {label}: asked host {state['asked']}; window client {got}, "
+              f"FM8 child {client_size(child)}, want {want}; on screen vs full repaint differ on {diff:.3%}"
+              f" (full repaint {repaint_ms:.1f} ms)")
+        if full:
+            full.save(os.path.join(out_dir, f"{tag}_step{k + 1}.png"))
+        if partial and full and partial.size == full.size and diff > 0:   # where they differ, white
+            from PIL import ImageChops
+            partial.save(os.path.join(out_dir, f"{tag}_step{k + 1}_onscreen.png"))
+            ImageChops.difference(partial, full).convert("L").point(lambda v: 255 if v > 24 else 0).save(
+                os.path.join(out_dir, f"{tag}_step{k + 1}_diff.png"))
+    return fails
+
+
+def make_frame(state):
+    """An IPlugFrame that does what a host does with resizeView: resize the window it owns to the
+    rect, then tell the view with onSize. Every request lands in state["asked"]."""
+    QI = C.CFUNCTYPE(v3.TRESULT, VP, VP, C.POINTER(VP))
+    REF = C.CFUNCTYPE(C.c_uint32, VP)
+    RESIZE = C.CFUNCTYPE(v3.TRESULT, VP, VP, C.POINTER(ViewRect))
+
+    def qi(this, iid, obj):
+        want = bytes(C.cast(iid, C.POINTER(C.c_ubyte * 16)).contents)
+        if want in (bytes(v3.IID["FUnknown"]), bytes(IPLUGFRAME_IID)):
+            obj[0] = this
+            return 0
+        obj[0] = None
+        return v3.kNoInterface
+
+    def resize(this, view, r):
+        w, h = r.contents.right - r.contents.left, r.contents.bottom - r.contents.top
+        state["asked"].append((w, h))
+        rc = W.RECT(0, 0, w, h)
+        AdjustWindowRectEx(C.byref(rc), WS_OVERLAPPEDWINDOW, 0, 0)
+        SetWindowPos(state["hwnd"], None, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE)
+        return v3.vt(view, 10, v3.TRESULT, C.POINTER(ViewRect))(view, r)   # IPlugView::onSize
+
+    funcs = [QI(qi), REF(lambda t: 1), REF(lambda t: 1), RESIZE(resize)]
+    table = (VP * 4)(*[C.cast(f, VP) for f in funcs])
+    obj = VP(C.addressof(table))
+    holder = C.pointer(obj)
+    holder._keep = (funcs, table, obj)
+    return holder
+
+
+def client_size(h):
+    r = W.RECT()
+    GetClientRect(h, C.byref(r))
+    return r.right, r.bottom
+
+
+def run_vst3(path, seconds, out_dir, keep, clicks=()):
     lib = C.CDLL(path)
     if hasattr(lib, "InitDll"):
         lib.InitDll.restype = C.c_bool
@@ -477,14 +645,21 @@ def run_vst3(path, seconds, out_dir, keep):
     w, ht = vr.right - vr.left, vr.bottom - vr.top
     print(f"getSize -> {w}x{ht}")
     hwnd = make_window(w or 900, ht or 600, "FM8.plus VST3 probe")
+    state = {"hwnd": hwnd, "asked": []}
+    frame = make_frame(state)
+    v3.vt(view, 12, v3.TRESULT, VP)(view, C.addressof(frame.contents))   # IPlugView::setFrame, before attached
     r = v3.vt(view, 4, v3.TRESULT, VP, C.c_char_p)(view, hwnd, b"HWND")   # IPlugView::attached
     print(f"attached(hwnd={hwnd:#x}) -> {r:#x}")
+    # REAPER, like most hosts, then tells the view the size of the window it made for it.
+    print(f"onSize({w}x{ht}) -> {v3.vt(view, 10, v3.TRESULT, VP)(view, C.addressof(vr)):#x}")
     print(f"z-order right after attached: {zorder(hwnd)}")
     pump(0.3)
     print(f"z-order after 0.3 s:          {zorder(hwnd)}")
     pump(seconds)
     print(f"z-order after {seconds:g} s more:    {zorder(hwnd)}")
     diagnose(hwnd, out_dir, "vst3")
+    print(f"resizeView requests so far: {state['asked']}; window client {client_size(hwnd)}")
+    run_steps(hwnd, clicks, out_dir, "vst3", state)
     if keep:
         print("window kept open; close it to finish")
         pump(1e9)
@@ -503,12 +678,21 @@ def main():
         i = args.index("--out"); out_dir = args[i + 1]; del args[i:i + 2]
     if "--keep" in args:
         args.remove("--keep"); keep = True
+    clicks = []   # in command-line order
+    while "--click" in args or "--scale-to" in args:
+        i = min(args.index(a) for a in ("--click", "--scale-to") if a in args)
+        clicks.append(("click", tuple(float(v) for v in args[i + 1].split(","))) if args[i] == "--click"
+                      else ("scale", float(args[i + 1])))
+        del args[i:i + 2]
     kind = args[0] if args else "vst2"
     path = args[1] if len(args) > 1 else (DEFAULT_VST2 if kind == "vst2" else DEFAULT_VST3)
     out_dir = out_dir or os.environ.get("CLAUDE_SCRATCHPAD") or os.getcwd()
     os.makedirs(out_dir, exist_ok=True)
     user32.SetProcessDPIAware()
-    (run_vst2 if kind == "vst2" else run_vst3)(path, seconds, out_dir, keep)
+    if kind == "vst2":
+        run_vst2(path, seconds, out_dir, keep, clicks)
+    else:
+        run_vst3(path, seconds, out_dir, keep, clicks)
 
 
 if __name__ == "__main__":

@@ -5,11 +5,12 @@
 //  - data: FM8's in-memory resource map (the "FM8+" wordmark) and FormMain's vtable (the logo
 //    click). Works in every host on both architectures.
 //  - calls: FM8's own functions invoked directly (morph setter, About panel).
-//  - breakpoint: the arp dispatch, the only place arp notes can be told from live ones, is
-//    redirected by a hardware breakpoint (machook.h redirect) to replaceArpDispatch. No code page
-//    is written, so it holds in hardened hosts and on arm64 as well.
+//  - breakpoint: the arp dispatch's event loop, the only place arp notes can be told from live
+//    ones, is replaced by arpEvents through a hardware breakpoint (machook.h redirectCall). No code
+//    page is written, so it holds in hardened hosts and on arm64 as well.
 #include "core_mac.h"
 #include "machook.h"
+#include "../core/sharp.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <ImageIO/ImageIO.h>
@@ -31,19 +32,17 @@ thread_local InstanceState* current = nullptr;
 
 namespace {
 InstanceState* g_singleton = nullptr;
-void (*g_arpBlockCb)(InstanceState&) = nullptr;
 void (*g_logoHandler)(InstanceState*) = nullptr;
 bool g_installed = false, g_arpHooked = false, g_logoWidened = false;
 std::atomic<float> g_guiScale{1.0f};
 
 enum Sym {
-    kArpDispatch, kMidiHandler, kGetMidiEvents, kGetEditBuffer, kSetParameter, kGetFormManager, kAboutDoShow,
+    kArpDispatch, kMidiHandler, kGetEditBuffer, kSetParameter, kGetFormManager, kAboutDoShow,
     kVtFm8, kTiFm8, kVtFormMain, kOnControl, kOnControlThunk, kResourceMap, kSymCount
 };
 const char* const kNames[kSymCount] = {
     "__ZN7FM8Midi36processMidiEventsFromMIDIArpeggiatorEN2NI2AB7eThreadEj",
     "__ZN7FM8Midi16processMidiEventERKN2NI2AB9MidiEventENS1_7eThreadE",
-    "__ZN2NI15MIDIArpeggiator13getMidiEventsEj",
     "__ZNK3FM813GetEditBufferEv",
     "__ZN13FM8EditBuffer12SetParameterE13ParameterTagsfb",
     "__ZNK3FM814getFormManagerEv",
@@ -59,10 +58,9 @@ void* g_sym[kSymCount] = {};
 
 // Layout FM8 1.4.6 uses on the Mac, read from the disassembly (docs/mac.md): the MIDI event packs
 // [data2][data1][status] at +0x10 as on Windows, FM8Midi keeps its FM8 at +8, FormMain at +0x270,
-// the EditBuffer its arpeggiator at +0x29a0, and the arp's event array counts at +8 and points at
-// 0x28-byte elements from +0x10. The same on x86_64 and arm64.
+// and the arp's event array counts at +8 and points at 0x28-byte elements from +0x10. The same on x86_64 and arm64.
 constexpr size_t kEvWord = 0x10, kMidiFm8 = 0x08, kFormMainFm8 = 0x270, kThunkDelta = 608;
-constexpr size_t kEditBufArp = 0x29a0, kArrCount = 0x08, kArrData = 0x10, kArrStride = 0x28;
+constexpr size_t kArrCount = 0x08, kArrData = 0x10, kArrStride = 0x28;
 constexpr uint32_t kTagMorphX = 0x84, kTagMorphY = 0x85;
 constexpr unsigned kLogoControl = 5, kNotifyClick = 0x186a1;
 
@@ -118,24 +116,55 @@ bool routeArpEvent(InstanceState& st, uint8_t status, uint8_t d1, uint8_t d2, in
     return playInternal;
 }
 
-// Takes over FM8Midi::processMidiEventsFromMIDIArpeggiator whenever the breakpoint fires. It is
-// FM8's own function line for line (fetch the arp's events for this position, hand each to
-// processMidiEvent), with the FM8.plus routing between the two. It runs for plain FM8 instances on
-// an armed thread too, which then get exactly the stock loop. It must never call the original:
-// that address is the breakpoint.
-void replaceArpDispatch(void* fm8midi, int thread, unsigned pos) {
-    void* fm8 = *(void**)((char*)fm8midi + kMidiFm8);
-    void* eb = ((void* (*)(void*))g_sym[kGetEditBuffer])(fm8);
-    void* arp = *(void**)((char*)eb + kEditBufArp);
-    auto* arr = (char*)((void* (*)(void*, unsigned))g_sym[kGetMidiEvents])(arp, pos);
+// FM8Audio::process calls FM8Midi::processMidiEventsFromMIDIArpeggiator once per SAMPLE, and on
+// almost every one the arp has nothing to say. So the breakpoint does not sit on its entry (a trap
+// per sample, a whole core at 48 kHz) but on the first instruction past its "no events" exit,
+// where the loop over the events begins; arpEvents runs that loop in its place and returns into
+// FM8's epilogue. Its registers there, read from the disassembly and the same in the VST2, AU and
+// VST3 builds: this, the event array, the thread and the sample position.
+struct ArpSite { size_t trap, resume; unsigned char args[4]; size_t calls[3]; const char* code; };
+#if defined(__x86_64__)
+// r15 this, r12 array, r14 thread, rbx position. Trap on "shl rax, 3" after "je epilogue". The
+// calls are the three rel32 displacements, which differ between builds.
+constexpr ArpSite kArpSite = {0x38, 0x6c, {15, 12, 14, 1}, {0x1b, 0x29, 0x5f},
+    "554889e54157415641554154535089d34189f64989ff488b7f08e8217e0100488bb8a029000089dee8634ffcff4989c4"
+    "8b40084885c0743448c1e0034c8d2c8031db662e0f1f8400000000000f1f4000498b7424104801de4c89ff4489f2e81d"
+    "0000004883c3284939dd75e44883c408"};
+#else
+// x20 this, x0 array, x19 thread, x21 position. Trap on "mov x21, x0" after "cbz w8, epilogue". The
+// calls are the three bl instructions.
+constexpr ArpSite kArpSite = {0x3c, 0x6c, {20, 0, 19, 21}, {0x24, 0x30, 0x5c},
+    "f85fbca9f65701a9f44f02a9fd7b03a9fdc30091f50302aaf30301aaf40300aa000440f98a54009400d054f9e10315aa"
+    "6841ff97080840b9a8010034f50300aa160080d20809088b17f17dd3a80a40f90101168be00314aae20313aa09000094"
+    "d6a20091ff0216eb21ffff54fd7b43a9"};
+#endif
+constexpr size_t kArpSiteLen = 0x70;
+
+// The function's bytes, calls aside, are the ones the registers above were read from.
+bool arpSiteMatches(const void* fn) {
+    uint8_t have[kArpSiteLen];
+    if (!peek(fn, have, sizeof have)) return false;
+    for (size_t i = 0; i < kArpSiteLen; ++i) {
+        bool call = false;
+        for (size_t c : kArpSite.calls) call |= i >= c && i < c + 4;
+        unsigned want = 0;
+        sscanf(kArpSite.code + 2 * i, "%2x", &want);
+        if (!call && have[i] != want) return false;
+    }
+    return true;
+}
+
+// The loop of processMidiEventsFromMIDIArpeggiator for one sample position that has arp events,
+// with the FM8.plus routing between fetching each event and handing it to processMidiEvent. Plain
+// FM8 instances on an armed thread get the stock loop. Must not run the instruction it replaces
+// by calling the original: that address is the breakpoint.
+void arpEvents(void* fm8midi, const char* arr, int thread, unsigned pos) {
     const auto handle = (void (*)(void*, const void*, int))g_sym[kMidiHandler];
     InstanceState* st = current ? current : g_singleton;
-    const uint32_t n = *(uint32_t*)(arr + kArrCount);
-    const char* ev = *(char**)(arr + kArrData);
+    const uint32_t n = *(const uint32_t*)(arr + kArrCount);
+    const char* ev = *(char* const*)(arr + kArrData);
     if (!st) { for (uint32_t k = 0; k < n; ++k) handle(fm8midi, ev + k * kArrStride, thread); return; }
-    if (st->pendingFlush.exchange(false, std::memory_order_relaxed)) flushExternal(*st);
-    st->appObj.store(fm8, std::memory_order_relaxed);
-    st->editBuf.store(eb, std::memory_order_relaxed);
+    st->appObj.store(*(void**)((char*)fm8midi + kMidiFm8), std::memory_order_relaxed);
     const bool route = st->arpMode.load(std::memory_order_relaxed) != (uint8_t)ArpMode::Internal;
     for (uint32_t k = 0; k < n; ++k) {
         const char* e = ev + k * kArrStride;
@@ -143,7 +172,65 @@ void replaceArpDispatch(void* fm8midi, int thread, unsigned pos) {
         if (!route || routeArpEvent(*st, (uint8_t)(w >> 16), (w >> 8) & 0x7f, w & 0x7f, (int32_t)pos))
             handle(fm8midi, e, thread);
     }
-    if (g_arpBlockCb) g_arpBlockCb(*st);
+}
+
+// ---- sharp bilinear on a fractional GUI Scale ---------------------------------------------------
+// FM8 renders its editor into an offscreen 1x picture, and each paint draws that picture into the
+// view with one CGContextDrawImage (NI::UIA::DeviceContextImpl::updateFromPicture; its only other
+// call builds drag images), nearest neighbour, clipped to what needs repainting. Where an FM8 pixel
+// lands on a fractional number of screen pixels (1.25x and 1.75x anywhere, 1.5x off Retina) that
+// alternates 1- and 2-pixel columns, so there the clipped area is drawn with sharp bilinear
+// instead, as on Windows (core/sharp.h), aligned to the screen's pixels. Whole ratios (1.5x on a
+// Retina screen is 3 pixels) and plain FM8 instances, which draw at whole multiples, keep FM8's draw.
+void drawImage(CGContextRef c, CGRect r, CGImageRef img) {
+    const CGAffineTransform t = CGContextGetUserSpaceToDeviceSpaceTransform(c);
+    const size_t W = CGImageGetWidth(img), H = CGImageGetHeight(img);
+    const double k = t.a;
+    if (t.b != 0 || t.c != 0 || k <= 0 || std::fabs(std::fabs(t.d) - k) > 1e-3 || std::fabs(k - std::round(k)) < 0.01
+        || r.size.width != W || r.size.height != H || CGImageGetBitsPerPixel(img) != 32) {
+        CGContextDrawImage(c, r, img);
+        return;
+    }
+    const CGRect dev = CGContextConvertRectToDeviceSpace(c, r);   // the whole picture, in screen pixels
+    const CGRect area = CGRectIntegral(CGRectIntersection(
+        dev, CGContextConvertRectToDeviceSpace(c, CGContextGetClipBoundingBox(c))));
+    if (CGRectIsEmpty(area)) return;
+    const int w = (int)area.size.width, h = (int)area.size.height;
+    // CGContextDrawImage puts an image's first row at its rect's max y in user space; FM8 flips its CTM
+    // first. Whichever device edge the picture's top lands on, the area is computed top row first.
+    // The picture's top-left is snapped to a whole pixel once, towards the window's top-left, and
+    // every area is measured from it. At 1.25x FM8's 562 rows are 702.5 screen pixels and AppKit
+    // hangs the view half a pixel below the window's top edge; rounding each area's own offset (or
+    // that half pixel downwards) shifted rows by one against Windows and between repaints.
+    const bool topAtMaxY = t.d > 0;   // device y runs up here; in layer-backed views it runs down
+    const long left = std::lround(std::floor(dev.origin.x + 1e-6));
+    const long top = topAtMaxY ? std::lround(std::ceil(CGRectGetMaxY(dev) - 1e-6)) : std::lround(std::floor(dev.origin.y + 1e-6));
+    const int x0 = (int)(std::lround(area.origin.x) - left);
+    const int y0 = topAtMaxY ? (int)(top - std::lround(CGRectGetMaxY(area))) : (int)(std::lround(area.origin.y) - top);
+    CFDataRef pic = CGDataProviderCopyData(CGImageGetDataProvider(img));
+    if (!pic) { CGContextDrawImage(c, r, img); return; }
+    CFMutableDataRef block = CFDataCreateMutable(nullptr, (CFIndex)w * h * 4);
+    CFDataSetLength(block, (CFIndex)w * h * 4);
+    scaleSharp(CFDataGetBytePtr(pic), (int)W, (int)H, (ptrdiff_t)CGImageGetBytesPerRow(img), (float)k, 0, 0, x0, y0, w, h,
+               (uint32_t*)CFDataGetMutableBytePtr(block));
+    CFRelease(pic);
+    CGDataProviderRef prov = CGDataProviderCreateWithCFData(block);
+    CGImageRef out = CGImageCreate(w, h, 8, 32, (size_t)w * 4, CGImageGetColorSpace(img), CGImageGetBitmapInfo(img), prov,
+                                   nullptr, false, kCGRenderingIntentDefault);
+    CGDataProviderRelease(prov);
+    CFRelease(block);
+    // Draw it in device space, one image pixel per screen pixel: the CTM undone, its top row on the
+    // same edge as the picture's.
+    CGContextSaveGState(c);
+    CGContextConcatCTM(c, CGAffineTransformInvert(t));
+    CGContextSetInterpolationQuality(c, kCGInterpolationNone);
+    if (!topAtMaxY) {
+        CGContextTranslateCTM(c, 0, CGRectGetMinY(area) + CGRectGetMaxY(area));
+        CGContextScaleCTM(c, 1, -1);
+    }
+    CGContextDrawImage(c, area, out);
+    CGContextRestoreGState(c);
+    CGImageRelease(out);
 }
 
 // ---- the logo click: FormMain's vtable ---------------------------------------------------------
@@ -320,7 +407,7 @@ void serve(const char* type, uint32_t id, const std::vector<uint8_t>& blob) {
 } // namespace
 
 void setSingleton(InstanceState* s) { g_singleton = s; }
-void setArpBlockCallback(void (*cb)(InstanceState&)) { g_arpBlockCb = cb; }
+void setArpBlockCallback(void (*)(InstanceState&)) {}   // the Windows standalone's; no Mac caller
 void setLogoHandler(void (*fn)(InstanceState*)) { g_logoHandler = fn; }
 
 bool installMac(const void* anyAddressInFm8) {
@@ -329,9 +416,12 @@ bool installMac(const void* anyAddressInFm8) {
     if (!img) return false;
     // All or nothing: a build missing any of these is not the 1.4.6 this was read from.
     if (mac::resolve(img, kNames, g_sym, kSymCount) != kSymCount) return false;
-    g_arpHooked = mac::redirect(g_sym[kArpDispatch], (void*)&replaceArpDispatch);
+    auto* fn = (char*)g_sym[kArpDispatch];
+    g_arpHooked = arpSiteMatches(fn) &&
+                  mac::redirectCall(fn + kArpSite.trap, (void*)&arpEvents, fn + kArpSite.resume, kArpSite.args);
     const bool ctl = hookControlEvents();
-    if (g_trace) fprintf(stderr, "FM8.plus: installed, arp redirect %d, control hook %d\n", g_arpHooked, ctl);
+    const bool sharp = mac::rebindImport(img, "_CGContextDrawImage", (void*)&drawImage);
+    if (g_trace) fprintf(stderr, "FM8.plus: installed, arp redirect %d, control hook %d, sharp scaling %d\n", g_arpHooked, ctl, sharp);
     g_installed = true;
     return true;
 }
@@ -411,7 +501,10 @@ void flushExternal(InstanceState& st) {
 bool midiFeaturesAvailable() { return g_installed && g_arpHooked; }
 
 // Arms this thread's breakpoint; a thread that cannot be armed simply sends no arp MIDI out.
-void armAudioThread() { if (g_arpHooked) mac::armThread(); }
+void beginBlock(InstanceState& st) {
+    if (g_arpHooked) mac::armThread();
+    if (st.pendingFlush.exchange(false, std::memory_order_relaxed)) flushExternal(st);
+}
 
 bool aboutReady(const InstanceState& st) { return g_installed && st.appObj.load() != nullptr; }
 
@@ -459,7 +552,7 @@ bool logoWidened() { return g_logoWidened; }
 void setGuiScale(float s) {
     if (!(s >= 1.0f)) s = 1.0f;
     if (s > 4.0f) s = 4.0f;
-    g_guiScale.store((float)lroundf(s));
+    g_guiScale.store(lroundf(s * 4) / 4.0f);   // the menu's quarter steps
 }
 float guiScale() { return g_guiScale.load(); }
 

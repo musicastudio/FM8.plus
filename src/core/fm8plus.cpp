@@ -3,9 +3,12 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <algorithm>
 #include <cmath>
+#include <vector>
 #include "MinHook.h"
 #include "rsrc.h"
+#include "sharp.h"
 
 namespace fm8plus {
 namespace Core {
@@ -215,14 +218,57 @@ float detourDpiScale(void* hwnd) { return scaleFor((HWND)hwnd); }
 float detourSurfScale(void*) { return 1.0f; }
 
 // That StretchDIBits is preceded by FM8's only SetStretchBltMode call, which asks for HALFTONE:
-// GDI then interpolates, and FM8's artwork comes out soft and smeared when it is enlarged. The scale
-// steps are whole numbers, so COLORONCOLOR replicates each pixel exactly and the GUI stays crisp.
-// Swapping the mode in FM8's own GDI32 import is enough; the one call site is that blit.
+// GDI then interpolates, and FM8's artwork comes out soft and smeared when it is enlarged. On a
+// whole step COLORONCOLOR replicates each pixel exactly and the GUI stays crisp. A fractional step
+// never reaches GDI's stretch at all (blitSharp). Swapping the mode in FM8's own GDI32 import is
+// enough; the one call site is that blit.
 using SetStretchBltModeFn = int (WINAPI*)(HDC, int);
 SetStretchBltModeFn o_setStretchMode = nullptr;
 int WINAPI detourSetStretchBltMode(HDC dc, int mode) {
-    if (mode == HALFTONE) mode = COLORONCOLOR;
+    if (mode == HALFTONE && wholeScale(g_guiScale.load(std::memory_order_relaxed))) mode = COLORONCOLOR;
     return o_setStretchMode(dc, mode);
+}
+
+// A fractional step, drawn with sharp bilinear (sharp.h) instead of GDI's stretch. Fills physical
+// rect `r` of the window and blits it 1:1. `ox,oy` is the logical offset of the window from the
+// DIB (0 for FM8's whole-window surface). Handles the 32-bit DIBs FM8 draws into; false otherwise.
+bool blitSharp(HDC hdc, RECT r, int ox, int oy, const void* bits, const BITMAPINFO* bmi, float s) {
+    const BITMAPINFOHEADER& bh = bmi->bmiHeader;
+    if (!bits || bh.biBitCount != 32 || (bh.biCompression != BI_RGB && bh.biCompression != BI_BITFIELDS)) return false;
+    const int W = bh.biWidth, H = std::abs(bh.biHeight);
+    r.left = std::max(r.left, (LONG)lroundf(ox * s)); r.top = std::max(r.top, (LONG)lroundf(oy * s));
+    r.right = std::min(r.right, (LONG)lroundf((ox + W) * s)); r.bottom = std::min(r.bottom, (LONG)lroundf((oy + H) * s));
+    const int w = r.right - r.left, h = r.bottom - r.top;
+    if (w <= 0 || h <= 0) return true;
+    static thread_local std::vector<uint32_t> out;
+    out.resize((size_t)w * h);
+    const ptrdiff_t stride = (ptrdiff_t)W * 4;
+    const auto* top = (const uint8_t*)bits + (bh.biHeight < 0 ? 0 : (H - 1) * stride);
+    scaleSharp(top, W, H, bh.biHeight < 0 ? stride : -stride, s, ox, oy, r.left, r.top, w, h, out.data());
+    BITMAPINFO ob{};
+    ob.bmiHeader = {sizeof(BITMAPINFOHEADER), w, -h, 1, 32, BI_RGB};
+    SetDIBitsToDevice(hdc, r.left, r.top, w, h, 0, 0, 0, h, out.data(), &ob, DIB_RGB_COLORS);
+    return true;
+}
+
+// 1.4.6's own blit, in FM8's GDI32 import. Its surface is the whole window, so source and dest share
+// logical coordinates. 1.4.6 rounds each dirty rect's dest on its own, a pixel off at times, so the
+// rect drawn covers both where FM8 asked to draw and where the rect belongs (GDI counts the source
+// y up from the bottom of the bitmap, top-down DIB or not). Only a fractional step's blits at the
+// GUI Scale ratio are touched; a stretch at another ratio is not ours.
+using StretchDIBitsFn = int (WINAPI*)(HDC, int, int, int, int, int, int, int, int, const void*, const BITMAPINFO*, UINT, DWORD);
+StretchDIBitsFn o_stretchDIBits = nullptr;
+int WINAPI detourStretchDIBits(HDC hdc, int xD, int yD, int wD, int hD, int xS, int yS, int wS, int hS,
+                               const void* bits, const BITMAPINFO* bmi, UINT usage, DWORD rop) {
+    const float s = g_guiScale.load(std::memory_order_relaxed);
+    if (!wholeScale(s) && bmi && usage == DIB_RGB_COLORS && rop == SRCCOPY && wS > 0 && hS > 0
+        && std::fabs((float)wD / wS - s) < 0.1f) {
+        const int top = std::abs(bmi->bmiHeader.biHeight) - (yS + hS);
+        const RECT r{std::min(xD, (int)floorf(xS * s)), std::min(yD, (int)floorf(top * s)),
+                     std::max(xD + wD, (int)ceilf((xS + wS) * s)), std::max(yD + hD, (int)ceilf((top + hS) * s))};
+        if (blitSharp(hdc, r, 0, 0, bits, bmi, s)) return hS;
+    }
+    return o_stretchDIBits(hdc, xD, yD, wD, hD, xS, yS, wS, hS, bits, bmi, usage, rop);
 }
 
 // ---- GUI scale on 1.4.1 ----------------------------------------------------
@@ -383,17 +429,21 @@ BOOL WINAPI detourClientToScreen(HWND h, LPPOINT pt) {
 
 // The blit. FM8 hands over a logical dest rect and a source rect into its top-down DIB; stretching
 // the dest while leaving the source alone is exactly what 1.4.6 does once its surface scale is 1.
-// COLORONCOLOR, not the HALFTONE 1.4.6 asks for: the steps are whole numbers, so replicating
-// pixels keeps the artwork crisp where interpolation would smear it.
+// As 1.4.6 (detourSetStretchBltMode, blitSharp): replicated pixels on a whole step, sharp bilinear
+// on a fractional one. Both edges are scaled, not origin and width, so partial blits butt up
+// without gaps.
 int WINAPI detourSetDIBitsToDevice(HDC hdc, int xD, int yD, DWORD w, DWORD h, int xS, int yS,
                                    UINT startScan, UINT cLines, const void* bits,
                                    const BITMAPINFO* bmi, UINT usage) {
     const float s = scaleForWindow(WindowFromDC(hdc));
     if (s == 1.0f)
         return o_setDIBits(hdc, xD, yD, w, h, xS, yS, startScan, cLines, bits, bmi, usage);
+    const int x0 = up(xD, s), y0 = up(yD, s), x1 = up(xD + (int)w, s), y1 = up(yD + (int)h, s);
+    const int top = std::abs(bmi->bmiHeader.biHeight) - (yS + (int)h);   // SetDIBitsToDevice's y is from the bottom too
+    if (!wholeScale(s) && usage == DIB_RGB_COLORS && blitSharp(hdc, RECT{x0, y0, x1, y1}, xD - xS, yD - top, bits, bmi, s))
+        return (int)h;
     SetStretchBltMode(hdc, COLORONCOLOR);
-    return StretchDIBits(hdc, up(xD, s), up(yD, s), up((int)w, s), up((int)h, s),
-                         xS, yS, (int)w, (int)h, bits, bmi, usage, SRCCOPY);
+    return StretchDIBits(hdc, x0, y0, x1 - x0, y1 - y0, xS, yS, (int)w, (int)h, bits, bmi, usage, SRCCOPY);
 }
 
 // FM8's dialogs (Audio and MIDI Settings, Options) are Win32 dialogs from an in-memory template,
@@ -458,6 +508,8 @@ void installGuiScale() {
                && mk(kUiaSurfScale, (void*)&detourSurfScale,  (void**)&o_surfScale);
     o_setStretchMode = (SetStretchBltModeFn)Rsrc::patchImport(
         (HMODULE)g_base, "GDI32.dll", "SetStretchBltMode", (void*)&detourSetStretchBltMode);
+    o_stretchDIBits = (StretchDIBitsFn)Rsrc::patchImport(
+        (HMODULE)g_base, "GDI32.dll", "StretchDIBits", (void*)&detourStretchDIBits);
 }
 } // namespace
 
@@ -467,7 +519,7 @@ void expectEditorWindow() { tl_expectEditor = true; }
 void setGuiScale(float s) {
     if (!(s >= 1.0f)) s = 1.0f;          // also catches NaN
     if (s > 4.0f) s = 4.0f;
-    s = (float)lroundf(s);               // whole numbers only: a fractional scale cannot blit pixel-exact
+    s = lroundf(s * 4) / 4.0f;           // the menu's quarter steps, whatever the INI was edited to
     g_guiScale.store(g_guiHooked ? s : 1.0f, std::memory_order_relaxed);
 }
 float guiScale() { return g_guiScale.load(std::memory_order_relaxed); }
@@ -502,6 +554,15 @@ bool install(void* base, Host host) {
     Bin which;
     if (!base || !resolveBin(host, moduleStamp(base), which)) return false;  // unmapped FM8 -> stay stock
     g_base = base; g_bin = which;
+
+    // From here FM8 is patched to call into this module (detours, import table entries), and FM8
+    // itself is never unloaded, so neither may this be. Unpinned, a host that unloads FM8.plus while
+    // keeping its process (Ableton Live does, after a rescan or once the last instance is deleted)
+    // left FM8 jumping into freed memory, and the next load crashed: Live reported the plug-in as
+    // "not compatible" until it was restarted.
+    HMODULE self;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                       (LPCWSTR)&install, &self);
 
     if (MH_Initialize() != MH_OK && MH_Initialize() != MH_ERROR_ALREADY_INITIALIZED)
         return false;

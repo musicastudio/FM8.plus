@@ -2,14 +2,15 @@
 // probe supplies how to open and close its editor and what size the plug-in last asked the host
 // for, and this drives FM8.plus's own "+" menu the way a user would.
 //
-//     <probe> ... --scale <out-dir> <expected start scale> <sequence, e.g. 1,2,3,4,1,3,2,1,2>
+//     <probe> ... --scale <out-dir> <expected start scale> <sequence, e.g. 1,2,3,4,1,3,2,1,2,1.5,1.25>
 //
 // Checks, printing one PASS/FAIL line each:
 //   start     the editor opens at the scale saved in the INI
 //   toggle    each step picked from the GUI Scale submenu: FM8's view covers logical x scale in the
 //             window with its bounds still logical (whichever view carries the scaling), the host
 //             asked for the same, and the screenshot matches the 1x one pixel for pixel (sampled at
-//             each logical pixel's centre)
+//             each logical pixel's centre; a fractional step against the 1x one scaled by the same
+//             sharp bilinear, every physical pixel)
 //   click     a click at the physical position of Navigator > Attributes lands on it
 //   reopen    the editor closed and reopened keeps the scale
 //   about     "About FM8" at the current scale opens FM8's panel
@@ -22,6 +23,8 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "../../src/core/fm8plus.h"   // kGuiScales, the menu's steps
+#include "../../src/core/sharp.h"     // the fractional steps' scaler, to compare against
 
 namespace scaletest {
 
@@ -78,6 +81,22 @@ inline Image grab(NSWindow* w, const std::string& path) {
 // to a logical clip (the part of the window on screen) when one is given.
 inline double mismatch(const Image& ref, const Image& big, double s, int clipW = 1 << 30, int clipH = 1 << 30) {
     if (!ref.w || !big.w) return 1.0;
+    if (!fm8plus::wholeScale((float)s)) {
+        // A fractional step is sharp bilinear, whose seam pixels mix two logical ones, so sampling
+        // centres cannot work: scale the 1x reference the same way and compare every physical pixel.
+        const int w = std::min({big.w, (int)std::lround(ref.w * s), (int)(clipW * s)});
+        const int h = std::min({big.h, (int)std::lround(ref.h * s), (int)(clipH * s)});
+        std::vector<uint32_t> want((size_t)w * h);
+        fm8plus::scaleSharp(ref.px.data(), ref.w, ref.h, (ptrdiff_t)ref.w * 4, (float)s, 0, 0, 0, 0, w, h, want.data());
+        long bad = 0;
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                const auto* a = (const uint8_t*)&want[(size_t)y * w + x];
+                const uint8_t* b = &big.px[((size_t)y * big.w + x) * 4];
+                if (std::abs(a[0] - b[0]) + std::abs(a[1] - b[1]) + std::abs(a[2] - b[2]) > 48) ++bad;
+            }
+        return w && h ? (double)bad / ((double)w * h) : 1.0;
+    }
     const int w = std::min({ref.w, (int)(big.w / s), clipW}), h = std::min({ref.h, (int)(big.h / s), clipH});
     long bad = 0;
     for (int y = 0; y < h; ++y)
@@ -154,6 +173,7 @@ inline NSSize onScreen(Host& h, double s) {
 }
 
 inline bool near(double a, double b) { return std::fabs(a - b) <= 1.0; }
+inline std::string str(double s) { char b[16]; snprintf(b, sizeof b, "%g", s); return b; }
 
 // Size checks at scale s, then a screenshot compared against the 1x reference.
 inline void check(Host& h, const std::string& dir, const std::string& tag, double s, NSSize base, Image& ref1x) {
@@ -164,7 +184,7 @@ inline void check(Host& h, const std::string& dir, const std::string& tag, doubl
     char msg[400];
     const bool sizes = near(f.width, base.width * s) && near(f.height, base.height * s) && near(b.width, base.width) &&
                        near(b.height, base.height) && near(a.width, base.width * s) && near(a.height, base.height * s);
-    snprintf(msg, sizeof msg, "%s %.0fx: view in window %.0fx%.0f bounds %.0fx%.0f, asked host %.0fx%.0f, window %.0fx%.0f%s",
+    snprintf(msg, sizeof msg, "%s %gx: view in window %.0fx%.0f bounds %.0fx%.0f, asked host %.0fx%.0f, window %.0fx%.0f%s",
              tag.c_str(), s, f.width, f.height, b.width, b.height, a.width, a.height, c.width, c.height,
              (c.height > screen.size.height || c.width > screen.size.width) ? " (bigger than the screen)" : "");
     verdict(sizes, msg);
@@ -172,7 +192,7 @@ inline void check(Host& h, const std::string& dir, const std::string& tag, doubl
     if (s == 1.0 && !ref1x.w) { ref1x = img; return; }
     if (ref1x.w) {
         const double mm = mismatch(ref1x, img, s);
-        snprintf(msg, sizeof msg, "%s %.0fx: pixels vs 1x differ on %.2f%% of logical pixels (%dx%d image)", tag.c_str(), s,
+        snprintf(msg, sizeof msg, "%s %gx: pixels vs 1x differ on %.2f%% of logical pixels (%dx%d image)", tag.c_str(), s,
                  mm * 100, img.w, img.h);
         verdict(mm < 0.01, msg);
     }
@@ -192,13 +212,13 @@ inline int run(Host& h, const std::string& dir, double start, const std::string&
     // A 1x reference is needed for the pixel comparisons; take it now if we did not start there.
     auto clickTest = [&](double sc) {
         click(h, kAttrX, kAttrY, sc);
-        Image img = grab(h.win, dir + "/click_" + std::to_string((int)sc) + "x.png");
+        Image img = grab(h.win, dir + "/click_" + str(sc) + "x.png");
         if (sc == 1.0) attr1x = img;
         else if (attr1x.w) {
             const NSSize vis = onScreen(h, sc);
             const double mm = mismatch(attr1x, img, sc, (int)vis.width, (int)vis.height);
             char msg[200];
-            snprintf(msg, sizeof msg, "click %.0fx: Attributes clicked at its physical position (page differs from 1x on %.2f%%"
+            snprintf(msg, sizeof msg, "click %gx: Attributes clicked at its physical position (page differs from 1x on %.2f%%"
                      " of the %.0fx%.0f logical px on screen)", sc, mm * 100, vis.width, vis.height);
             verdict(mm < 0.01, msg);
         }
@@ -212,12 +232,14 @@ inline int run(Host& h, const std::string& dir, double start, const std::string&
         const std::string tok = seq.substr(i, j == std::string::npos ? std::string::npos : j - i);
         i = (j == std::string::npos) ? seq.size() + 1 : j + 1;
         if (tok.empty()) continue;
-        const int k = atoi(tok.c_str());
+        const double k = atof(tok.c_str());
+        int idx = -1;
+        for (int n = 0; n < fm8plus::kGuiScaleCount; ++n) if (fm8plus::kGuiScales[n] == (float)k) idx = n;
         std::string grey;
-        const bool picked = pick(h, s, k - 1, false, &grey);
+        const bool picked = pick(h, s, idx, false, &grey);
         if (!grey.empty()) printf("      greyed in GUI Scale: %s\n", grey.c_str());
         char msg[120];
-        snprintf(msg, sizeof msg, "toggle %d: picked %dx from the GUI Scale menu at %.0fx", step, k, s);
+        snprintf(msg, sizeof msg, "toggle %d: picked %gx from the GUI Scale menu at %gx", step, k, s);
         verdict(picked, msg);
         if (!picked) continue;
         s = k;
@@ -251,7 +273,7 @@ inline int run(Host& h, const std::string& dir, double start, const std::string&
     });
     const bool aboutPicked = pick(h, s, -1, true);
     pump(3);
-    verdict(aboutPicked && about != "no new window", "about at " + std::to_string((int)s) + "x: " + about);
+    verdict(aboutPicked && about != "no new window", "about at " + str(s) + "x: " + about);
 
     h.close();
     printf("RESULT: %s (%d failed)\n", g_fail ? "GUI Scale test FAILED" : "GUI Scale test passed", g_fail);

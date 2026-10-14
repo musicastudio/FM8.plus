@@ -261,7 +261,7 @@ S::tresult PLUGIN_API process(void* self, V::ProcessData& data) {
         data.processContext->projectTimeMusic *= tf;
     }
     st.clearBlock();
-    Core::armAudioThread();
+    Core::beginBlock(st);
     Core::current = &st;
     const S::tresult rv = orig<S::tresult (*)(void*, V::ProcessData&)>(i->procVt, kProcess)(self, data);
     Core::current = nullptr;
@@ -289,9 +289,7 @@ void scaleEditor(Inst* i) {
     if (!i->parent || i->base.right <= i->base.left) return;
     const CGFloat s = Core::guiScale();
     const CGFloat w = i->base.right - i->base.left, h = i->base.bottom - i->base.top;
-    [i->parent setFrameSize:NSMakeSize(w * s, h * s)];
-    [i->parent setBoundsSize:NSMakeSize(w, h)];
-    for (NSView* v in i->parent.subviews) [v setNeedsDisplay:YES];
+    macui::scaleWrapper((__bridge void*)i->parent, w, h, s);
 }
 
 S::tresult PLUGIN_API viewGetSize(void* self, S::ViewRect* r) {
@@ -385,7 +383,7 @@ void applyScale(void* ctx, float) {
 void onLogo(InstanceState* st) {
     Inst* i = bySt(st);
     macui::ScaleHost sh;
-    if (i && i->parent) { sh.apply = &applyScale; sh.ctx = i; }
+    if (i && i->parent) { sh.apply = &applyScale; sh.ctx = i; sh.view = (__bridge void*)i->parent; }
     macui::showMenu(st, sh);
 }
 

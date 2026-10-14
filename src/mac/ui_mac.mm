@@ -24,8 +24,6 @@ enum {
     ID_SCALE_0 = 5000,
     ID_ABOUT_FM8 = 6000, ID_ABOUT_PLUS,
 };
-constexpr float kScales[] = {1.0f, 2.0f, 3.0f, 4.0f};
-NSString* const kScaleLabels[] = {@"1x (off)", @"2x", @"3x", @"4x"};
 NSString* const kProjectUrl = @"https://github.com/musicastudio/FM8.plus";
 
 const char* ccName(int cc) {
@@ -60,6 +58,21 @@ NSMenu* submenu(NSMenu* parent, NSString* title, bool enabled) {
     return sub;
 }
 } // namespace
+
+void scaleWrapper(void* wrapper, double w, double h, double s) {
+    NSView* p = (__bridge NSView*)wrapper;
+    if (!p || w <= 0 || h <= 0) return;
+    const NSSize frame = NSMakeSize(std::ceil(w * s - 1e-6), std::ceil(h * s - 1e-6));
+    [p setFrameSize:frame];
+    [p setBoundsSize:NSMakeSize(frame.width / s, frame.height / s)];   // one scale both ways
+    // FM8's view fills the wrapper (after the resize, which autoresizes the AU's view with it): at its
+    // own 562 rows it would be 702.5 pixels tall, and Core Animation squeezes its 703-pixel backing
+    // into that, softening every row towards the bottom. FM8 draws its 562 rows from the top.
+    for (NSView* v in p.subviews) {
+        [v setFrame:p.bounds];
+        [v setNeedsDisplay:YES];
+    }
+}
 
 void showMenu(InstanceState* st, const ScaleHost& scale) {
     @autoreleasepool {
@@ -98,9 +111,20 @@ void showMenu(InstanceState* st, const ScaleHost& scale) {
         for (int n = 1; n <= 10; ++n) add(gain, [NSString stringWithFormat:@"+%d dB", n], ID_GAIN_OFF + n, db == n, true, t);
 
         if (scale.apply) {
+            // A step whose window would not fit the screen is greyed, as on Windows: the window would
+            // run off the bottom of it, out of reach.
+            NSView* v = (__bridge NSView*)scale.view;
+            NSWindow* w = v.window;
+            const NSRect vis = (w.screen ?: NSScreen.mainScreen).visibleFrame;
+            const float gs = Core::guiScale();
             NSMenu* sc = submenu(m, @"GUI Scale", true);
-            for (int i = 0; i < 4; ++i)
-                add(sc, kScaleLabels[i], ID_SCALE_0 + i, std::fabs(Core::guiScale() - kScales[i]) < 0.01f, true, t);
+            for (int i = 0; i < kGuiScaleCount; ++i) {
+                const CGFloat k = kGuiScales[i] / gs - 1;   // growth of the editor, applied to its window
+                const bool fits = !w || (w.frame.size.width + v.frame.size.width * k <= vis.size.width
+                                         && w.frame.size.height + v.frame.size.height * k <= vis.size.height);
+                add(sc, [NSString stringWithFormat:(i ? @"%gx" : @"%gx (off)"), kGuiScales[i]], ID_SCALE_0 + i,
+                    std::fabs(gs - kGuiScales[i]) < 0.01f, fits, t);
+            }
         }
 
         [m addItem:[NSMenuItem separatorItem]];
@@ -120,8 +144,8 @@ void showMenu(InstanceState* st, const ScaleHost& scale) {
         }
         else if (cmd >= ID_TEMPO_OFF && cmd <= ID_TEMPO_OFF + 5) st->tempoMode.store((uint8_t)(cmd - ID_TEMPO_OFF));
         else if (cmd >= ID_GAIN_OFF && cmd <= ID_GAIN_OFF + 10) st->gainDb.store((int8_t)(cmd - ID_GAIN_OFF));
-        else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + 4) {
-            Core::setGuiScale(kScales[cmd - ID_SCALE_0]);
+        else if (cmd >= ID_SCALE_0 && cmd < ID_SCALE_0 + kGuiScaleCount) {
+            Core::setGuiScale(kGuiScales[cmd - ID_SCALE_0]);
             settings::setGuiScale(Core::guiScale());
             scale.apply(scale.ctx, Core::guiScale());
         }

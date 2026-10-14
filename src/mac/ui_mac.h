@@ -11,10 +11,17 @@ namespace macui {
 struct ScaleHost {
     void (*apply)(void* ctx, float scale) = nullptr;   // null: the GUI Scale submenu is hidden
     void* ctx = nullptr;
+    void* view = nullptr;   // the scaled NSView holding FM8's editor, to tell which steps fit the screen
 };
 
 // Pop the menu at the mouse and act on the choice. UI thread, from inside FM8's click handling.
 void showMenu(InstanceState* st, const ScaleHost& scale);
+
+// Size the wrapper view (an NSView*) holding FM8's editor of `w` x `h` logical points for GUI Scale
+// `s`: frame scaled and bounds logical, so Cocoa scales drawing and mouse together, with the frame
+// rounded up to whole pixels and FM8's view filling it. A frame of 702.5 (562 rows at 1.25x) made
+// Core Animation resample the layer and blur every horizontal edge.
+void scaleWrapper(void* wrapper, double w, double h, double s);
 
 } // namespace macui
 } // namespace fm8plus

@@ -23,7 +23,7 @@ Features added to Native Instruments FM8 (build 2022-12-23) across the standalon
    and send the arp notes to the plugin MIDI output), MIDI only (send only, FM8 silent).
 3. Tempo Override: scale the host tempo the arp follows (0.25x to 4x, or Custom).
 4. Increase Gain: extra output gain, up to +10 dB.
-5. GUI Scale: 1x to 4x on the whole FM8 GUI, in the standalone and both plug-in formats.
+5. GUI Scale: 1x to 4x, in quarter steps up to 2x, on the whole FM8 GUI, in the standalone and both plug-in formats.
 
 The binaries never receive another update, so every internal function sits at a fixed RVA
 forever. That is what makes an in-process hook layer, rather than a rebuild, the right tool.
@@ -151,10 +151,14 @@ then sizes its own window, hit-tests the mouse and repaints correctly with no fu
 "FM8+" wordmark included, since that is one of its own controls. What is left for FM8.plus is the
 part FM8 cannot know about: a hosted editor has to tell the host its new size, over
 `effEditGetRect` / `IPlugView::getSize` when it opens and `audioMasterSizeWindow` /
-`IPlugFrame::resizeView` when the scale changes while it is open. The standalone resizes FM8's own
-top-level window itself. The steps are whole numbers because FM8's blit is the only thing enlarging
-the artwork: its one `SetStretchBltMode` asks for `HALFTONE`, which interpolates and softens
-everything, so FM8.plus swaps that import for `COLORONCOLOR` and each pixel is replicated exactly.
+`IPlugFrame::resizeView` when the scale changes while it is open, and a VST3 host's `onSize` has to
+be divided back to the logical size before FM8 sees it (passed through, FM8 took the scaled size for
+its own and "corrected" the window back to 1x on the next page change). The standalone resizes FM8's
+own top-level window itself. FM8's blit is the only thing enlarging the artwork: its one
+`SetStretchBltMode` asks for `HALFTONE`, which interpolates and softens everything, so on a whole
+step FM8.plus swaps that import for `COLORONCOLOR` and each pixel is replicated exactly, and on a
+fractional step (1.25x, 1.5x, 1.75x) it draws the blit itself with sharp bilinear (`src/core/sharp.h`,
+docs/hooks.md "GUI scale").
 
 The detours are process-wide, so each plug-in shim registers the editor window the host gave it and
 the scale getter answers 1.0 outside that window tree. A plain FM8 instance sharing the module in the

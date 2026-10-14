@@ -6,7 +6,7 @@ cd "$(dirname "$0")/../.."
 OUT=${1:-build-mac}
 mkdir -p "$OUT"
 MIN=-mmacosx-version-min=10.14
-VER=${FM8PLUS_VERSION:-1.0.8}   # CI passes the release tag
+VER=${FM8PLUS_VERSION:-1.0.9}   # CI passes the release tag
 # The AU version is packed as 0xMMmmpp.
 AUVER=$(echo "$VER" | awk -F. '{ print $1 * 65536 + $2 * 256 + $3 }')
 CXX="clang++ -std=c++17 -O2 -fobjc-arc -fvisibility=hidden -Wall -Wno-unused-function $MIN"

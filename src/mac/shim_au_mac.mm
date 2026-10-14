@@ -127,7 +127,7 @@ OSStatus auRender(void* self, AudioUnitRenderActionFlags* flags, const AudioTime
     auto* i = (Inst*)self;
     if (bus != 0) return i->render(i->inner, flags, ts, bus, frames, io);
     i->st.clearBlock();
-    Core::armAudioThread();
+    Core::beginBlock(i->st);
     Core::current = &i->st;
     const OSStatus e = i->render(i->inner, flags, ts, bus, frames, io);
     Core::current = nullptr;
@@ -309,18 +309,13 @@ namespace {
 // frame == bounds. Scaling FM8's view itself made it repaint partial updates into its unscaled frame.
 void scaleEditor(Inst* i) {
     if (!i->container || !i->editor || i->base.width <= 0) return;
-    const CGFloat s = Core::guiScale();
-    [i->container setFrameSize:NSMakeSize(i->base.width * s, i->base.height * s)];
-    [i->container setBoundsSize:i->base];
-    [i->editor setFrameOrigin:NSZeroPoint];
-    [i->editor setFrameSize:i->base];
-    [i->editor setNeedsDisplay:YES];
+    macui::scaleWrapper((__bridge void*)i->container, i->base.width, i->base.height, Core::guiScale());
 }
 void applyScale(void* ctx, float) { scaleEditor((Inst*)ctx); }
 void onLogo(InstanceState* st) {
     Inst* i = bySt(st);
     macui::ScaleHost sh;
-    if (i && i->container) { sh.apply = &applyScale; sh.ctx = i; }
+    if (i && i->container) { sh.apply = &applyScale; sh.ctx = i; sh.view = (__bridge void*)i->container; }
     macui::showMenu(st, sh);
 }
 } // namespace

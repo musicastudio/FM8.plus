@@ -8,6 +8,16 @@ What is verified, and what still needs a real DAW. Honest accounting, no overcla
 adversarially verified, and cross-ported. Each hooked function resolves at its recorded address with
 a byte-identical size across exe / vst2 / vst3 (see `tools/q.py` and the check in the build history).
 
+**User reports after v1.0.8** (2026-10-13), each reproduced before it was fixed:
+
+| Report | Cause | Check |
+|--------|-------|-------|
+| Mac VST3 at 100% CPU (REAPER, M4) | the arp breakpoint sat on a function FM8 calls once per sample, so every sample was a kernel trap and a signal | `vst3probe --bench`, Intel VM: 65% of a core before, 0.3% after (stock FM8 0.2 to 0.3%); arp events and their sample offsets identical in Clone and MIDI only; `tools/mac/featuretest.sh` (arp out, morph, AU state, auval, the menu) passes in VST2, VST3 and AU; the arm64 breakpoint is exercised in CI |
+| Windows VST3 at 2x snaps back to 1x on a Navigator click (REAPER) | the host's `onSize` reached FM8 in physical pixels; FM8 took it for its logical size and "corrected" it with a 1x `resizeView` | `vsteditor.py vst3` now calls `onSize` as REAPER does: Navigator clicks and scale toggles keep window and editor at size |
+| "Not compatible" in Live 10 until a restart (VST2, 1.4.1 x64) | Live unloads plug-ins it is not using; FM8.dll stays loaded, still patched to call into the freed FM8.plus.dll, and the next load crashed | `vst2probe --reload` (load, play, editor, close, `FreeLibrary`, three rounds): v1.0.8 crashes in round 2 on 1.4.1 x64, 1.4.1 x86 and 1.4.6; FM8.plus now pins itself and survives all three, as stock FM8 does |
+| Fractional GUI Scale (Logic, a MacBook too small for 2x) | new 1.25x, 1.5x and 1.75x steps, drawn with sharp bilinear; steps that do not fit the screen greyed on the Mac too | Windows: `vsteditor.py --scale-to`, window and editor sizes, and on-screen pixels identical to a full repaint after every click, VST2 1.4.1 and 1.4.6, VST3 and the standalone; matches the reference scaler within 1 level. Mac VM: `--scale` from 1x and from 2x through 1.25x and 1.5x on VST2, VST3 and AU, every fractional screenshot equal to `scaleSharp` of the 1x one, clicks land, 1.75x and up greyed on 1920x1080 |
+| Patch selection in Logic: a click selects without loading, a double click loads, Compare lights up | not FM8.plus: FM8's own browser loads on a double click, and a single click greys a row while the loaded one stays orange, which reads as two selections | `vst3probe --clicks` on stock FM8.vst3 and FM8.plus.vst3, the same clicks: identical, step for step |
+
 **VST2, end to end against the installed FM8** (the FM8.plus wrapper loading stock FM8.dll from its own
 folder, headless host `tools/vst2host.py plus`):
 

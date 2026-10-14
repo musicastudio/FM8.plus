@@ -15,9 +15,9 @@
 #ifndef BuildDir
   #define BuildDir "..\build\Release"
 #endif
-; The release version. CI passes the tag (/DAppVer=1.0.8); a local build takes this default.
+; The release version. CI passes the tag (/DAppVer=1.0.9); a local build takes this default.
 #ifndef AppVer
-  #define AppVer "1.0.8"
+  #define AppVer "1.0.9"
 #endif
 ; The 32-bit VST2 wrapper, for FM8 1.4.1's x86 plug-in (the last 32-bit build NI shipped).
 #ifndef BuildDir32

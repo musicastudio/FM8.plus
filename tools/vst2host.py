@@ -86,6 +86,7 @@ class Host:
                                 flags=(1 << 1) | (1 << 9) | (1 << 10) | (1 << 13))
         self.received = []  # (block, deltaFrames, bytes)
         self.block = 0
+        self.on_size = None   # set to f(width, height) to honour audioMasterSizeWindow
         self.cb = DISPATCHER(self._callback)
         self.lib = C.CDLL(dll)
         main = self.lib.VSTPluginMain
@@ -122,6 +123,9 @@ class Host:
             return 1
         if opcode in (amGetVendorString, amGetProductString):
             C.memmove(ptr, b"FM8.plus host\0", 14)
+            return 1
+        if opcode == 15 and self.on_size:   # audioMasterSizeWindow: index = width, value = height
+            self.on_size(index, value)
             return 1
         if opcode == amGetVendorVersion:
             return 1
