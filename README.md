@@ -139,6 +139,10 @@ All five features are verified end to end against the real FM8 with the headless
 
 On macOS the VST2, VST3 and Audio Unit are verified against the real FM8 on an Intel Mac with the headless hosts in `tools/mac`: arp MIDI out in all three modes, morph, the wordmark menu and GUI Scale, including in a host built with the hardened runtime, and the Audio Unit passes Apple's `auval`. The hardware-breakpoint redirect behind the arp is tested on Apple Silicon in CI on every push, natively, under the hardened runtime, and under Rosetta. FM8 itself on an Apple Silicon Mac, in a real DAW, is the check still to come.
 
+## AI use disclosure
+
+FM8.plus was built using [Claude Code](https://claude.com/claude-code) with Claude Fable 5.1, Claude Opus 4.8, Claude Opus 5 and Claude Opus 5.5.
+
 ## Licence
 
 FM8.plus is released under the GNU General Public License v3.0; see [LICENSE](LICENSE). The DXi builds on Microsoft's DirectShow BaseClasses, vendored in `third_party/strmbase` under the MIT licence. Its Cakewalk MFX declarations in `src/dxi/mfx.h` are our own, written from the published interface layout; no Cakewalk SDK file is included.
